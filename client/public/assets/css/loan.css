@@ -1,0 +1,161 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #fff;
+    font-family: sans-serif;
+}
+
+header {
+    width: 100%;
+    margin-top: 7%;
+    background-color: #fff;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding-top: 10px;
+    padding-bottom: 5px;
+    margin-bottom: -12rem;
+    margin-left: 22%;
+    justify-content: space-between;
+    z-index: 10;
+    position: fixed;
+}
+
+.text-u {
+    margin-top: -1%;
+    font-size: 1rem;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: 600;
+}
+
+h1 {
+    width: 100%;
+    font-size: 2rem;
+    margin-top: 17%;
+    margin-bottom: -15%;
+    margin-left: 31%;
+    text-align: center;
+    background: gray;
+    color: white;
+    padding: 20px 5px 15px 5px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: 700;
+}
+
+h2 {
+    font-size: 1.2rem;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: 600;
+    text-align: center;
+}
+
+h3 {
+    font-size: 1.2rem;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: 400;
+    text-align: center;
+}
+
+p {
+    font-size: 1.2rem;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    font-weight: 700;
+    text-align: center;
+}
+
+
+section {
+    margin-top: 15%;
+    margin-right: 25%;
+}
+
+.container {
+    width: 100%;
+    margin-top: 20%;
+    margin-bottom: -15%;
+    margin-left: 31%;
+    border: 1px solid gray;
+    padding: 20px 20px 20px 20px;
+}
+
+.card {
+    border: none;
+    left: -4%;
+}
+
+.form-label {
+    font-size: 1rem;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: 600;
+}
+
+
+.text {
+    font-size: 1rem;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    font-weight: 500;
+}
+
+.sel {
+    font-size: 1rem;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    font-weight: 500;
+}
+.container-side {
+    width: 100%;
+    padding: 15px 15px 15px 15px;
+    border: 2px solid gray;
+}
+
+.colum {
+    margin-top: 8%;
+}
+
+.scroll {
+    border: none;
+    padding: 25px;
+    width: 200px;
+    height: 200px;
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    border: none;
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+
+.image-fluid {
+    width: 50%;
+    margin-left: 20%;
+    border: 2px solid whitesmoke;
+}
+
+.left-panel {
+    width: 20%;
+    height: 100vh;
+    margin-top: -9%;
+    margin-bottom: 1%;
+}
+
+.tex {
+    font-weight: 600;
+}
+
+.right-panel {
+    margin-top: -22%;
+    width: 100%;
+    height: 80vh;
+    scroll-behavior: auto;
+    float: right;
+}

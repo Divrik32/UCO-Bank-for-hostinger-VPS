@@ -1,0 +1,20 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+#output {
+    border: 1px solid gray;
+    margin-top: 5%;
+    margin-left: 12%;
+    width: 120px;
+    height: 150px;
+}
+
+#upload {
+    border: 1px solid gray;
+    margin-top: 5%;
+    margin-left: 12%;
+    width: 120px;
+    height: 150px;
+}

@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware = require("../middleware/authMiddleware.js");
 
 const {
   registerUser,
@@ -12,7 +12,7 @@ const {
   logoutUser,
   sendForgotOtp,
   resetPassword
-} = require("../controllers/UserController");
+} = require("../controllers/UserController.js");
 
 const router = express.Router();
 

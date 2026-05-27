@@ -1,8 +1,8 @@
-const User = require("../models/User");
-const PersonalInformation = require("../models/PersonalInformation");
+const User = require("../models/User.js");
+const PersonalInformation = require("../models/PersonalInformation.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const AdminLogin = require("../models/AdminLogin");
+const AdminLogin = require("../models/AdminLogin.js");
 const nodemailer = require("nodemailer");
 
 const otpStore = {};

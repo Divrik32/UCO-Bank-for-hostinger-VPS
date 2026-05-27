@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance } = require("../controllers/ThriftFundController");
-const { updateInterestRate, getInterestRate } = require("../controllers/interestController");
+const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance } = require("../controllers/ThriftFundController.js");
+const { updateInterestRate, getInterestRate } = require("../controllers/interestController.js");
 
 router.get("/interest-rate", getInterestRate);
 router.put("/update-interest", updateInterestRate);

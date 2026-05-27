@@ -1,4 +1,4 @@
-const LoanInterest = require("../loanModels/loanInterest");
+const LoanInterest = require("../loanModels/loanInterest.js");
 
 // 👉 GET current interest
 exports.getLoanInterest = async (req, res) => {

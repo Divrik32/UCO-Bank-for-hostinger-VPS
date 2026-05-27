@@ -12,7 +12,7 @@ const {
   saveOfficialDetails,
   getOfficialDetails,
   getMemberByMemberId
-} = require("../controllers/ShareController");
+} = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
 router.get("/share-interest", getShareInterest);

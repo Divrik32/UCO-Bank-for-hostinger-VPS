@@ -1,8 +1,8 @@
-const ShareInterest = require("../models/ShareInterest");
-const CreditShare = require("../models/CreditShare");
-const DebitShare = require("../models/DebitShare");
-const PersonalInformation = require("../models/PersonalInformation");
-const ShareOfficialDetails = require("../models/ShareOfficialDetails");
+const ShareInterest = require("../models/ShareInterest.js");
+const CreditShare = require("../models/CreditShare.js");
+const DebitShare = require("../models/DebitShare.js");
+const PersonalInformation = require("../models/PersonalInformation.js");
+const ShareOfficialDetails = require("../models/ShareOfficialDetails.js");
 
 /* ================= MEMBER-WISE SHARE BALANCE ================= */
 

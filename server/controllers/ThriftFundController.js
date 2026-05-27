@@ -1,7 +1,7 @@
-const InterestRate = require("../models/InterestRate");
-const ThriftFundEntry = require("../models/thriftFundEntry");
-const ThriftFundWithdrawal = require("../models/ThriftFundWithdrawal");
-const PersonalInformation = require("../models/PersonalInformation");
+const InterestRate = require("../models/InterestRate.js");
+const ThriftFundEntry = require("../models/ThriftFundEntry.js");
+const ThriftFundWithdrawal = require("../models/ThriftFundWithdrawal.js");
+const PersonalInformation = require("../models/PersonalInformation.js");
 
 const getCurrentBalance = async (memberId) => {
   const entries = await ThriftFundEntry.find({ memberId });

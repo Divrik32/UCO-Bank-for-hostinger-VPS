@@ -2,13 +2,13 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
-const userRoutes = require("./routes/userRoutes");
-const thriftRoutes = require("./routes/ThriftFundRoutes");
+const userRoutes = require("./routes/UserRoutes.js");
+const thriftRoutes = require("./routes/ThriftFundRoutes.js");
 const cookieParser = require("cookie-parser");
 const app = express();
 const path = require("path");
-const shareRoutes = require("./routes/shareRoutes");
-const loanRoutes = require("./routes/loanRoutes");
+const shareRoutes = require("./routes/shareRoutes.js");
+const loanRoutes = require("./routes/loanRoutes.js");
 
 // DB CONNECT
 connectDB();

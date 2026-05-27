@@ -1,8 +1,8 @@
-const PersonalInformation = require("../models/PersonalInformation");
-const officialEntryModel = require("../loanModels/officialEntryModel");
-const guaranteerMemberDetailsModel = require("../loanModels/guaranteerMemberDetailsModel");
-const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDetailsModel");
-const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel");
+const PersonalInformation = require("../models/PersonalInformation.js");
+const officialEntryModel = require("../loanModels/officialEntryModel.js");
+const guaranteerMemberDetailsModel = require("../loanModels/guaranteerMemberDetailsModel.js");
+const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDetailsModel.js");
+const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 
 exports.getMemberByMemberId = async (req, res) => {
   try {

@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   getLoanInterest,
   updateLoanInterest
-} = require("../loanControllers/loanInterestController");
+} = require("../loanControllers/loanInterestController.js");
 
 const {
   getMemberByMemberId,
@@ -19,7 +19,7 @@ const {
   getTotalTransactionDetails,
   getTotalEmiPaid,
   getAvailableBalance
-} = require("../loanControllers/loanController");
+} = require("../loanControllers/LoanController.js");
 
 // loan interest routes
 router.get("/interest-rate", getLoanInterest);

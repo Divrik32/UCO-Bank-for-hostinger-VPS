@@ -1,4 +1,4 @@
-const InterestRate = require("../models/InterestRate");
+const InterestRate = require("../models/InterestRate.js");
 
 const updateInterestRate = async (req, res) => {
   try {

@@ -506,7 +506,9 @@ const handleSubmit = async (e) => {
 
         {/* Footer */}
         <div className="uco-footer-strip">
-          <p>© 2025 UCO Bank. All rights reserved.</p>
+          <p>© 2025 <a href="https://wsdstech.com" target="_blank" rel="noreferrer">
+            WSDSTech.com
+          </a>. All rights reserved.</p>
           <Link to="/login">Already registered? Sign In</Link>
         </div>
 

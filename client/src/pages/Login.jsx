@@ -17,7 +17,7 @@ export default function Login() {
     }
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/users/login",
+        "http://88.222.245.71:5000/api/users/login",
         { email, password },
         { withCredentials: true }
       );

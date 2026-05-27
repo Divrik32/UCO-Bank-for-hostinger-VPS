@@ -65,7 +65,7 @@ const [values, setValues] = useState({
   shareRoi: "",
   loanRoi: "",
 });
-const API = "http://localhost:5000/api/thrift-fund";
+const API = "http://88.222.245.71:5000/api/thrift-fund";
 const [current, setCurrent] = useState({
   tenure: 84,
   limit: 500000,
@@ -76,8 +76,8 @@ const [current, setCurrent] = useState({
   loanRoi: 0,
 });
 
-const SHARE_API = "http://localhost:5000/api/share";
-const LOAN_API = "http://localhost:5000/api/loan";
+const SHARE_API = "http://88.222.245.71:5000/api/share";
+const LOAN_API = "http://88.222.245.71:5000/api/loan";
 const fetchInterestRate = async () => {
   try {
     // thrift roi

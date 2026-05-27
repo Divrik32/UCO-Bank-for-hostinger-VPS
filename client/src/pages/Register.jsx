@@ -35,7 +35,7 @@ const handleSubmit = async (e) => {
 
   try {
     const res = await axios.post(
-      "http://localhost:5000/api/users/register",
+      "http://88.222.245.71:5000/api/users/register",
       data
     );
     toast.success(res.data.message || "Registration successful!");

@@ -46,7 +46,7 @@ export default function UserShare() {
     shareCertificateNumber: "",              // new text field
   });
 
-  const API = "http://localhost:5000/api/share";
+  const API = "http://88.222.245.71:5000/api/share";
   const txScrollRef = useRef(null);
 
   useLayoutEffect(() => {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const API = "http://localhost:5000/api/loan";
+const API = "http://88.222.245.71:5000/api/loan";
 
 export default function LoanInterestRate() {
   const [rate, setRate] = useState("");

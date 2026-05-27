@@ -74,7 +74,7 @@ export default function MemberApprovalDetail() {
   // useEffect(() => {
   //   setLoading(true);
   //   axios
-  //     .get(`http://localhost:5000/api/member_approval/${userid}`, {
+  //     .get(`http://88.222.245.71:5000/api/member_approval/${userid}`, {
   //       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   //     })
   //     .then((res) => setMember(res.data))
@@ -86,7 +86,7 @@ export default function MemberApprovalDetail() {
   setLoading(true);
 
   axios
-    .get(`http://localhost:5000/api/users/members/${id}`)
+    .get(`http://88.222.245.71:5000/api/users/members/${id}`)
     .then((res) => {
       setMember(res.data.data); // ⚠️ important
     })
@@ -99,7 +99,7 @@ export default function MemberApprovalDetail() {
 const fixPath = (path) => path.replace(/\\/g, "/");
   const handleApprove = () => {
     axios
-      .get(`http://localhost:5000/approve_member/${member.userid}`, {
+      .get(`http://88.222.245.71:5000/approve_member/${member.userid}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then(() => { alert("Member Approved!"); navigate("/member_approval"); })
@@ -108,7 +108,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
 
   const handleDeny = () => {
     axios
-      .get(`http://localhost:5000/deny_member/${member.userid}`, {
+      .get(`http://88.222.245.71:5000/deny_member/${member.userid}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then(() => { alert("Member Denied."); navigate("/member_approval"); })
@@ -167,7 +167,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
             <div style={styles.imgRow}>
               {member.profile_image ? (
                 <img
-                  src={`http://localhost:5000/${fixPath(member.profile_image)}`}
+                  src={`http://88.222.245.71:5000/${fixPath(member.profile_image)}`}
                   alt="ID proof"
                   style={styles.docImg}
                 />
@@ -176,7 +176,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
               )}
               {member.signature_image ? (
                 <img
-                  src={`http://localhost:5000/${fixPath(member.signature_image)}`}
+                  src={`http://88.222.245.71:5000/${fixPath(member.signature_image)}`}
                   alt="Signature"
                   style={{ ...styles.docImg, height: 50 }}
                 />
@@ -215,7 +215,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
             <div style={styles.imgRow}>
               {member.doc1File ? (
                 <img
-                  src={`http://localhost:5000/${fixPath(member.doc1File)}`}
+                  src={`http://88.222.245.71:5000/${fixPath(member.doc1File)}`}
                   alt="KYC Document 1"
                   style={styles.docImg}
                 />
@@ -224,7 +224,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
               )}
               {member.doc2File ? (
                 <img
-                  src={`http://localhost:5000/${fixPath(member.doc2File)}`}
+                  src={`http://88.222.245.71:5000/${fixPath(member.doc2File)}`}
                   alt="KYC document 2"
                   style={{ ...styles.docImg, height: 50 }}
                 />

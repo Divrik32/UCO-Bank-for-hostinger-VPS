@@ -20,6 +20,11 @@ app.use(cookieParser());
 //   credentials: true
 // }));
 
+app.use(cors({
+  origin: "http://bsucbocooperative.in",
+  credentials: true
+}));
+
 app.use(cors());
 
 app.use(express.json());

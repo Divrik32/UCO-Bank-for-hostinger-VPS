@@ -91,7 +91,7 @@ const [officialForm, setOfficialForm] = useState({
     transactionId: "",
   });
 
-  const API = "http://88.222.245.71:5000/api/loan";
+  const API = "/api/loan";
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);

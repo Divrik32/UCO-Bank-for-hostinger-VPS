@@ -29,7 +29,7 @@ export default function MemberApproval() {
   const fetchMembers = async () => {
     try {
       const res = await axios.get(
-        "http://88.222.245.71:5000/api/users/approval-pending-members"
+        "/api/users/approval-pending-members"
       );
 
       setMembers(res.data.data);

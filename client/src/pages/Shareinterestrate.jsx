@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const API = "http://88.222.245.71:5000/api/share";
+const API = "/api/share";
 
 export default function ShareInterestRate() {
   const [rate, setRate] = useState("");

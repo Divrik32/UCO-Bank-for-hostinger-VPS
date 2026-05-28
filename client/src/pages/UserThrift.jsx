@@ -96,7 +96,7 @@ export default function UserThrift() {
     approvedBy: "",
   });
 
-  const API = "http://88.222.245.71:5000/api/thrift-fund";
+  const API = "/api/thrift-fund";
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);

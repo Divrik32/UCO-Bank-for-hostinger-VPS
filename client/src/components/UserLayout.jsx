@@ -39,7 +39,7 @@ export default function UserLayout() {
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const profileImage = user?.image
-    ? `http://88.222.245.71:5000/${user.image.replace(/\\/g, "/")}`
+    ? `/${user.image.replace(/\\/g, "/")}`
     : "/assets/default-user.png";
 
   const displayName = user?.firstname && user?.lastname
@@ -112,7 +112,7 @@ export default function UserLayout() {
   const isActive = (path) => location.pathname === path;
 
   const handleLogout = async () => {
-    await fetch("http://88.222.245.71:5000/api/users/logout", {
+    await fetch("/api/users/logout", {
       method: "POST",
       credentials: "include",
     });

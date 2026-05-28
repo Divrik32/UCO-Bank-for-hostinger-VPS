@@ -69,7 +69,7 @@ export default function AdminShare() {
   const [creditForm, setCreditForm] = useState({ investmentAmount: "", numberOfShares: "" });
   const [debitForm, setDebitForm] = useState({ amount: "", remainingShares: "", remainingCount: "", paymentMode: "Cheque", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
 
-  const API = "http://88.222.245.71:5000/api/share";
+  const API = "/api/share";
   const txScrollRef = useRef(null);
 
   useLayoutEffect(() => {

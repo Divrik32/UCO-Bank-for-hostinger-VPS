@@ -106,7 +106,7 @@ export default function AdminLayout() {
   const profileImage = "/assets/admin-profile-avatar.png";
 
   const handleLogout = async () => {
-    await fetch("http://88.222.245.71:5000/api/users/logout", {
+    await fetch("/api/users/logout", {
       method: "POST",
       credentials: "include",
     });

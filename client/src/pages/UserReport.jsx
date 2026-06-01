@@ -49,7 +49,7 @@ export default function UserReport() {
         <div style={styles.column}>
           <Card
             id="member"
-            href="/member"
+            href="/user/member_approval_list"
             img="/assets/img/team.png"
             title="Member Report"
             desc="This Report provides you information about members."

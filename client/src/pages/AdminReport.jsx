@@ -24,7 +24,7 @@ export default function AdminReport() {
   const cards = [
     {
       id: "member",
-      href: "/member",
+      href: "/admin/member_approval_list",
       img: "/assets/img/team.png",
       title: "Member Report",
       desc: "This Report provides you information about members.",

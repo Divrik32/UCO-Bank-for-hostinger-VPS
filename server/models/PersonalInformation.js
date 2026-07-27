@@ -118,12 +118,12 @@ const personalInformationSchema = new mongoose.Schema(
         "Pan Card",
         "Voter ID Card",
       ],
-      required: true,
+      // required: true,
     },
 
     id_proof_no: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     address_proof_name: {
@@ -146,12 +146,12 @@ const personalInformationSchema = new mongoose.Schema(
     sign_proof_name: {
       type: String,
       enum: ["Passport", "Pan Card"],
-      required: true,
+      // required: true,
     },
 
     pan_no: {
       type: String,
-      required: true,
+      // required: true,
       trim: true,
     },
 

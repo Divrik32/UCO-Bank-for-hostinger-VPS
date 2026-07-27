@@ -126,12 +126,12 @@ const handleNext = (e) => {
 };
 const isFormValid =
   form.pf_no &&
-  form.id_proof_name &&
-  form.id_proof_no &&
+  // form.id_proof_name &&
+  // form.id_proof_no &&
   // form.address_proof_name &&
   // form.address_proof_no &&
-  form.sign_proof_name &&
-  form.pan_no &&
+  // form.sign_proof_name &&
+  // form.pan_no &&
   doc1File &&
   doc2File;
   
@@ -220,7 +220,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>ID Proof Name <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>ID Proof Name</div>
   <div style={fieldCol}>
 <select
   name="id_proof_name"
@@ -239,7 +239,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>ID Proof No <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>ID Proof No</div>
   <div style={fieldCol}>
     <input
       type="text"
@@ -284,7 +284,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>Sign Proof Name <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>Sign Proof Name</div>
   <div style={fieldCol}>
 <select
   name="sign_proof_name"
@@ -300,7 +300,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>PAN Card No <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>PAN Card No</div>
   <div style={fieldCol}>
     <input
       type="text"

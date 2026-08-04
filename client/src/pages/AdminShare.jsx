@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../api/axios";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -69,7 +69,7 @@ export default function AdminShare() {
   const [creditForm, setCreditForm] = useState({ investmentAmount: "", numberOfShares: "" });
   const [debitForm, setDebitForm] = useState({ amount: "", remainingShares: "", remainingCount: "", paymentMode: "Cheque", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
 
-  const API = "/api/share";
+  const API = "/share";
   const txScrollRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -83,7 +83,7 @@ export default function AdminShare() {
 
   const fetchInterestRate = async () => {
     try {
-      const res = await axios.get(`${API}/share-interest`);
+      const res = await api.get(`${API}/share-interest`);
       setDividendRate(res.data.data?.rate || 0);
     } catch { setDividendRate(0); }
   };
@@ -122,15 +122,15 @@ export default function AdminShare() {
     if (!memberCode.trim()) { toast.error("Enter member code"); return; }
     try {
       setLoading(true);
-      const res = await axios.get(`${API}/member/${memberCode.trim()}`);
+      const res = await api.get(`${API}/member/${memberCode.trim()}`);
       if (!res.data.success) { toast.error("Member not found"); return; }
       const data = res.data.data;
       setMember({ memberId: data.memberId, firstname: data.name?.split(" ")[0] || "", lastname: data.name?.split(" ").slice(1).join(" ") || "", phoneNumber: data.phoneNumber, email: data.email, profileImage: data.profileImage, signatureImage: data.signatureImage });
       setActiveTab("official");
-      const balanceRes = await axios.get(`${API}/share-balance/${memberCode.trim()}`);
+      const balanceRes = await api.get(`${API}/share-balance/${memberCode.trim()}`);
       setCurrentBalance(balanceRes.data.availableBalance);
-      const creditRes = await axios.get(`${API}/credit-share/${memberCode.trim()}`);
-      const debitRes = await axios.get(`${API}/debit-share/${memberCode.trim()}`);
+      const creditRes = await api.get(`${API}/credit-share/${memberCode.trim()}`);
+      const debitRes = await api.get(`${API}/debit-share/${memberCode.trim()}`);
       const credits = creditRes.data.data.map((item) => ({ amount: item.investmentAmount, type: "Credit", createdAt: item.createdAt, }));
       const debits = debitRes.data.data.map((item) => ({ amount: item.amount, type: "Debit", createdAt: item.createdAt, }));
       setTransactions([...credits, ...debits]);
@@ -143,14 +143,14 @@ export default function AdminShare() {
 
   const submitOfficial = async () => {
     try {
-      await axios.post(`${API}/official-details`, { memberId: member.memberId, ...officialForm });
+      await api.post(`${API}/official-details`, { memberId: member.memberId, ...officialForm });
       toast.success("Official details updated successfully");
     } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
   };
 
   const submitCredit = async () => {
     try {
-      await axios.post(`${API}/credit-share`, { memberId: member.memberId, pricePerShare: PRICE_PER_SHARE, investmentAmount: Number(creditForm.investmentAmount), numberOfShares: Number(creditForm.numberOfShares) });
+      await api.post(`${API}/credit-share`, { memberId: member.memberId, pricePerShare: PRICE_PER_SHARE, investmentAmount: Number(creditForm.investmentAmount), numberOfShares: Number(creditForm.numberOfShares) });
       toast.success("Credit shares updated successfully");
       setCreditForm({ investmentAmount: "", numberOfShares: "" });
       handleSearch();
@@ -159,7 +159,7 @@ export default function AdminShare() {
 
   const submitDebit = async () => {
     try {
-      await axios.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transactionId: debitForm.transactionId, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
+      await api.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transactionId: debitForm.transactionId, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
       toast.success("Debit shares updated successfully");
       setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: "Cheque", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
       handleSearch();

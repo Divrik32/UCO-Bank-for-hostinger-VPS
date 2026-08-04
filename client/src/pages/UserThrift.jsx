@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../api/axios";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -96,7 +96,7 @@ export default function UserThrift() {
     approvedBy: "",
   });
 
-  const API = "/api/thrift-fund";
+  const API = "/thrift-fund";
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);
@@ -128,7 +128,7 @@ export default function UserThrift() {
 
   const fetchAvailableBalance = async (memberId) => {
     try {
-      const res = await axios.get(`${API}/available-balance/${memberId}`);
+      const res = await api.get(`${API}/available-balance/${memberId}`);
       setAvailableBalance(res.data.availableBalance || 0);
     } catch (error) {
       toast.error("Failed to fetch balance");
@@ -137,7 +137,7 @@ export default function UserThrift() {
 
   const fetchInterestRate = async () => {
     try {
-      const res = await axios.get(`${API}/interest-rate`);
+      const res = await api.get(`${API}/interest-rate`);
       setInterestRate(res.data.data.rate);
     } catch (error) {
       console.error("Failed to fetch interest rate");
@@ -163,7 +163,7 @@ export default function UserThrift() {
     try {
       if (!memberCode.trim()) return;
       setLoading(true);
-      const res = await axios.get(`${API}/member/${memberCode}`);
+      const res = await api.get(`${API}/member/${memberCode}`);
       const data = res.data.data;
       setMember({
         memberId: data.memberId,
@@ -174,7 +174,7 @@ export default function UserThrift() {
         profileImage: data.profileImage,
         signatureImage: data.signatureImage,
       });
-      const txRes = await axios.get(`${API}/transaction/${memberCode}`);
+      const txRes = await api.get(`${API}/transaction/${memberCode}`);
       setTransactions(txRes.data.data || []);
       await fetchAvailableBalance(memberCode);
       setActiveTab("entry");
@@ -187,7 +187,7 @@ export default function UserThrift() {
 
   const updateInterest = async () => {
     try {
-      await axios.put(`${API}/update-interest`, {
+      await api.put(`${API}/update-interest`, {
         rate: Number(interestRate),
         updatedBy: "Admin",
         remarks: "Updated from admin panel",
@@ -200,7 +200,7 @@ export default function UserThrift() {
 
   const submitEntry = async () => {
     try {
-      await axios.post(`${API}/thrift-entry`, {
+      await api.post(`${API}/thrift-entry`, {
         memberId: member.memberId,
         ...entryForm,
         totalAmountReceived: Number(entryForm.totalAmountReceived),
@@ -224,7 +224,7 @@ export default function UserThrift() {
 
   const submitWithdrawal = async () => {
     try {
-      await axios.post(`${API}/thrift-withdrawal`, {
+      await api.post(`${API}/thrift-withdrawal`, {
         memberId: member.memberId,
         ...withdrawalForm,
         withdrawalAmount: Number(withdrawalForm.withdrawalAmount),

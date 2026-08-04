@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../api/axios";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -46,7 +46,7 @@ export default function UserShare() {
     shareCertificateNumber: "",              // new text field
   });
 
-  const API = "/api/share";
+  const API = "/share";
   const txScrollRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -62,7 +62,7 @@ useEffect(() => {
 
 const fetchInterestRate = async () => {
   try {
-    const res = await axios.get(`${API}/share-interest`);
+    const res = await api.get(`${API}/share-interest`);
     setDividendRate(res.data.data?.rate || 0);
   } catch (error) {
     console.log(error);
@@ -144,7 +144,7 @@ const handleSearch = async () => {
     setLoading(true);
 
     // NEW API CALL
-    const res = await axios.get(
+    const res = await api.get(
       `${API}/member/${memberCode.trim()}`
     );
 
@@ -169,18 +169,18 @@ setMember({
     // first tab open
     setActiveTab("official");
 
-    const balanceRes = await axios.get(
+    const balanceRes = await api.get(
   `${API}/share-balance/${memberCode.trim()}`
 );
 
 setCurrentBalance(balanceRes.data.availableBalance);
 
 
-const creditRes = await axios.get(
+const creditRes = await api.get(
  `${API}/credit-share/${memberCode.trim()}`
 );
 
-const debitRes = await axios.get(
+const debitRes = await api.get(
  `${API}/debit-share/${memberCode.trim()}`
 );
 
@@ -221,7 +221,7 @@ setTransactions([
 
   const submitOfficial = async () => {
     try {
-      await axios.post(`${API}/official-details`, {
+      await api.post(`${API}/official-details`, {
         memberId: member.memberId,
         ...officialForm,
       });
@@ -233,7 +233,7 @@ setTransactions([
 
   const submitCredit = async () => {
     try {
-      await axios.post(`${API}/credit-share`, {
+      await api.post(`${API}/credit-share`, {
         memberId: member.memberId,
         pricePerShare: PRICE_PER_SHARE,
         investmentAmount: Number(creditForm.investmentAmount),
@@ -249,7 +249,7 @@ setTransactions([
 
   const submitDebit = async () => {
     try {
-      await axios.post(`${API}/debit-share`, {
+      await api.post(`${API}/debit-share`, {
         memberId: member.memberId,
         amount: Number(debitForm.amount),
         paymentMode: debitForm.paymentMode,

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { Link, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
 
@@ -125,15 +125,15 @@ const handleNext = (e) => {
   }
 };
 const isFormValid =
-  form.pf_no &&
+  form.pf_no.trim() !== "";
   // form.id_proof_name &&
   // form.id_proof_no &&
   // form.address_proof_name &&
   // form.address_proof_no &&
   // form.sign_proof_name &&
   // form.pan_no &&
-  doc1File &&
-  doc2File;
+  // doc1File &&
+  // doc2File;
   
   // const handleDOBChange = (e) => {
   //   const dob = e.target.value;
@@ -352,7 +352,7 @@ const handleSubmit = (e) => {
           fontFamily: "Open Sans, sans-serif",
         }}
       >
-        Upload Image <span style={{ color: "red" }}>*</span>
+        Upload Image
       </label>
 
       <label
@@ -420,7 +420,7 @@ const handleSubmit = (e) => {
           fontFamily: "Open Sans, sans-serif",
         }}
       >
-        Upload Image <span style={{ color: "red" }}>*</span>
+        Upload Image
       </label>
 
       <label

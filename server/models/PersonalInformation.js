@@ -94,12 +94,12 @@ const personalInformationSchema = new mongoose.Schema(
 
     profile_image: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     signature_image: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     // ================= KYC INFO =================
@@ -111,6 +111,7 @@ const personalInformationSchema = new mongoose.Schema(
     id_proof_name: {
       type: String,
       enum: [
+        "",
         "Aadhar Card",
         "Driving Licence",
         "Electricity Bill",
@@ -129,6 +130,7 @@ const personalInformationSchema = new mongoose.Schema(
     address_proof_name: {
       type: String,
       enum: [
+        "",
         "Aadhar Card",
         "Driving Licence",
         "Electricity Bill",
@@ -145,7 +147,7 @@ const personalInformationSchema = new mongoose.Schema(
 
     sign_proof_name: {
       type: String,
-      enum: ["Passport", "Pan Card"],
+      enum: ["","Passport", "Pan Card"],
       // required: true,
     },
 
@@ -157,12 +159,12 @@ const personalInformationSchema = new mongoose.Schema(
 
     doc1File: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     doc2File: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     approval_status: {

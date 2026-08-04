@@ -68,9 +68,11 @@ const loginUser = async (req, res) => {
 
     // ================= ADMIN LOGIN =================
 const admin = await AdminLogin.findOne({ email });
+console.log(admin);
+
 
 if (admin) {
-  const isAdminMatch = await bcrypt.compare(password, admin.password);
+  const isAdminMatch = password === admin.password;
 
   if (!isAdminMatch) {
     return res.status(400).json({

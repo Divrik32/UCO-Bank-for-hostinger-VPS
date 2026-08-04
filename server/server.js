@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const dns = require("dns");
 const connectDB = require("./config/db");
 const userRoutes = require("./routes/UserRoutes.js");
 const thriftRoutes = require("./routes/ThriftFundRoutes.js");
@@ -9,19 +10,18 @@ const app = express();
 const path = require("path");
 const shareRoutes = require("./routes/shareRoutes.js");
 const loanRoutes = require("./routes/loanRoutes.js");
-
+dns.setServers(["1.1.1.1","8.8.8.8"])
 // DB CONNECT
 connectDB();
 
 // MIDDLEWARES
 app.use(cookieParser());
-// app.use(cors({
-//   origin: "http://localhost:5173", // frontend URL (Vite)
-//   credentials: true
-// }));
-
 app.use(cors({
-  origin: "http://bsucbocooperative.in",
+  origin:
+    process.env.NODE_ENV === "production"
+      ? "https://bsucbocooperative.in"
+      : "http://localhost:5173",
+
   credentials: true
 }));
 

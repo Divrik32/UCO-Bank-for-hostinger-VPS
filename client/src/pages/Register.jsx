@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -34,8 +34,8 @@ const handleSubmit = async (e) => {
   Object.entries(formData).forEach(([k, v]) => data.append(k, v));
 
   try {
-    const res = await axios.post(
-      "/api/users/register",
+    const res = await api.post(
+      "/users/register",
       data
     );
     toast.success(res.data.message || "Registration successful!");

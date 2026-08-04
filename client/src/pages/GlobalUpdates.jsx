@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import toast from "react-hot-toast";
 
 
@@ -65,7 +65,7 @@ const [values, setValues] = useState({
   shareRoi: "",
   loanRoi: "",
 });
-const API = "/api/thrift-fund";
+const API = "/thrift-fund";
 const [current, setCurrent] = useState({
   tenure: 84,
   limit: 500000,
@@ -76,20 +76,20 @@ const [current, setCurrent] = useState({
   loanRoi: 0,
 });
 
-const SHARE_API = "/api/share";
-const LOAN_API = "/api/loan";
+const SHARE_API = "/share";
+const LOAN_API = "/loan";
 const fetchInterestRate = async () => {
   try {
     // thrift roi
-    const thriftRes = await axios.get(`${API}/interest-rate`);
+    const thriftRes = await api.get(`${API}/interest-rate`);
     const thriftRate = thriftRes.data.data?.rate ?? 7;
 
     // share roi
-    const shareRes = await axios.get(`${SHARE_API}/share-interest`);
+    const shareRes = await api.get(`${SHARE_API}/share-interest`);
     const shareRate = shareRes.data.data?.rate ?? 0;
 
     // loan roi
-    const loanRes = await axios.get(`${LOAN_API}/interest-rate`);
+    const loanRes = await api.get(`${LOAN_API}/interest-rate`);
     const loanRate = loanRes.data.data?.rate ?? 0;
 
     setCurrent((prev) => ({
@@ -119,7 +119,7 @@ const updateThriftROI = async () => {
   }
 
   try {
-    await axios.put(`${API}/update-interest`, {
+    await api.put(`${API}/update-interest`, {
       rate: Number(values.thriftRoi),
       updatedBy: "Admin",
       remarks: "Updated from Global Updates",
@@ -143,7 +143,7 @@ const updateShareROI = async () => {
   }
 
   try {
-    await axios.put(`${SHARE_API}/share-interest`, {
+    await api.put(`${SHARE_API}/share-interest`, {
       rate: Number(values.shareRoi),
       updatedBy: "Admin",
       remarks: "Updated from Global Updates",
@@ -167,7 +167,7 @@ const updateLoanROI = async () => {
   }
 
   try {
-    await axios.put(`${LOAN_API}/interest-rate`, {
+    await api.put(`${LOAN_API}/interest-rate`, {
       rate: Number(values.loanRoi),
       updatedBy: "Admin",
       remarks: "Updated from Global Updates",

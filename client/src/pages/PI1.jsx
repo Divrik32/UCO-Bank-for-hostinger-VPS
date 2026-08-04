@@ -1,4 +1,4 @@
-// import axios from "axios";
+// import api from "../api/axios";
 import { useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -104,9 +104,9 @@ const isFormValid =
   form.address_line1 &&
   form.address_line2 &&
   form.state &&
-  form.pincode &&
-  profileFile &&
-  signFile;
+  form.pincode;
+  // profileFile &&
+  // signFile;
 
     // const handleDOBChange = (e) => {
   //   const dob = e.target.value;
@@ -296,7 +296,7 @@ const handleSubmit = (e) => {
           {/* Image Uploads */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "20px" }}>
             <div>
-              <label style={{ fontSize: "13px", color: "#444", marginBottom: "6px", display: "block" }}>Upload Image <span style={{ color: "red" }}>*</span></label>
+              <label style={{ fontSize: "13px", color: "#444", marginBottom: "6px", display: "block" }}>Upload Image</label>
 <input
   ref={profileRef}
   type="file"
@@ -317,7 +317,7 @@ const handleSubmit = (e) => {
               )}
             </div>
             <div>
-              <label style={{ fontSize: "13px", color: "#444", marginBottom: "6px", display: "block" }}>Upload Image <span style={{ color: "red" }}>*</span></label>
+              <label style={{ fontSize: "13px", color: "#444", marginBottom: "6px", display: "block" }}>Upload Image</label>
 <input
   ref={signRef}
   type="file"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { Link, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
 

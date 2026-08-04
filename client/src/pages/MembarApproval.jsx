@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 
 // ✅ Dummy data — replace with real API call
 // const dummyMembers = [
@@ -28,8 +28,8 @@ export default function MemberApproval() {
 
   const fetchMembers = async () => {
     try {
-      const res = await axios.get(
-        "/api/users/approval-pending-members"
+      const res = await api.get(
+        "/users/approval-pending-members"
       );
 
       setMembers(res.data.data);

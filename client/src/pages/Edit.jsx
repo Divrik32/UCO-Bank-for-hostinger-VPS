@@ -249,7 +249,7 @@ export default function PreviewEditPage() {
       if (existingFiles.doc1File)        submitData.append("doc1File",        existingFiles.doc1File);
       if (existingFiles.doc2File)        submitData.append("doc2File",        existingFiles.doc2File);
 
-      const res = await api.post("/api/users/submit-member-form", submitData, {
+      const res = await api.post("/users/submit-member-form", submitData, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });

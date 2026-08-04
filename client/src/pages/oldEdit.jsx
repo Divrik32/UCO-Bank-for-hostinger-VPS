@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "../api/axios"; 
 import { toast } from "react-toastify";
 
 // ─────────────────────────────────────────────
@@ -246,7 +245,7 @@ const handleDone = async () => {
     }
 
     const res = await api.post(
-      "/api/users/submit-member-form",
+      "/users/submit-member-form",
       submitData,
       {
         headers: {

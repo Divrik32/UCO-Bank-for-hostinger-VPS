@@ -109,11 +109,11 @@ function App() {
           <Route path="/user/mbi3"   element={<MBI3 />} />
           <Route path="/user/ni4"    element={<NI4 />} />
           <Route path="/user/edit"   element={<Edit />} />
-          {/* <Route path="/admin-update"   element={<AdminUpdates />} />
-          <Route path="/member_approval_list"   element={<MemberApproval />} />
-          <Route path="/share_approval_list"   element={<ShareApproval />} />
-          <Route path="/loan_approval_list"   element={<LoanApproval />} />
-          <Route path="/Global_update"   element={<GlobalUpdates />} /> */}
+          {/* <Route path="user/admin-update"   element={<AdminUpdates />} /> */}
+          <Route path="/user/member_approval_list"   element={<MemberApproval />} />
+          <Route path="/user/share_approval_list"   element={<ShareApproval />} />
+          <Route path="/user/loan_approval_list"   element={<LoanApproval />} />
+          <Route path="/user/Global_update"   element={<GlobalUpdates />} />
         </Route>
         </Route>
       </Routes>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import toast from "react-hot-toast";
 
-const API = "/api/share";
+const API = "/share";
 
 export default function ShareInterestRate() {
   const [rate, setRate] = useState("");
@@ -11,7 +11,7 @@ export default function ShareInterestRate() {
   useEffect(() => {
     const fetchRate = async () => {
       try {
-        const res = await axios.get(`${API}/share-interest`);
+        const res = await api.get(`${API}/share-interest`);
         if (res.data.success && res.data.data) {
           setRate(res.data.data.rate);
         } else {
@@ -31,7 +31,7 @@ export default function ShareInterestRate() {
     }
     setLoading(true);
     try {
-      await axios.put(`${API}/share-interest`, {
+      await api.put(`${API}/share-interest`, {
         rate: Number(rate),
         updatedBy: "Admin",
         remarks: "Updated from Interest Rate page",

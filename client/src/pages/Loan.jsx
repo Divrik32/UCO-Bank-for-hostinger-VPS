@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from "../api/axios";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -91,7 +91,7 @@ const [officialForm, setOfficialForm] = useState({
     transactionId: "",
   });
 
-  const API = "/api/loan";
+  const API = "/loan";
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);
@@ -146,7 +146,7 @@ useEffect(() => {
 
   const fetchAvailableBalance = async (memberId) => {
     try {
-      const res = await axios.get(`${API}/available-balance/${memberId}`);
+      const res = await api.get(`${API}/available-balance/${memberId}`);
       setAvailableBalance(res.data.availableBalance || 0);
     } catch {
       toast.error("Failed to fetch balance");
@@ -155,7 +155,7 @@ useEffect(() => {
 
   const fetchInterestRate = async () => {
     try {
-      const res = await axios.get(`${API}/interest-rate`);      
+      const res = await api.get(`${API}/interest-rate`);      
       setInterestRate(res.data.data.rate);
     } catch {
       console.error("Failed to fetch interest rate");
@@ -179,7 +179,7 @@ useEffect(() => {
     try {
       if (!memberCode.trim()) return;
       setLoading(true);
-      const res = await axios.get(`${API}/member/${memberCode}`);
+      const res = await api.get(`${API}/member/${memberCode}`);
       const data = res.data.data;
       setMember({
         memberId: data.memberId,
@@ -208,7 +208,7 @@ useEffect(() => {
       // }
 
 // latest official entry
-const officialRes = await axios.get(
+const officialRes = await api.get(
   `${API}/official-entry/${memberCode}`
 );
 
@@ -262,7 +262,7 @@ setEmiForm((prev) => ({
 }));
 
 // EMI paid total
-const emiRes = await axios.get(
+const emiRes = await api.get(
   `${API}/emi-payment/${memberCode}`
 );
 
@@ -291,7 +291,7 @@ setAdjustmentForm((prev) => ({
 
 const submitOfficialEntry = async () => {
   try {
-    await axios.post(
+    await api.post(
       `${API}/official-entry/${member.memberId}`,
       {
         officeName: officialForm.officeName,
@@ -323,7 +323,7 @@ const submitOfficialEntry = async () => {
 
 const submitGuaranteer = async () => {
   try {
-    await axios.post(`${API}/guaranteer/${member.memberId}`, {
+    await api.post(`${API}/guaranteer/${member.memberId}`, {
       ...guaranteerForm,
     });
 
@@ -345,7 +345,7 @@ const submitGuaranteer = async () => {
 
 const fetchTransactions = async (memberId) => {
   try {
-    const res = await axios.get(`${API}/transactions/${memberId}`);
+    const res = await api.get(`${API}/transactions/${memberId}`);
     setTransactions(res.data.data || []);
   } catch (error) {
     toast.error("Failed to fetch transactions");
@@ -360,7 +360,7 @@ useEffect(() => {
 
 const fetchTotalPaid = async (memberId) => {
   try {
-    const res = await axios.get(`${API}/emi-total/${memberId}`);
+    const res = await api.get(`${API}/emi-total/${memberId}`);
 
     setAdjustmentForm((prev) => ({
       ...prev,
@@ -400,7 +400,7 @@ const submitEmiPayment = async () => {
        return toast.error("Amount cannot exceed EMI amount");
     }
 
-    await axios.post(`${API}/emi-payment/${member.memberId}`, {
+    await api.post(`${API}/emi-payment/${member.memberId}`, {
       memberId: member.memberId,
       emiAmount: Number(emiForm.emiAmount),
       paymentMode: emiForm.paymentMode,
@@ -427,7 +427,7 @@ const submitEmiPayment = async () => {
 
 const submitAdjustment = async () => {
   try {
-    await axios.post(`${API}/loan-adjustment/${member.memberId}`, {
+    await api.post(`${API}/loan-adjustment/${member.memberId}`, {
       paymentMode: adjustmentForm.paymentMode,
       chequeNumber: adjustmentForm.chequeNumber,
       transactionId: adjustmentForm.transactionId,

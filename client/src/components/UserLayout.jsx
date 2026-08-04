@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import api from "../api/axios";
 
 // ─────────────────────────────────────────────
 //  Responsive hook
@@ -111,14 +112,18 @@ export default function UserLayout() {
 
   const isActive = (path) => location.pathname === path;
 
-  const handleLogout = async () => {
-    await fetch("/api/users/logout", {
-      method: "POST",
-      credentials: "include",
+const handleLogout = async () => {
+  try {
+    await api.post("/users/logout", {}, {
+      withCredentials: true,
     });
+
     localStorage.clear();
     navigate("/login");
-  };
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
 
   const effectiveSidebarWidth = isMobile ? Math.min(280, window.innerWidth - 40) : sidebarWidth;
 

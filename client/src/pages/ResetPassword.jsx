@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 
 export default function ResetPassword() {
@@ -22,8 +22,8 @@ export default function ResetPassword() {
     }
     try {
       setLoading(true);
-      const res = await axios.post(
-        "/api/users/reset-password",
+      const res = await api.post(
+        "/users/reset-password",
         {
           email,
           otp: formData.otp,

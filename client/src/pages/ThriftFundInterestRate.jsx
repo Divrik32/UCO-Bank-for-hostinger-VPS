@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import toast from "react-hot-toast";
 
-const API = "/api/thrift-fund";
+const API = "/thrift-fund";
 
 export default function ThriftFundInterestRate() {
   const [rate, setRate] = useState("");
@@ -11,7 +11,7 @@ export default function ThriftFundInterestRate() {
   useEffect(() => {
     const fetchRate = async () => {
       try {
-        const res = await axios.get(`${API}/interest-rate`);
+        const res = await api.get(`${API}/interest-rate`);
         setRate(res.data.data.rate ?? "");
       } catch {
         // no existing rate yet
@@ -27,13 +27,13 @@ export default function ThriftFundInterestRate() {
     }
     setLoading(true);
     try {
-      await axios.put(`${API}/update-interest`, {
+      await api.put(`${API}/update-interest`, {
         rate: Number(rate),
         updatedBy: "Admin",
         remarks: "Updated from Interest Rate page",
       });
       toast.success("Thrift Fund interest rate updated successfully");
-      const res = await axios.get(`${API}/interest-rate`);
+      const res = await api.get(`${API}/interest-rate`);
       setRate(res.data.data.rate);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update interest rate");

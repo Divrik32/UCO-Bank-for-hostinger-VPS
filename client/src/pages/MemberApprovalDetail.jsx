@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios";
 import { toast } from "react-toastify";
 
 
@@ -73,7 +73,7 @@ export default function MemberApprovalDetail() {
   // ── Uncomment for real API ──
   // useEffect(() => {
   //   setLoading(true);
-  //   axios
+  //   api
   //     .get(`/api/member_approval/${userid}`, {
   //       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   //     })
@@ -85,8 +85,7 @@ export default function MemberApprovalDetail() {
   useEffect(() => {
   setLoading(true);
 
-  axios
-    .get(`/api/users/members/${id}`)
+  api.get(`/users/members/${id}`)
     .then((res) => {
       setMember(res.data.data); // ⚠️ important
     })
@@ -96,10 +95,23 @@ export default function MemberApprovalDetail() {
     .finally(() => setLoading(false));
 
 }, [id]);
-const fixPath = (path) => path.replace(/\\/g, "/");
+const getImageUrl = (filePath) => {
+  if (!filePath) return null;
+
+  const normalizedPath = filePath.replace(/\\/g, "/");
+
+  const backendBaseUrl =
+    import.meta.env.MODE === "production"
+      ? "https://bsucbocooperative.in/api"
+      : "http://localhost:5000/api";
+
+  // /api বাদ দিয়ে backend root
+  const backendRoot = backendBaseUrl.replace(/\/api$/, "");
+
+  return `${backendRoot}/${normalizedPath}`;
+};
   const handleApprove = () => {
-    axios
-      .get(`/approve_member/${member.userid}`, {
+    api.get(`/approve_member/${member.userid}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then(() => { alert("Member Approved!"); navigate("/member_approval"); })
@@ -107,8 +119,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
   };
 
   const handleDeny = () => {
-    axios
-      .get(`/deny_member/${member.userid}`, {
+    api.get(`/deny_member/${member.userid}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .then(() => { alert("Member Denied."); navigate("/member_approval"); })
@@ -167,7 +178,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
             <div style={styles.imgRow}>
               {member.profile_image ? (
                 <img
-                  src={`/${fixPath(member.profile_image)}`}
+                  src={getImageUrl(member.profile_image)}
                   alt="ID proof"
                   style={styles.docImg}
                 />
@@ -176,7 +187,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
               )}
               {member.signature_image ? (
                 <img
-                  src={`/${fixPath(member.signature_image)}`}
+                  src={getImageUrl(member.signature_image)}
                   alt="Signature"
                   style={{ ...styles.docImg, height: 50 }}
                 />
@@ -215,7 +226,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
             <div style={styles.imgRow}>
               {member.doc1File ? (
                 <img
-                  src={`/${fixPath(member.doc1File)}`}
+                  src={getImageUrl(member.doc1File)}
                   alt="KYC Document 1"
                   style={styles.docImg}
                 />
@@ -224,7 +235,7 @@ const fixPath = (path) => path.replace(/\\/g, "/");
               )}
               {member.doc2File ? (
                 <img
-                  src={`/${fixPath(member.doc2File)}`}
+                  src={getImageUrl(member.doc2File)}
                   alt="KYC document 2"
                   style={{ ...styles.docImg, height: 50 }}
                 />

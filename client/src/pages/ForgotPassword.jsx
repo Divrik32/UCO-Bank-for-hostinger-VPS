@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 
 export default function ForgotPassword() {
@@ -10,8 +10,8 @@ export default function ForgotPassword() {
   const handleSendOtp = async () => {
     try {
       setLoading(true);
-      const res = await axios.post(
-        "/api/users/forgot-password",
+      const res = await api.post(
+        "/users/forgot-password",
         { email }
       );
       alert(res.data.message);

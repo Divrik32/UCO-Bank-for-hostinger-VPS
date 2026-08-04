@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import api from "../api/axios";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,8 +16,8 @@ export default function Login() {
       return;
     }
     try {
-      const res = await axios.post(
-        "/api/users/login",
+      const res = await api.post(
+        "/users/login",
         { email, password },
         { withCredentials: true }
       );

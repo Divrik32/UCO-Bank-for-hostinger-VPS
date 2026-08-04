@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import toast from "react-hot-toast";
 
-const API = "/api/loan";
+const API = "/loan";
 
 export default function LoanInterestRate() {
   const [rate, setRate] = useState("");
@@ -11,7 +11,7 @@ export default function LoanInterestRate() {
   useEffect(() => {
     const fetchRate = async () => {
       try {
-        const res = await axios.get(`${API}/interest-rate`);
+        const res = await api.get(`${API}/interest-rate`);
         setRate(res.data.data.rate ?? "");
       } catch {
         // no existing rate yet
@@ -27,7 +27,7 @@ export default function LoanInterestRate() {
     }
     setLoading(true);
     try {
-      await axios.put(`${API}/interest-rate`, {
+      await api.put(`${API}/interest-rate`, {
         rate: Number(rate),
         updatedBy: "Admin",
         remarks: "Updated from Interest Rate page",

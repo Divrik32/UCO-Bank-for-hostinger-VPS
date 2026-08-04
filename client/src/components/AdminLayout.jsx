@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import api from "../api/axios";
 
 // ─────────────────────────────────────────────
 //  Responsive hook
@@ -105,14 +106,18 @@ export default function AdminLayout() {
   const admin = JSON.parse(localStorage.getItem("user") || "{}");
   const profileImage = "/assets/admin-profile-avatar.png";
 
-  const handleLogout = async () => {
-    await fetch("/api/users/logout", {
-      method: "POST",
-      credentials: "include",
+const handleLogout = async () => {
+  try {
+    await api.post("/users/logout", {}, {
+      withCredentials: true,
     });
+
     localStorage.clear();
     navigate("/login");
-  };
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
 
   const effectiveSidebarWidth = isMobile ? Math.min(280, window.innerWidth - 40) : sidebarWidth;
 

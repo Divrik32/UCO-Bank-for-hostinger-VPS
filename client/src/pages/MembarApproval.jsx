@@ -18,7 +18,7 @@ import api from "../api/axios";
 
 export default function MemberApproval() {
   const navigate = useNavigate();
-
+  const role = localStorage.getItem("role");
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,17 +44,39 @@ export default function MemberApproval() {
     <div style={styles.wrapper}>
       {/* ── Page Header ── */}
       <div style={styles.pageHeader}>
-        <div>
-          <h1 style={styles.pageTitle}>Member Approval</h1>
-          <nav style={styles.breadcrumb}>
-            <a href="/index" style={styles.breadLink}>Home</a>
-            <span style={styles.breadSep}>/</span>
-            <a href="/admin_update" style={styles.breadLink}>Admin Update</a>
-            <span style={styles.breadSep}>/</span>
-            <span style={styles.breadActive}>Member Approval</span>
-          </nav>
-        </div>
-
+<div>
+  {role === "admin" ? (
+    <>
+      <h1 style={styles.pageTitle}>Member Approval</h1>
+      <nav style={styles.breadcrumb}>
+        <a href={`/${role}/dashboard`} style={styles.breadLink}>
+          Home
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <a href={`/${role}/admin-update`} style={styles.breadLink}>
+          Admin Update
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <span style={styles.breadActive}>Member Approval</span>
+      </nav>
+    </>
+  ) : (
+    <>
+      <h1 style={styles.pageTitle}>Member Reports</h1>
+      <nav style={styles.breadcrumb}>
+        <a href={`/${role}/dashboard`} style={styles.breadLink}>
+          Home
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <a href={`/${role}/report`} style={styles.breadLink}>
+          Reports
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <span style={styles.breadActive}>Member Reports</span>
+      </nav>
+    </>
+  )}
+</div>
         <div style={styles.addressBox}>
           <p style={styles.addressText}>
             <strong style={{fontSize:"15px"}}>Regd. 203, Hari Om Commercial Complex</strong>
@@ -123,7 +145,7 @@ export default function MemberApproval() {
                         style={styles.viewBtn}
                         onClick={() =>
                           navigate(
-                            `/admin/member_approval/${member._id}`
+                            `/${role}/member_approval/${member._id}`
                           )
                         }
                       >

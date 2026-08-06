@@ -18,6 +18,7 @@ function useBreakpoint() {
 }
 
 export default function AdminReport() {
+  const role = localStorage.getItem("role");
   const [hoveredCard, setHoveredCard] = useState(null);
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
 
@@ -189,7 +190,7 @@ export default function AdminReport() {
           </h1>
           <nav style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem" }}>
             <a
-              href="/index"
+              href={`/${role}/dashboard`}
               style={{
                 color: "#cc0000",
                 textDecoration: "none",

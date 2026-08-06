@@ -78,8 +78,8 @@ function App() {
           <Route path="/admin/loan_approval_list"   element={<LoanApproval />} />
           <Route path="/admin/Global_update"   element={<GlobalUpdates />} />
           <Route path="/admin/thrift-fund-interest" element={<ThriftFundInterestRate />} />
-<Route path="/admin/share-interest"       element={<ShareInterestRate />} />
-<Route path="/admin/loan-interest"        element={<LoanInterestRate />} />
+          <Route path="/admin/share-interest"       element={<ShareInterestRate />} />
+          <Route path="/admin/loan-interest"        element={<LoanInterestRate />} />
         </Route>
         </Route>
 
@@ -111,6 +111,7 @@ function App() {
           <Route path="/user/edit"   element={<Edit />} />
           {/* <Route path="user/admin-update"   element={<AdminUpdates />} /> */}
           <Route path="/user/member_approval_list"   element={<MemberApproval />} />
+          <Route path="/user/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/user/share_approval_list"   element={<ShareApproval />} />
           <Route path="/user/loan_approval_list"   element={<LoanApproval />} />
           <Route path="/user/Global_update"   element={<GlobalUpdates />} />

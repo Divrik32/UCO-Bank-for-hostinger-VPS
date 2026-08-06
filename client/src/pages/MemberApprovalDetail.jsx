@@ -67,6 +67,7 @@ function InfoCard({ title, children }) {
 export default function MemberApprovalDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const role = localStorage.getItem("role");
   const [member, setMember] = useState(null); 
   const [loading, setLoading] = useState(false);
 
@@ -133,16 +134,39 @@ const getImageUrl = (filePath) => {
     <div style={styles.wrapper}>
       {/* ── Page Header ── */}
       <div style={styles.pageHeader}>
-        <div>
-          <h1 style={styles.pageTitle}>Member Approval</h1>
-          <nav style={styles.breadcrumb}>
-            <a href="/index" style={styles.breadLink}>Home</a>
-            <span style={styles.breadSep}>/</span>
-            <a href="/admin_update" style={styles.breadLink}>Admin Updates</a>
-            <span style={styles.breadSep}>/</span>
-            <span style={styles.breadActive}>Member Approval</span>
-          </nav>
-        </div>
+<div>
+  {role === "admin" ? (
+    <>
+      <h1 style={styles.pageTitle}>Member Approval</h1>
+      <nav style={styles.breadcrumb}>
+        <a href={`/${role}/dashboard`} style={styles.breadLink}>
+          Home
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <a href={`/${role}/admin-update`} style={styles.breadLink}>
+          Admin Update
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <span style={styles.breadActive}>Member Approval</span>
+      </nav>
+    </>
+  ) : (
+    <>
+      <h1 style={styles.pageTitle}>Member Reports</h1>
+      <nav style={styles.breadcrumb}>
+        <a href={`/${role}/dashboard`} style={styles.breadLink}>
+          Home
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <a href={`/${role}/report`} style={styles.breadLink}>
+          Reports
+        </a>
+        <span style={styles.breadSep}>/</span>
+        <span style={styles.breadActive}>Member Reports</span>
+      </nav>
+    </>
+  )}
+</div>
         <div style={{ textAlign: "right" }}>
           <p style={styles.addressText}>
             <strong>Regd. 203, Hari Om Commercial Complex</strong>

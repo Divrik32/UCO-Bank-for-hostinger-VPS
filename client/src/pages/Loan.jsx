@@ -192,6 +192,8 @@ useEffect(() => {
         loanCode: data.loanCode || data.memberId,
         currentBalance: data.currentBalance || 0,
       });
+      console.log("Profile Image:", data.profileImage);
+console.log("Signature Image:", data.signatureImage);
 
       // if (data.loanData) {
       //   setOfficialForm({
@@ -213,6 +215,7 @@ const officialRes = await api.get(
 );
 
 const officialData = officialRes.data.data;
+
 
 // ✅ 1. Official form = ALWAYS EMPTY
 setOfficialForm({

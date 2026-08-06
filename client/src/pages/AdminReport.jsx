@@ -32,7 +32,7 @@ export default function AdminReport() {
     },
     {
       id: "thrift",
-      href: "/Thrift_Fund_report",
+      href: "/admin/thrift-fund-report",
       img: "/assets/img/save-money.png",
       title: "Thrift Fund Report",
       desc: "This Report provides you information about Thrift Fund.",
@@ -46,14 +46,14 @@ export default function AdminReport() {
     },
     {
       id: "loan",
-      href: "/Loan_Report",
+      href: "/admin/loan-report",
       img: "/assets/img/loan.png",
       title: "Loan Report",
       desc: "This Report provides you information about Loan.",
     },
     {
       id: "shares",
-      href: "/Shares_Report",
+      href: "/admin/shares-report",
       img: "/assets/img/market-share.png",
       title: "Shares Report",
       desc: "This Report provides you information about Shares.",

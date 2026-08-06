@@ -111,19 +111,35 @@ const getImageUrl = (filePath) => {
 
   return `${backendRoot}/${normalizedPath}`;
 };
-  const handleApprove = () => {
-    api.get(`/approve_member/${member.userid}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-      .then(() => { alert("Member Approved!"); navigate("/member_approval"); })
-      .catch((err) => console.error(err));
-  };
+const handleApprove = async () => {
+  try {
+    await api.patch(
+      `/users/members/${id}/approve`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    toast.success("Member approved successfully");
+
+    navigate("/admin/member_approval_list");
+  } catch (err) {
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message || "Failed to approve member"
+    );
+  }
+};
 
   const handleDeny = () => {
     api.get(`/deny_member/${member.userid}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
-      .then(() => { alert("Member Denied."); navigate("/member_approval"); })
+      .then(() => { alert("Member Denied."); navigate("/member_approval_list"); })
       .catch((err) => console.error(err));
   };
 
@@ -152,7 +168,7 @@ const getImageUrl = (filePath) => {
     </>
   ) : (
     <>
-      <h1 style={styles.pageTitle}>Member Reports</h1>
+      <h1 style={styles.pageTitle}>Member Report</h1>
       <nav style={styles.breadcrumb}>
         <a href={`/${role}/dashboard`} style={styles.breadLink}>
           Home
@@ -162,7 +178,7 @@ const getImageUrl = (filePath) => {
           Reports
         </a>
         <span style={styles.breadSep}>/</span>
-        <span style={styles.breadActive}>Member Reports</span>
+        <span style={styles.breadActive}>Member Report</span>
       </nav>
     </>
   )}

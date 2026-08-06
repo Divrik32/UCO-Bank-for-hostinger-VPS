@@ -11,7 +11,9 @@ const {
   getMemberById,
   logoutUser,
   sendForgotOtp,
-  resetPassword
+  resetPassword,
+  approveMember,
+  getApprovedMembers
 } = require("../controllers/UserController.js");
 
 const router = express.Router();
@@ -60,8 +62,9 @@ router.post(
   submitMemberForm
 );
 router.get("/approval-pending-members", getApprovalPendingMembers);
+router.get("/approved-members", getApprovedMembers);
 router.get("/members/:id", getMemberById);
-
+router.patch("/members/:id/approve", authMiddleware, approveMember);
 router.post("/forgot-password", sendForgotOtp);
 router.post("/reset-password", resetPassword);
 

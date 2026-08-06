@@ -252,6 +252,27 @@ const getApprovalPendingMembers = async (req, res) => {
   }
 };
 
+const getApprovedMembers = async (req, res) => {
+  try {
+    const members = await PersonalInformation.find({
+      approval_status: "approved",
+    }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      success: true,
+      count: members.length,
+      data: members,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const getMemberById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -273,6 +294,44 @@ const getMemberById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+const approveMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = await PersonalInformation.findById(id);
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    if (member.approval_status === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Member already approved",
+      });
+    }
+
+    member.approval_status = "approved";
+
+    await member.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Member approved successfully",
+      data: member,
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
     });
   }
 };
@@ -410,7 +469,9 @@ module.exports = {
   loginUser,
   submitMemberForm,
   getApprovalPendingMembers,
+  getApprovedMembers,
   getMemberById,
+  approveMember,
   logoutUser,
   sendForgotOtp,
   resetPassword

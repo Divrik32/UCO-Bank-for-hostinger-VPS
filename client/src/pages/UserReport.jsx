@@ -56,7 +56,7 @@ export default function UserReport() {
           />
           <Card
             id="thrift"
-            href="/Thrift_Fund_report"
+            href="/user/thrift-fund-report"
             img="/assets/img/save-money.png"
             title="Thrift Fund Report"
             desc="This Report provides you information about Thrift Fund."
@@ -78,14 +78,14 @@ export default function UserReport() {
         <div style={styles.column}>
           <Card
             id="loan"
-            href="/Loan_Report"
+            href="/user/loan-report"
             img="/assets/img/loan.png"
             title="Loan Report"
             desc="This Report provides you information about Loan."
           />
           <Card
             id="shares"
-            href="/Shares_Report"
+            href="/user/shares-report"
             img="/assets/img/market-share.png"
             title="Shares Report"
             desc="This Report provides you information about Shares."

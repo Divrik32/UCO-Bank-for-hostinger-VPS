@@ -108,18 +108,35 @@ const isFormValid =
   // profileFile &&
   // signFile;
 
-    // const handleDOBChange = (e) => {
-  //   const dob = e.target.value;
-  //   let age = "";
-  //   if (dob) {
-  //     const today = new Date();
-  //     const birthDate = new Date(dob);
-  //     age = today.getFullYear() - birthDate.getFullYear();
-  //     const m = today.getMonth() - birthDate.getMonth();
-  //     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-  //   }
-  //   setForm((prev) => ({ ...prev, dob, age: age.toString() }));
-  // };
+const handleDOBChange = (e) => {
+  const dob = e.target.value;
+
+  let age = "";
+
+  if (dob) {
+    const today = new Date();
+    const birthDate = new Date(dob);
+
+    age = today.getFullYear() - birthDate.getFullYear();
+
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    dob,
+    age: age.toString(),
+  }));
+
+  setIsSaved(false);
+};
 
 const handleFileChange = (e, previewSetter, fileSetter) => {
   const file = e.target.files[0];
@@ -202,7 +219,7 @@ const handleSubmit = (e) => {
           {[
             { label: "Member Name",      name: "firstname",          type: "text" },
             { label: "Last Name",        name: "lastname",           type: "text" },
-            { label: "Member D.O.B",     name: "dob",                type: "date" },
+            { label: "Member D.O.B",     name: "dob",                type: "date", onChange: handleDOBChange, },
             { label: "Age",              name: "age",                type: "number" },
             { label: "Guardian Name",    name: "guardian_firstname", type: "text" },
             { label: "Phone",            name: "phoneno",            type: "tel" },
@@ -216,7 +233,12 @@ const handleSubmit = (e) => {
                   name={name}
                   value={form[name]}
                   onChange={onChange || handleChange}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    backgroundColor: name === "age" ? "#f8f9fa" : "#fff",
+                    cursor: name === "age" ? "not-allowed" : "text",
+                  }}
+                  readOnly={name === "age"}
                 />
               </div>
             </div>

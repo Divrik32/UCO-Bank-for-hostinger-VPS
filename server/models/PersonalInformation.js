@@ -186,6 +186,7 @@ const personalInformationSchema = new mongoose.Schema(
         "Kotak Mahindra Bank",
         "Punjab National Bank",
         "State Bank Of India",
+        "UCO Bank",
         "Union Bank Of India",
       ],
       required: true,

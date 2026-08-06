@@ -179,10 +179,16 @@ const handleSubmit = (e) => {
 >
   <option value="">Select Bank</option>
   <option value="Axis Bank">Axis Bank</option>
+  <option value="Bank Of Baroda">Bank Of Baroda</option>
+  <option value="Bank Of India">Bank Of India</option>
+  <option value="Canara Bank">Canara Bank</option>
+  <option value="Central Bank Of India">Central Bank Of India</option>
   <option value="HDFC">HDFC</option>
-  <option value="SBI">SBI</option>
-  <option value="PNB">PNB</option>
-  <option value="Union Bank">Union Bank</option>
+  <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+  <option value="Punjab National Bank">Punjab National Bank</option>
+  <option value="State Bank Of India">State Bank Of India</option>
+  <option value="UCO Bank">UCO Bank</option>
+  <option value="Union Bank Of India">Union Bank Of India</option>
 </select>
   </div>
 </div>

@@ -64,6 +64,8 @@ const [officialForm, setOfficialForm] = useState({
   tenureMonths: "",
   emiAmount: "",
   processingFees: "",
+  paymentMode: "",
+  transactionId: "",
 });
 
   const [guaranteerForm, setGuaranteerForm] = useState({
@@ -96,6 +98,20 @@ const [officialForm, setOfficialForm] = useState({
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);
   const txScrollRef = useRef(null);
+  const [paymentModes, setPaymentModes] = useState([]);
+
+  const fetchPaymentModes = async () => {
+    try {
+      const res = await api.get("/loan/payment-modes");
+      setPaymentModes(res.data.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  
+  useEffect(() => {
+    fetchPaymentModes();
+  }, []);
 
   useLayoutEffect(() => {
     if (activeTab === "transaction" && txScrollRef.current) {
@@ -227,6 +243,8 @@ setOfficialForm({
   tenureMonths: "",
   emiAmount: "",
   processingFees: "",
+  paymentMode: "",
+  transactionId: "",
 });
 
 // ✅ 2. Guarantee form = ALWAYS EMPTY
@@ -294,16 +312,19 @@ setAdjustmentForm((prev) => ({
 
 const submitOfficialEntry = async () => {
   try {
-    await api.post(
-      `${API}/official-entry/${member.memberId}`,
-      {
-        officeName: officialForm.officeName,
-        loanType: officialForm.loanType,
-        loanAmount: Number(officialForm.loanAmount),
-        tenureMonths: Number(officialForm.tenureMonths),
-        processingFees: Number(officialForm.processingFees || 0),
-      }
-    );
+await api.post(
+  `${API}/official-entry/${member.memberId}`,
+  {
+    officeName: officialForm.officeName,
+    loanType: officialForm.loanType,
+    loanAmount: Number(officialForm.loanAmount),
+    tenureMonths: Number(officialForm.tenureMonths),
+    processingFees: Number(officialForm.processingFees || 0),
+
+    paymentMode: officialForm.paymentMode,
+    transactionId: officialForm.transactionId,
+  }
+);
 
     toast.success("Official entry updated successfully");
 
@@ -968,14 +989,14 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
-<Field label="Loan Date" isMobile={isMobile}>
-  <input
-    type="date"
-    style={inputDisabled}
-    disabled
-    value={officialForm.loanDate}
-  />
-</Field>
+  <Field label="Loan Date" isMobile={isMobile}>
+    <input
+      type="date"
+      style={inputDisabled}
+      disabled
+      value={officialForm.loanDate}
+    />
+  </Field>
 
                 <Field label="Loan Type" isMobile={isMobile}>
                   <select
@@ -1005,25 +1026,25 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
-<Field label="Tenure (months)" isMobile={isMobile}>
-  <select
-    style={inputStyle}
-    value={officialForm.tenureMonths}
-    onChange={(e) =>
-      setOfficialForm({
-        ...officialForm,
-        tenureMonths: e.target.value
-      })
-    }
-  >
-    <option value="">Select Tenure</option>
-    {[84, 96, 108, 120, 132, 144, 156, 168, 180].map((month) => (
-      <option key={month} value={month}>
-        {month} Months
-      </option>
-    ))}
-  </select>
-</Field>
+  <Field label="Tenure (months)" isMobile={isMobile}>
+    <select
+      style={inputStyle}
+      value={officialForm.tenureMonths}
+      onChange={(e) =>
+        setOfficialForm({
+          ...officialForm,
+          tenureMonths: e.target.value
+        })
+      }
+    >
+      <option value="">Select Tenure</option>
+      {[84, 96, 108, 120, 132, 144, 156, 168, 180].map((month) => (
+        <option key={month} value={month}>
+          {month} Months
+        </option>
+      ))}
+    </select>
+  </Field>
 
                 <Field label="EMI Amount" isMobile={isMobile}>
                   <input
@@ -1041,6 +1062,41 @@ const submitAdjustment = async () => {
                     placeholder="0"
                   />
                 </Field>
+
+                <Field label="Payment Mode" isMobile={isMobile}>
+  <select
+    style={inputStyle}
+    value={officialForm.paymentMode}
+    onChange={(e) =>
+      setOfficialForm({
+        ...officialForm,
+        paymentMode: e.target.value,
+      })
+    }
+  >
+    <option value="">Select Payment Mode</option>
+  
+    {paymentModes.map((mode) => (
+      <option key={mode} value={mode}>
+        {mode}
+      </option>
+    ))}
+  </select>
+</Field>
+
+<Field label="Transaction ID" isMobile={isMobile}>
+  <input
+    style={inputStyle}
+    value={officialForm.transactionId}
+    onChange={(e) =>
+      setOfficialForm({
+        ...officialForm,
+        transactionId: e.target.value,
+      })
+    }
+    placeholder="Enter transaction ID"
+  />
+</Field>
 
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitOfficialEntry}>

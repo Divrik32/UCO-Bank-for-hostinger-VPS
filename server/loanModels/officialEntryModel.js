@@ -57,6 +57,33 @@ const officialEntrySchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0
+    },
+
+    // ✅ Payment Mode
+    paymentMode: {
+      type: String,
+      enum: [
+        "Cash",
+        "Cheque",
+        "Demand Draft",
+        "NEFT",
+        "RTGS",
+        "IMPS",
+        "UPI",
+        "Net Banking",
+        "Debit Card",
+        "Credit Card",
+        "Online Transfer",
+        "Bank Transfer"
+      ],
+      default: "Cash"
+    },
+
+    // ✅ Transaction ID
+    transactionId: {
+      type: String,
+      trim: true,
+      default: ""
     }
   },
   {

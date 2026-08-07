@@ -76,10 +76,10 @@ function App() {
           <Route path="/admin/edit"   element={<Edit />} />
           <Route path="/admin/admin-update"   element={<AdminUpdates />} />
           <Route path="/admin/member_approval_list"   element={<MemberApproval />} />
+          <Route path="/admin/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/admin/thrift-fund-report" element={<ThriftFundReport />}/>
           <Route path="/admin/loan-report" element={<LoanReport />}/>
           <Route path="/admin/shares-report" element={<SharesReport />}/>
-          <Route path="/admin/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/admin/share_approval_list"   element={<ShareApproval />} />
           <Route path="/admin/loan_approval_list"   element={<LoanApproval />} />
           <Route path="/admin/Global_update"   element={<GlobalUpdates />} />
@@ -117,10 +117,10 @@ function App() {
           <Route path="/user/edit"   element={<Edit />} />
           {/* <Route path="user/admin-update"   element={<AdminUpdates />} /> */}
           <Route path="/user/member_approval_list"   element={<MemberApproval />} />
+          <Route path="/user/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/user/loan-report" element={<LoanReport />}/>
           <Route path="/user/shares-report" element={<SharesReport />}/>
           <Route path="/user/Global_update"   element={<GlobalUpdates />} />
-          <Route path="/user/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/user/share_approval_list"   element={<ShareApproval />} />
           <Route path="/user/loan_approval_list"   element={<LoanApproval />} />
           <Route path="/user/thrift-fund-report" element={<ThriftFundReport />}/>

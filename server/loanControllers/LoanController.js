@@ -52,12 +52,15 @@ exports.getMemberByMemberId = async (req, res) => {
 exports.createOfficialEntry = async (req, res) => {
   try {
     const { memberId } = req.params;
+
     const {
       officeName,
       loanType,
       loanAmount,
       tenureMonths,
-      processingFees = 0
+      processingFees = 0,
+      paymentMode,
+      transactionId = ""
     } = req.body;
 
     // EMI factors by tenure
@@ -83,7 +86,9 @@ exports.createOfficialEntry = async (req, res) => {
     }
 
     // EMI calculation
-    const emiAmount = Number(((loanAmount * factor) / 1000).toFixed(2));
+    const emiAmount = Number(
+      ((loanAmount * factor) / 1000).toFixed(2)
+    );
 
     // Loan code generation
     const now = new Date();
@@ -115,13 +120,16 @@ exports.createOfficialEntry = async (req, res) => {
       loanAmount,
       tenureMonths,
       emiAmount,
-      processingFees
+      processingFees,
+      paymentMode,
+      transactionId
     });
 
     res.status(201).json({
       success: true,
       data
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -477,6 +485,79 @@ exports.getAvailableBalance = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+};
+
+exports.getAllLoanReports = async (req, res) => {
+  try {
+    const members = await PersonalInformation.find({
+      approval_status: "approved",
+    }).sort({ memberId: 1 });
+
+    const reports = [];
+
+    for (const member of members) {
+      const loans = await officialEntryModel
+        .find({ memberId: member.memberId })
+        .sort({ createdAt: 1 });
+
+      if (loans.length === 0) {
+        reports.push({
+          memberCode: member.memberId,
+          memberName: `${member.firstname} ${member.lastname}`,
+          firstLoanDate: "-",
+          totalLoanAmount: 0,
+          interest: "None",
+          paymentMode: "-",
+          transactionId: "-",
+        });
+      } else {
+        const totalLoanAmount = loans.reduce(
+          (sum, loan) => sum + Number(loan.loanAmount || 0),
+          0
+        );
+
+        const firstLoan = loans[0];
+
+        reports.push({
+          memberCode: member.memberId,
+          memberName: `${member.firstname} ${member.lastname}`,
+          firstLoanDate: firstLoan.createdAt
+            .toLocaleDateString("en-GB")
+            .replace(/\//g, "-"),
+          totalLoanAmount,
+          interest: "None",
+          paymentMode: firstLoan.paymentMode || "-",
+          transactionId: firstLoan.transactionId || "-",
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.getPaymentModes = async (req, res) => {
+  try {
+    const paymentModes = officialEntryModel.schema.path("paymentMode").enumValues;
+
+    res.status(200).json({
+      success: true,
+      data: paymentModes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

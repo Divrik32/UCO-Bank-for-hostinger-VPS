@@ -18,7 +18,9 @@ const {
   getLoanAdjustment,
   getTotalTransactionDetails,
   getTotalEmiPaid,
-  getAvailableBalance
+  getAvailableBalance,
+  getAllLoanReports,
+  getPaymentModes
 } = require("../loanControllers/LoanController.js");
 
 // loan interest routes
@@ -52,5 +54,9 @@ router.get("/emi-total/:memberId", getTotalEmiPaid);
 
 // available balance
 router.get("/available-balance/:memberId", getAvailableBalance);
+
+// get loan report
+router.get("/loan-report", getAllLoanReports);
+router.get("/payment-modes", getPaymentModes);
 
 module.exports = router;

@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 
@@ -17,67 +16,98 @@ import api from "../api/axios";
 
 
 export default function LoanReport() {
-  const navigate = useNavigate();
   const role = localStorage.getItem("role");
-  const [members, setMembers] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [memberCodeSearch, setMemberCodeSearch] = useState("");
+  const [memberNameSearch, setMemberNameSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  
   useEffect(() => {
-    fetchMembers();
+    fetchReports();
   }, []);
-
-  const fetchMembers = async () => {
+  
+  const fetchReports = async () => {
     try {
-      const res = await api.get(
-        "/users/approved-members"
-      );
-
-      setMembers(res.data.data);
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to fetch members. Please try again.");
+      const res = await api.get("/loan/loan-report");
+      setReports(res.data.data);
+    } catch (err) {
+      console.log(err);
     } finally {
       setLoading(false);
     }
   };
+  const filteredReports = reports.filter((report) => {
+    // Member Code
+    const matchMemberCode = report.memberCode
+      ?.toLowerCase()
+      .includes(memberCodeSearch.toLowerCase());
+  
+    // Member Name
+    const matchMemberName = report.memberName
+      ?.toLowerCase()
+      .includes(memberNameSearch.toLowerCase());
+  
+    // Date Filter
+    let matchDate = true;
+  
+    if (fromDate || toDate) {
+      if (report.firstLoanDate === "-") {
+        matchDate = false;
+      } else {
+        const [day, month, year] = report.firstLoanDate.split("-");
+        const reportDate = new Date(`${year}-${month}-${day}`);
+  
+        if (fromDate && reportDate < new Date(fromDate))
+          matchDate = false;
+  
+        if (toDate && reportDate > new Date(toDate))
+          matchDate = false;
+      }
+    }
+  
+    return matchMemberCode && matchMemberName && matchDate;
+  });
+
   return (
     <div style={styles.wrapper}>
-      {/* ── Page Header ── */}
-      <div style={styles.pageHeader}>
-<div>
-  {role === "admin" ? (
-    <>
-      <h1 style={styles.pageTitle}>Loan Approval</h1>
-      <nav style={styles.breadcrumb}>
-        <a href={`/${role}/dashboard`} style={styles.breadLink}>
-          Home
-        </a>
-        <span style={styles.breadSep}>/</span>
-        <a href={`/${role}/admin-update`} style={styles.breadLink}>
-          Admin Update
-        </a>
-        <span style={styles.breadSep}>/</span>
-        <span style={styles.breadActive}>Member Approval</span>
-      </nav>
-    </>
-  ) : (
-    <>
-      <h1 style={styles.pageTitle}>Loan Report</h1>
-      <nav style={styles.breadcrumb}>
-        <a href={`/${role}/dashboard`} style={styles.breadLink}>
-          Home
-        </a>
-        <span style={styles.breadSep}>/</span>
-        <a href={`/${role}/report`} style={styles.breadLink}>
-          Reports
-        </a>
-        <span style={styles.breadSep}>/</span>
-        <span style={styles.breadActive}>Loan Report</span>
-      </nav>
-    </>
-  )}
-</div>
-        <div style={styles.addressBox}>
+    {/* ── Page Header ── */}
+    <div style={styles.pageHeader}>
+    <div>
+      {role === "admin" ? (
+        <>
+          <h1 style={styles.pageTitle}>Loan Approval</h1>
+          <nav style={styles.breadcrumb}>
+            <a href={`/${role}/dashboard`} style={styles.breadLink}>
+              Home
+            </a>
+            <span style={styles.breadSep}>/</span>
+            <a href={`/${role}/admin-update`} style={styles.breadLink}>
+              Admin Update
+            </a>
+            <span style={styles.breadSep}>/</span>
+            <span style={styles.breadActive}>Loan Approval</span>
+          </nav>
+        </>
+      ) : (
+        <>
+          <h1 style={styles.pageTitle}>Loan Report</h1>
+          <nav style={styles.breadcrumb}>
+            <a href={`/${role}/dashboard`} style={styles.breadLink}>
+              Home
+            </a>
+            <span style={styles.breadSep}>/</span>
+            <a href={`/${role}/report`} style={styles.breadLink}>
+              Reports
+            </a>
+            <span style={styles.breadSep}>/</span>
+            <span style={styles.breadActive}>Loan Report</span>
+          </nav>
+        </>
+      )}
+    </div>
+      <div style={styles.addressBox}>
           <p style={styles.addressText}>
             <strong style={{fontSize:"15px"}}>Regd. 203, Hari Om Commercial Complex</strong>
             <br />
@@ -86,76 +116,118 @@ export default function LoanReport() {
         </div>
       </div>
 
+      <div
+  style={{
+    display: "flex",
+    gap: "15px",
+    flexWrap: "wrap",
+    marginBottom: "20px",
+  }}
+>
+  <input
+    type="text"
+    placeholder="Search Member Code"
+    value={memberCodeSearch}
+    onChange={(e) => setMemberCodeSearch(e.target.value)}
+    style={styles.searchInput}
+  />
+
+  <input
+    type="text"
+    placeholder="Search Member Name"
+    value={memberNameSearch}
+    onChange={(e) => setMemberNameSearch(e.target.value)}
+    style={styles.searchInput}
+  />
+
+  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+    <label>From</label>
+    <input
+      type="date"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+      style={styles.searchInput}
+    />
+  </div>
+
+  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+    <label>To</label>
+    <input
+      type="date"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+      style={styles.searchInput}
+    />
+  </div>
+</div>
+
       {/* ── Table Card ── */}
       <div style={styles.card}>
-        <h5 style={styles.cardTitle}>Member Approval</h5>
+        <h5 style={styles.cardTitle}>Loan Approval</h5>
 
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
-            <thead>
-              <tr style={styles.theadRow}>
-                <th style={styles.th}>Member Id</th>
-                <th style={styles.th}>Member Name</th>
-                <th style={styles.th}>Contact Number</th>
-                <th style={styles.th}>Email</th>
-                <th style={styles.th}>Action</th>
+          <thead>
+            <tr style={styles.theadRow}>
+              <th style={styles.th}>Sl.</th>
+              <th style={styles.th}>Member Code</th>
+              <th style={styles.th}>Member Name</th>
+              <th style={styles.th}>First Loan Date</th>
+              <th style={styles.th}>Total Loan Amount</th>
+              <th style={styles.th}>Interest</th>
+              <th style={styles.th}>Payment Mode</th>
+              <th style={styles.th}>Transaction ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} style={styles.td}>
+                  Loading...
+                </td>
               </tr>
-            </thead>
-<tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="5" style={styles.td}>
-                    Loading...
+            ) : filteredReports.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={styles.td}>
+                  No loan report found.
+                </td>
+              </tr>
+            ) : (
+              filteredReports.map((report, index) => (
+                <tr key={report.memberCode}>
+                  <td style={styles.td}>{index + 1}</td>
+          
+                  <td style={styles.td}>
+                    {report.memberCode || "-"}
+                  </td>
+          
+                  <td style={styles.td}>
+                    {report.memberName || "-"}
+                  </td>
+          
+                  <td style={styles.td}>
+                    {report.firstLoanDate}
+                  </td>
+          
+                  <td style={styles.td}>
+                    ₹{Number(report.totalLoanAmount || 0).toLocaleString()}
+                  </td>
+          
+                  <td style={styles.td}>
+                    {report.interest}
+                  </td>
+          
+                  <td style={styles.td}>
+                    {report.paymentMode || "-"}
+                  </td>
+          
+                  <td style={styles.td}>
+                    {report.transactionId || "-"}
                   </td>
                 </tr>
-              ) : members.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={styles.td}>
-                    No members found
-                  </td>
-                </tr>
-              ) : (
-                members.map((member, idx) => (
-                  <tr
-                    key={member._id}
-                    style={{
-                      ...styles.tr,
-                      backgroundColor:
-                        idx % 2 === 0 ? "white" : "#f9f9f9",
-                    }}
-                  >
-                    <td style={styles.td}>
-                      {member.memberId || member._id}
-                    </td>
-
-                    <td style={styles.td}>
-                      {member.firstname} {member.lastname}
-                    </td>
-
-                    <td style={styles.td}>
-                      {member.phoneno}
-                    </td>
-
-                    <td style={styles.td}>
-                      {member.email}
-                    </td>
-
-                    <td style={styles.td}>
-                      <button
-                        style={styles.viewBtn}
-                        onClick={() =>
-                          navigate(
-                            `/${role}/member_approval/${member._id}`
-                          )
-                        }
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+              ))
+            )}
+          </tbody>
           </table>
         </div>
       </div>
@@ -273,5 +345,14 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.2s ease",
     fontFamily: "inherit",
+  },
+
+  searchInput: {
+    padding: "8px 12px",
+    border: "1px solid #ced4da",
+    borderRadius: "6px",
+    fontSize: "14px",
+    minWidth: "180px",
+    outline: "none",
   },
 };

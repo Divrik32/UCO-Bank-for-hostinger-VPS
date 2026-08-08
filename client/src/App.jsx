@@ -38,6 +38,7 @@ import ResetPassword from './pages/ResetPassword'
 import ThriftFundReport from './pages/ThriftFundReport'
 import LoanReport from './pages/LoanReport'
 import SharesReport from './pages/SharesReport'
+import LoanReportDetails from './pages/LoanReportDetails'
 
 function App() {
   return (<>
@@ -79,6 +80,7 @@ function App() {
           <Route path="/admin/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/admin/thrift-fund-report" element={<ThriftFundReport />}/>
           <Route path="/admin/loan-report" element={<LoanReport />}/>
+          <Route path="/admin/loan-report-details/:memberId" element={<LoanReportDetails />}/>
           <Route path="/admin/shares-report" element={<SharesReport />}/>
           <Route path="/admin/share_approval_list"   element={<ShareApproval />} />
           <Route path="/admin/loan_approval_list"   element={<LoanApproval />} />
@@ -119,6 +121,7 @@ function App() {
           <Route path="/user/member_approval_list"   element={<MemberApproval />} />
           <Route path="/user/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/user/loan-report" element={<LoanReport />}/>
+          <Route path="/user/loan-report-details/:memberId" element={<LoanReportDetails />}/>
           <Route path="/user/shares-report" element={<SharesReport />}/>
           <Route path="/user/Global_update"   element={<GlobalUpdates />} />
           <Route path="/user/share_approval_list"   element={<ShareApproval />} />

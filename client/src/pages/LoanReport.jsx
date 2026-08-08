@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 // ✅ Dummy data — replace with real API call
@@ -16,6 +17,7 @@ import api from "../api/axios";
 
 
 export default function LoanReport() {
+  const navigate = useNavigate();
   const role = localStorage.getItem("role");
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -177,18 +179,19 @@ export default function LoanReport() {
               <th style={styles.th}>Interest</th>
               <th style={styles.th}>Payment Mode</th>
               <th style={styles.th}>Transaction ID</th>
+              <th style={styles.th}>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={styles.td}>
+                <td colSpan={9} style={styles.td}>
                   Loading...
                 </td>
               </tr>
             ) : filteredReports.length === 0 ? (
               <tr>
-                <td colSpan={8} style={styles.td}>
+                <td colSpan={9} style={styles.td}>
                   No loan report found.
                 </td>
               </tr>
@@ -224,6 +227,17 @@ export default function LoanReport() {
                   <td style={styles.td}>
                     {report.transactionId || "-"}
                   </td>
+
+                 <td style={styles.td}>
+                   <button
+                     style={styles.viewBtn}
+                     onClick={() =>
+                       navigate(`/${role}/loan-report-details/${report.memberCode}`)
+                     }
+                   >
+                     View
+                   </button>
+                 </td>
                 </tr>
               ))
             )}

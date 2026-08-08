@@ -276,10 +276,184 @@ const getAvailableBalance = async (req, res) => {
   }
 };
 
+// ================= GET MEMBER THRIFT TRANSACTIONS =================
+const getMemberThriftTransactions = async (req, res) => {
+  try {
+    // ==========================================
+    // 1. Get ALL approved members
+    // ==========================================
+    const members = await PersonalInformation.find({
+      approval_status: "approved",
+    }).select(
+      "memberId firstname lastname"
+    );
+
+    if (!members.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No approved members found",
+      });
+    }
+
+    // ==========================================
+    // 2. Get all memberIds
+    // ==========================================
+    const memberIds = members.map(
+      (member) => member.memberId
+    );
+
+    // ==========================================
+    // 3. Get ALL thrift entries
+    //    belonging to approved members
+    // ==========================================
+    const entries = await ThriftFundEntry.find({
+      memberId: { $in: memberIds },
+    });
+
+    // ==========================================
+    // 4. Get ALL withdrawals
+    //    belonging to approved members
+    // ==========================================
+    const withdrawals =
+      await ThriftFundWithdrawal.find({
+        memberId: { $in: memberIds },
+      });
+
+    // ==========================================
+    // 5. Create member lookup
+    // ==========================================
+    const memberMap = new Map();
+
+    members.forEach((member) => {
+      memberMap.set(member.memberId, {
+        memberId: member.memberId,
+        memberName: `${member.firstname} ${member.lastname}`,
+      });
+    });
+
+    // ==========================================
+    // 6. Format Thrift Entries
+    // ==========================================
+    const entryTransactions = entries.map(
+      (item) => {
+        const member = memberMap.get(item.memberId);
+
+        return {
+          memberId: item.memberId,
+
+          memberName: member
+            ? member.memberName
+            : "-",
+
+          transactionDate: item.entryDate,
+
+          thriftAmount: item.totalAmountReceived,
+
+          interest:
+            item.yearlyInterestAmount || 0,
+
+          paymentMode: item.paymentMethod,
+
+          transactionId:
+            item.transactionId || "-",
+
+          transactionType: "Entry",
+        };
+      }
+    );
+
+    // ==========================================
+    // 7. Format Thrift Withdrawals
+    // ==========================================
+    const withdrawalTransactions =
+      withdrawals.map((item) => {
+        const member = memberMap.get(
+          item.memberId
+        );
+
+        return {
+          memberId: item.memberId,
+
+          memberName: member
+            ? member.memberName
+            : "-",
+
+          transactionDate: item.withdrawalDate,
+
+          thriftAmount: item.withdrawalAmount,
+
+          interest: "-",
+
+          paymentMode: item.paymentMethod,
+
+          transactionId:
+            item.transactionId || "-",
+
+          transactionType: "Withdrawal",
+        };
+      });
+
+    // ==========================================
+    // 8. Merge Entry + Withdrawal
+    // ==========================================
+    const allTransactions = [
+      ...entryTransactions,
+      ...withdrawalTransactions,
+    ];
+
+    // ==========================================
+    // 9. Latest → Earliest
+    // ==========================================
+    allTransactions.sort(
+      (a, b) =>
+        new Date(b.transactionDate) -
+        new Date(a.transactionDate)
+    );
+
+    // ==========================================
+    // 10. Add Serial Number
+    // ==========================================
+    const formattedData =
+      allTransactions.map(
+        (item, index) => ({
+          serial: index + 1,
+          ...item,
+        })
+      );
+
+    // ==========================================
+    // 11. Response
+    // ==========================================
+    return res.status(200).json({
+      success: true,
+
+      totalApprovedMembers:
+        members.length,
+
+      totalTransactions:
+        formattedData.length,
+
+      data: formattedData,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get approved members thrift transactions error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createThriftEntry,
   createThriftWithdrawal,
   getTotalTransactionDetails,
   getMemberByMemberId,
-  getAvailableBalance
+  getAvailableBalance,
+  getMemberThriftTransactions,
 };

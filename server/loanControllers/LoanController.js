@@ -3,6 +3,28 @@ const officialEntryModel = require("../loanModels/officialEntryModel.js");
 const guaranteerMemberDetailsModel = require("../loanModels/guaranteerMemberDetailsModel.js");
 const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDetailsModel.js");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
+const puppeteer = require("puppeteer");
+
+const escapeHtml = (value) => {
+  if (value === undefined || value === null) {
+    return "-";
+  }
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const formatDate = (date) => {
+  if (!date) return "-";
+
+  return new Date(date)
+    .toLocaleDateString("en-GB")
+    .replace(/\//g, "-");
+};
 
 exports.getMemberByMemberId = async (req, res) => {
   try {
@@ -555,6 +577,540 @@ exports.getPaymentModes = async (req, res) => {
       data: paymentModes,
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.memberLoanDetailsById = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    // ================================
+    // 1. Get Member Personal Information
+    // ================================
+    const member = await PersonalInformation.findOne({
+      memberId: memberId,
+      approval_status: "approved",
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    // ================================
+    // 2. Get Member's All Loans
+    // ================================
+    const loans = await officialEntryModel
+      .find({
+        memberId: memberId,
+      })
+      .sort({ createdAt: 1 });
+
+    // ================================
+    // 3. Calculate Loan Information
+    // ================================
+    let firstLoanDate = "-";
+    let totalLoanAmount = 0;
+    let paymentMode = "-";
+    let transactionId = "-";
+
+    if (loans.length > 0) {
+      const firstLoan = loans[0];
+
+      // First Loan Date
+      firstLoanDate = firstLoan.createdAt
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-");
+
+      // Total Loan Amount
+      totalLoanAmount = loans.reduce(
+        (sum, loan) => sum + Number(loan.loanAmount || 0),
+        0
+      );
+
+      // First Loan Payment Details
+      paymentMode = firstLoan.paymentMode || "-";
+      transactionId = firstLoan.transactionId || "-";
+    }
+
+    // ================================
+    // 4. Response
+    // ================================
+    res.status(200).json({
+      success: true,
+      data: {
+        // ===== Member Information =====
+        memberId: member.memberId,
+
+        firstname: member.firstname,
+        lastname: member.lastname,
+
+        dob: member.dob,
+        age: member.age,
+
+        gender: member.gender,
+        status: member.status,
+
+        guardian_firstname: member.guardian_firstname,
+        guardian_relation: member.guardian_relation,
+
+        phoneno: member.phoneno,
+        email: member.email,
+
+        address_line1: member.address_line1,
+        address_line2: member.address_line2,
+
+        state: member.state,
+        pincode: member.pincode,
+
+        pf_no: member.pf_no,
+
+        // ===== Loan Information =====
+        firstLoanDate,
+        totalLoanAmount,
+        paymentMode,
+        transactionId,
+      },
+    });
+  } catch (error) {
+    console.error("Member loan details error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.printMemberLoanDetails = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    // ==========================================
+    // 1. Get Member Personal Information
+    // SAME QUERY AS YOUR EXISTING API
+    // ==========================================
+    const member = await PersonalInformation.findOne({
+      memberId: memberId,
+      approval_status: "approved",
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    // ==========================================
+    // 2. Get Member's All Loans
+    // SAME QUERY AS YOUR EXISTING API
+    // ==========================================
+    const loans = await officialEntryModel
+      .find({
+        memberId: memberId,
+      })
+      .sort({ createdAt: 1 });
+
+    // ==========================================
+    // 3. Calculate Loan Information
+    // SAME LOGIC AS YOUR EXISTING API
+    // ==========================================
+    let firstLoanDate = "-";
+    let totalLoanAmount = 0;
+    let paymentMode = "-";
+    let transactionId = "-";
+
+    if (loans.length > 0) {
+      const firstLoan = loans[0];
+
+      firstLoanDate = firstLoan.createdAt
+        ? firstLoan.createdAt
+            .toLocaleDateString("en-GB")
+            .replace(/\//g, "-")
+        : "-";
+
+      totalLoanAmount = loans.reduce(
+        (sum, loan) =>
+          sum + Number(loan.loanAmount || 0),
+        0
+      );
+
+      paymentMode = firstLoan.paymentMode || "-";
+      transactionId = firstLoan.transactionId || "-";
+    }
+
+    // ==========================================
+    // 4. Helper
+    // ==========================================
+    const valueOrDash = (value) => {
+      return value !== undefined &&
+        value !== null &&
+        value !== ""
+        ? value
+        : "-";
+    };
+
+    const formatDate = (date) => {
+      if (!date) return "-";
+
+      return new Date(date)
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-");
+    };
+
+    // ==========================================
+    // 5. HTML FOR PDF
+    // ONLY MEMBER + LOAN DETAILS
+    // ==========================================
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8" />
+
+        <style>
+
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+            font-family:
+              Arial,
+              Helvetica,
+              sans-serif;
+            background: white;
+            color: #333;
+          }
+
+          .container {
+            width: 100%;
+            padding: 20px;
+          }
+
+          .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #012970;
+            margin-bottom: 25px;
+          }
+
+          .card {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 22px;
+            overflow: hidden;
+          }
+
+          .card-title {
+            margin: 0;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+
+            font-size: 17px;
+            font-weight: 700;
+            color: #012970;
+          }
+
+          .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .detail-item {
+            display: grid;
+            grid-template-columns: 45% 55%;
+
+            min-height: 45px;
+
+            border-right: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+          }
+
+          .detail-item:nth-child(even) {
+            border-right: none;
+          }
+
+          .label {
+            padding: 10px 12px;
+            background: #f8f9fa;
+
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+          }
+
+          .value {
+            padding: 10px 12px;
+
+            font-size: 13px;
+            color: #333;
+
+            word-break: break-word;
+          }
+
+          .footer {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 11px;
+            color: #777;
+          }
+
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+
+        </style>
+      </head>
+
+      <body>
+
+        <div class="container">
+
+          <div class="title">
+            Loan Report Details
+          </div>
+
+          <!-- ================= MEMBER INFORMATION ================= -->
+
+          <div class="card">
+
+            <h2 class="card-title">
+              Member Information
+            </h2>
+
+            <div class="details-grid">
+
+              <div class="detail-item">
+                <div class="label">Member Code</div>
+                <div class="value">
+                  ${valueOrDash(member.memberId)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Member Name</div>
+                <div class="value">
+                  ${valueOrDash(member.firstname)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Last Name</div>
+                <div class="value">
+                  ${valueOrDash(member.lastname)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Member D.O.B</div>
+                <div class="value">
+                  ${formatDate(member.dob)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Age</div>
+                <div class="value">
+                  ${valueOrDash(member.age)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Gender</div>
+                <div class="value">
+                  ${valueOrDash(member.gender)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Status</div>
+                <div class="value">
+                  ${valueOrDash(member.status)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Guardian Name</div>
+                <div class="value">
+                  ${valueOrDash(member.guardian_firstname)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Guardian Relation</div>
+                <div class="value">
+                  ${valueOrDash(member.guardian_relation)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Phone</div>
+                <div class="value">
+                  ${valueOrDash(member.phoneno)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Email Id</div>
+                <div class="value">
+                  ${valueOrDash(member.email)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">House/Flat No.</div>
+                <div class="value">
+                  ${valueOrDash(member.address_line1)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Street No./Area</div>
+                <div class="value">
+                  ${valueOrDash(member.address_line2)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">State</div>
+                <div class="value">
+                  ${valueOrDash(member.state)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Pincode</div>
+                <div class="value">
+                  ${valueOrDash(member.pincode)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">PF No</div>
+                <div class="value">
+                  ${valueOrDash(member.pf_no)}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+
+          <!-- ================= LOAN INFORMATION ================= -->
+
+          <div class="card">
+
+            <h2 class="card-title">
+              Loan Information
+            </h2>
+
+            <div class="details-grid">
+
+              <div class="detail-item">
+                <div class="label">First Loan Date</div>
+                <div class="value">
+                  ${valueOrDash(firstLoanDate)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Total Loan Amount</div>
+                <div class="value">
+                  ₹${Number(totalLoanAmount).toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Payment Mode</div>
+                <div class="value">
+                  ${valueOrDash(paymentMode)}
+                </div>
+              </div>
+
+              <div class="detail-item">
+                <div class="label">Transaction ID</div>
+                <div class="value">
+                  ${valueOrDash(transactionId)}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="footer">
+            Loan Report
+          </div>
+
+        </div>
+
+      </body>
+      </html>
+    `;
+
+    // ==========================================
+    // 6. CREATE PDF USING PUPPETEER
+    // ==========================================
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+const pdf = await page.pdf({
+  format: "A4",
+  printBackground: true,
+  margin: {
+    top: "15mm",
+    right: "15mm",
+    bottom: "15mm",
+    left: "15mm",
+  },
+});
+
+await browser.close();
+
+// ==========================================
+// 7. SHOW PDF IN BROWSER
+// ==========================================
+
+res.set({
+  "Content-Type": "application/pdf",
+  "Content-Disposition": `inline; filename="loan-report-${memberId}.pdf"`,
+  "Content-Length": pdf.length,
+});
+
+res.send(pdf);
+
+  } catch (error) {
+    console.error(
+      "Member loan PDF error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,

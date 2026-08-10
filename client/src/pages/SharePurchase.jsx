@@ -54,7 +54,7 @@ const Field = ({ label, children, isMobile }) => (
 
 const PRICE_PER_SHARE = 20;
 
-export default function AdminShare() {
+export default function SharePurchase() {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
 
   const [currentBalance, setCurrentBalance] = useState(null);
@@ -64,10 +64,27 @@ export default function AdminShare() {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [dividendRate, setDividendRate] = useState(0);
+  const [creditPaymentMethods, setCreditPaymentMethods] = useState([]);
+  const [debitPaymentMethods, setDebitPaymentMethods] = useState([]);
 
   const [officialForm, setOfficialForm] = useState({ officeName: "", dateOfJoin: "", dateOfAllotment: "", dateOfRetirement: "" });
-  const [creditForm, setCreditForm] = useState({ investmentAmount: "", numberOfShares: "" });
-  const [debitForm, setDebitForm] = useState({ amount: "", remainingShares: "", remainingCount: "", paymentMode: "Cheque", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
+  const [creditForm, setCreditForm] = useState({
+    investmentAmount: "",
+    numberOfShares: "",
+    paymentMode: creditPaymentMethods[0] || "",
+    transactionId: "",
+  });
+  
+  const [debitForm, setDebitForm] = useState({
+    amount: "",
+    remainingShares: "",
+    remainingCount: "",
+    paymentMode: debitPaymentMethods[0] || "",
+    chequeNumber: "",
+    transactionId: "",
+    transferShareTo: "Members Loan Account",
+    shareCertificateNumber: "",
+  });
 
   const API = "/share";
   const txScrollRef = useRef(null);
@@ -79,13 +96,25 @@ export default function AdminShare() {
     }
   }, [activeTab, transactions]);
 
-  useEffect(() => { fetchInterestRate(); }, []);
+  useEffect(() => { fetchInterestRate(); fetchSharePaymentMethods(); }, []);
 
   const fetchInterestRate = async () => {
     try {
       const res = await api.get(`${API}/share-interest`);
       setDividendRate(res.data.data?.rate || 0);
     } catch { setDividendRate(0); }
+  };
+
+  const fetchSharePaymentMethods = async () => {
+    try {
+      const res = await api.get(`${API}/payment-methods`);
+  
+      setCreditPaymentMethods(res.data.data?.creditMethods || []);
+      setDebitPaymentMethods(res.data.data?.debitMethods || []);
+    } catch (error) {
+      console.error("Failed to fetch payment methods");
+      toast.error("Failed to fetch payment methods");
+    }
   };
 
     const formatDateTime = (dateString) => {
@@ -150,18 +179,35 @@ export default function AdminShare() {
 
   const submitCredit = async () => {
     try {
-      await api.post(`${API}/credit-share`, { memberId: member.memberId, pricePerShare: PRICE_PER_SHARE, investmentAmount: Number(creditForm.investmentAmount), numberOfShares: Number(creditForm.numberOfShares) });
+      await api.post(`${API}/credit-share`, {
+        memberId: member.memberId,
+        pricePerShare: PRICE_PER_SHARE,
+        investmentAmount: Number(creditForm.investmentAmount),
+        numberOfShares: Number(creditForm.numberOfShares),
+        paymentMode: creditForm.paymentMode,
+        transactionId: creditForm.transactionId,
+      });
+  
       toast.success("Credit shares updated successfully");
-      setCreditForm({ investmentAmount: "", numberOfShares: "" });
+  
+      setCreditForm({
+        investmentAmount: "",
+        numberOfShares: "",
+        paymentMode: creditPaymentMethods[0] || "",
+        transactionId: "",
+      });
+  
       handleSearch();
-    } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update");
+    }
   };
 
   const submitDebit = async () => {
     try {
       await api.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transactionId: debitForm.transactionId, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
       toast.success("Debit shares updated successfully");
-      setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: "Cheque", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
+      setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: debitPaymentMethods[0] || "", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
   };
@@ -347,15 +393,93 @@ export default function AdminShare() {
             )}
 
             {/* ── Credit Shares ── */}
-            {activeTab === "credit" && (
-              <div style={{ maxWidth: "680px" }}>
-                <h5 style={sectionTitle}>Credit Shares</h5>
-                <Field label="Price per Share" isMobile={isMobile}><input style={inputDisabled} disabled value={`₹${PRICE_PER_SHARE.toFixed(2)}`} /></Field>
-                <Field label="Investment Amount" isMobile={isMobile}><input type="number" style={inputStyle} value={creditForm.investmentAmount} onChange={(e) => setCreditForm({ ...creditForm, investmentAmount: e.target.value })} placeholder="Enter investment amount" /></Field>
-                <Field label="Number of Shares" isMobile={isMobile}><input style={inputDisabled} disabled value={creditForm.numberOfShares} /></Field>
-                <div style={{ textAlign: "center", marginTop: "20px" }}><button style={btnPrimary} onClick={submitCredit}>Update</button></div>
-              </div>
-            )}
+{activeTab === "credit" && (
+  <div style={{ maxWidth: "680px" }}>
+    <h5
+      style={{
+        fontWeight: "700",
+        marginBottom: "18px",
+        fontSize: "15px",
+        color: "#1a2052",
+        fontFamily: "'Inter', sans-serif",
+        paddingBottom: "8px",
+        borderBottom: "1.5px solid #e2e8f0",
+      }}
+    >
+      Credit Shares
+    </h5>
+
+    <Field label="Price per Share" isMobile={isMobile}>
+      <input
+        style={inputDisabled}
+        disabled
+        value={`₹${PRICE_PER_SHARE.toFixed(2)}`}
+      />
+    </Field>
+
+    <Field label="Investment Amount" isMobile={isMobile}>
+      <input
+        type="number"
+        style={inputStyle}
+        value={creditForm.investmentAmount}
+        onChange={(e) =>
+          setCreditForm({
+            ...creditForm,
+            investmentAmount: e.target.value,
+          })
+        }
+        placeholder="Enter investment amount"
+      />
+    </Field>
+
+    <Field label="Number of Shares" isMobile={isMobile}>
+      <input
+        style={inputDisabled}
+        disabled
+        value={creditForm.numberOfShares}
+      />
+    </Field>
+
+    <Field label="Payment Mode" isMobile={isMobile}>
+      <select
+        style={inputStyle}
+        value={creditForm.paymentMode}
+        onChange={(e) =>
+          setCreditForm({
+            ...creditForm,
+            paymentMode: e.target.value,
+          })
+        }
+      >
+        {creditPaymentMethods.map((method) => (
+          <option key={method} value={method}>
+            {method}
+          </option>
+        ))}
+      </select>
+    </Field>
+
+    <Field label="Transaction ID" isMobile={isMobile}>
+      <input
+        style={inputStyle}
+        value={creditForm.transactionId}
+        onChange={(e) =>
+          setCreditForm({
+            ...creditForm,
+            transactionId: e.target.value,
+          })
+        }
+        placeholder="Enter transaction ID"
+      />
+    </Field>
+
+    <div style={{ textAlign: "center", marginTop: "20px" }}>
+      <button style={btnPrimary} onClick={submitCredit}>
+        Update
+      </button>
+    </div>
+  </div>
+)}
 
             {/* ── Debit Shares ── */}
             {activeTab === "debit" && (
@@ -365,8 +489,21 @@ export default function AdminShare() {
                 <Field label="Remaining Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={debitForm.remainingShares} /></Field>
                 <Field label="Remaining Shares" isMobile={isMobile}><input style={inputDisabled} disabled value={debitForm.remainingCount} /></Field>
                 <Field label="Payment Mode" isMobile={isMobile}>
-                  <select style={inputStyle} value={debitForm.paymentMode} onChange={(e) => setDebitForm({ ...debitForm, paymentMode: e.target.value })}>
-                    {["Cash", "Cheque", "UPI", "Bank Transfer"].map((m) => <option key={m}>{m}</option>)}
+                  <select
+                    style={inputStyle}
+                    value={debitForm.paymentMode}
+                    onChange={(e) =>
+                      setDebitForm({
+                        ...debitForm,
+                        paymentMode: e.target.value
+                      })
+                    }
+                  >
+                    {debitPaymentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Cheque Number" isMobile={isMobile}><input style={inputStyle} value={debitForm.chequeNumber} onChange={(e) => setDebitForm({ ...debitForm, chequeNumber: e.target.value })} placeholder="If applicable" /></Field>

@@ -11,7 +11,11 @@ const {
   getShareAvailableBalance,
   saveOfficialDetails,
   getOfficialDetails,
-  getMemberByMemberId
+  getMemberByMemberId,
+  getSharePaymentMethods,
+  getMemberShareTransactions,
+  memberShareDetailsById,
+  printMemberShareDetails
 } = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
@@ -27,24 +31,14 @@ router.post("/debit-share", createDebitShare);
 router.get("/debit-share/:memberId", getAllDebitShare);
 
 
-router.get(
- "/share-balance/:memberId",
- getShareAvailableBalance
-);
+router.get("/share-balance/:memberId", getShareAvailableBalance);
+router.post("/official-details", saveOfficialDetails);
+router.get("/official-details/:memberId", getOfficialDetails);
+router.get("/member/:memberId", getMemberByMemberId);
+router.get("/payment-methods", getSharePaymentMethods);
 
-router.post(
- "/official-details",
- saveOfficialDetails
-);
-
-router.get(
- "/official-details/:memberId",
- getOfficialDetails
-);
-
-router.get(
- "/member/:memberId",
- getMemberByMemberId
-);
+router.get("/member-share-transactions", getMemberShareTransactions);
+router.get("/member-share-details/:memberId", memberShareDetailsById);
+router.get("/member-share-details-pdf/:memberId", printMemberShareDetails);
 
 module.exports = router;

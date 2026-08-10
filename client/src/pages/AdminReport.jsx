@@ -53,7 +53,7 @@ export default function AdminReport() {
     },
     {
       id: "shares",
-      href: "/admin/shares-report",
+      href: "/admin/share-report",
       img: "/assets/img/market-share.png",
       title: "Shares Report",
       desc: "This Report provides you information about Shares.",

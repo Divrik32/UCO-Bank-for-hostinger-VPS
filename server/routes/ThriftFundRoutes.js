@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions } = require("../controllers/ThriftFundController.js");
+const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions, getThriftPaymentMethods, memberThriftDetailsById, printMemberThriftDetails } = require("../controllers/ThriftFundController.js");
 const { updateInterestRate, getInterestRate } = require("../controllers/interestController.js");
 
+router.get("/payment-methods", getThriftPaymentMethods);
 router.get("/interest-rate", getInterestRate);
 router.put("/update-interest", updateInterestRate);
 router.post("/thrift-entry", createThriftEntry);
@@ -11,5 +12,7 @@ router.get("/transaction/:memberId", getTotalTransactionDetails);
 router.get("/member/:memberId", getMemberByMemberId);
 router.get("/available-balance/:memberId",getAvailableBalance);
 router.get("/member-thrift-transactions", getMemberThriftTransactions);
+router.get("/member-thrift-details/:memberId", memberThriftDetailsById);
+router.get("/member-thrift-details-pdf/:memberId", printMemberThriftDetails);
 
 module.exports = router;

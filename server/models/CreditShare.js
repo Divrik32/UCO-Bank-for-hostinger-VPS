@@ -19,6 +19,20 @@ const creditShareSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+
+    paymentMode: {
+      type: String,
+      enum: ["Cheque", "Cash", "UPI", "Net Banking", "NEFT", "RTGS", "IMPS", "Bank Transfer", "Demand Draft"],
+      required: true,
+      trim: true,
+    },
+
+    transactionId: {
+      type: String,
+      trim: true,
+      sparse: true,
+      unique: true,
+    },
   },
   {
     timestamps: true,

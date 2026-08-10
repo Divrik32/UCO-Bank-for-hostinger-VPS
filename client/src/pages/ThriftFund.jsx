@@ -53,17 +53,18 @@ const Field = ({ label, children, isMobile }) => (
   </div>
 );
 
-export default function AdminThrift() {
+export default function ThriftFund() {
   const { isMobile, isTablet, isDesktop, width } = useBreakpoint();
-
   const [memberCode, setMemberCode] = useState("");
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("entry");
   const [interestRate, setInterestRate] = useState("");
+  const [entryPaymentMethods, setEntryPaymentMethods] = useState([]);
+  const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState([]);
 
   const [entryForm, setEntryForm] = useState({
     totalAmountReceived: "",
-    paymentMethod: "Cheque",
+    paymentMethod: entryPaymentMethods[0] || "",
     transactionId: "",
     chequeNumber: "",
     yearlyInterestAmount: "",
@@ -73,7 +74,7 @@ export default function AdminThrift() {
 
   const [withdrawalForm, setWithdrawalForm] = useState({
     withdrawalAmount: "",
-    paymentMethod: "Cheque",
+    paymentMethod: withdrawalPaymentMethods[0] || "",
     transactionId: "",
     chequeNumber: "",
     withdrawalDate: "",
@@ -102,7 +103,10 @@ export default function AdminThrift() {
     setEntryForm((prev) => ({ ...prev, yearlyInterestAmount: interest.toFixed(2) }));
   }, [entryForm.totalAmountReceived, interestRate]);
 
-  useEffect(() => { fetchInterestRate(); }, []);
+  useEffect(() => {
+    fetchInterestRate();
+    fetchThriftPaymentMethods();
+  }, []);
 
   const fetchAvailableBalance = async (memberId) => {
     try {
@@ -116,6 +120,18 @@ export default function AdminThrift() {
       const res = await api.get(`${API}/interest-rate`);
       setInterestRate(res.data.data.rate);
     } catch { console.error("Failed to fetch interest rate"); }
+  };
+
+  const fetchThriftPaymentMethods = async () => {
+    try {
+      const res = await api.get(`${API}/payment-methods`);
+  
+      setEntryPaymentMethods(res.data.data.entryMethods || []);
+      setWithdrawalPaymentMethods(res.data.data.withdrawalMethods || []);
+    } catch (error) {
+      console.error("Failed to fetch payment methods");
+      toast.error("Failed to fetch payment methods");
+    }
   };
 
   const formatDateTime = (dateString) => {
@@ -161,7 +177,7 @@ export default function AdminThrift() {
       });
       toast.success("Entry created successfully");
       await fetchAvailableBalance(member.memberId);
-      setEntryForm({ totalAmountReceived: "", paymentMethod: "Cheque", transactionId: "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
+      setEntryForm({ totalAmountReceived: "", paymentMethod: entryPaymentMethods[0] || "", transactionId: "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message); }
   };
@@ -175,7 +191,7 @@ export default function AdminThrift() {
       });
       toast.success("Withdrawal successful");
       await fetchAvailableBalance(member.memberId);
-      setWithdrawalForm({ withdrawalAmount: "", paymentMethod: "Cheque", transactionId: "", chequeNumber: "", withdrawalDate: "", approvedBy: "" });
+      setWithdrawalForm({ withdrawalAmount: "", paymentMethod: withdrawalPaymentMethods[0] || "", transactionId: "", chequeNumber: "", withdrawalDate: "", approvedBy: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message); }
   };
@@ -444,8 +460,21 @@ export default function AdminThrift() {
                   <input type="number" style={inputStyle} value={entryForm.totalAmountReceived} onChange={(e) => setEntryForm({ ...entryForm, totalAmountReceived: e.target.value })} placeholder="Enter amount" />
                 </Field>
                 <Field label="Payment Method" isMobile={isMobile}>
-                  <select style={inputStyle} value={entryForm.paymentMethod} onChange={(e) => setEntryForm({ ...entryForm, paymentMethod: e.target.value })}>
-                    {["Cash", "Cheque", "UPI", "Bank Transfer"].map((m) => <option key={m}>{m}</option>)}
+                  <select
+                    style={inputStyle}
+                    value={entryForm.paymentMethod}
+                    onChange={(e) =>
+                      setEntryForm({
+                        ...entryForm,
+                        paymentMethod: e.target.value,
+                      })
+                    }
+                  >
+                    {entryPaymentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Transaction ID" isMobile={isMobile}>
@@ -491,8 +520,21 @@ export default function AdminThrift() {
                   <input style={inputDisabled} disabled value={withdrawalForm.withdrawalAmount ? (Number(availableBalance) - Number(withdrawalForm.withdrawalAmount)).toFixed(2) : availableBalance} />
                 </Field>
                 <Field label="Payment Method" isMobile={isMobile}>
-                  <select style={inputStyle} value={withdrawalForm.paymentMethod} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, paymentMethod: e.target.value })}>
-                    {["Cash", "Cheque", "UPI", "Bank Transfer"].map((m) => <option key={m}>{m}</option>)}
+                  <select
+                    style={inputStyle}
+                    value={withdrawalForm.paymentMethod}
+                    onChange={(e) =>
+                      setWithdrawalForm({
+                        ...withdrawalForm,
+                        paymentMethod: e.target.value,
+                      })
+                    }
+                  >
+                    {withdrawalPaymentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Transaction ID" isMobile={isMobile}>

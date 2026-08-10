@@ -16,7 +16,7 @@ const thriftFundEntrySchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["Cash", "Cheque", "UPI", "Bank Transfer"],
+      enum: ["Cheque", "Cash", "UPI", "Net Banking", "NEFT", "RTGS", "IMPS", "Bank Transfer", "Demand Draft"],
       required: true,
     },
 

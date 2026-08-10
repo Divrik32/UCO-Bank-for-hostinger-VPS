@@ -22,8 +22,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import MemberApprovalDetail from './pages/MemberApprovalDetail'
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import AdminThrift from './pages/AdminThrift'
-import UserThrift from './pages/UserThrift'
 import "@fontsource/manrope";
 import "@fontsource/poppins";
 import "@fontsource/inter";
@@ -31,14 +29,16 @@ import { Toaster } from "react-hot-toast";
 import ThriftFundInterestRate from './pages/ThriftFundInterestRate'
 import ShareInterestRate from './pages/Shareinterestrate'
 import LoanInterestRate from './pages/Loaninterestrate'
-import AdminShare from './pages/AdminShare'
-import UserShare from './pages/UserShare'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ThriftFundReport from './pages/ThriftFundReport'
 import LoanReport from './pages/LoanReport'
-import SharesReport from './pages/SharesReport'
 import LoanReportDetails from './pages/LoanReportDetails'
+import ThriftFund from './pages/ThriftFund'
+import ThriftFundDetails from './pages/ThriftFundDetails'
+import SharePurchase from './pages/SharePurchase'
+import ShareReport from './pages/ShareReport'
+import ShareDetails from './pages/ShareDetails'
 
 function App() {
   return (<>
@@ -68,8 +68,8 @@ function App() {
           />
           <Route path="/admin/loan"   element={<Loan />} />
           <Route path="/admin/report" element={<AdminReport />} />
-          <Route path="/admin/share"  element={<AdminShare />} />
-          <Route path="/admin/thrift" element={<AdminThrift />} />
+          <Route path="/admin/share"  element={<SharePurchase />} />
+          <Route path="/admin/thrift" element={<ThriftFund />} />
           <Route path="/admin/pi1"    element={<PI1 />} />
           <Route path="/admin/mgi2"    element={<MGI2 />} />
           <Route path="/admin/mbi3"   element={<MBI3 />} />
@@ -78,10 +78,12 @@ function App() {
           <Route path="/admin/admin-update"   element={<AdminUpdates />} />
           <Route path="/admin/member_approval_list"   element={<MemberApproval />} />
           <Route path="/admin/member_approval/:id"   element={<MemberApprovalDetail />} />
-          <Route path="/admin/thrift-fund-report" element={<ThriftFundReport />}/>
           <Route path="/admin/loan-report" element={<LoanReport />}/>
           <Route path="/admin/loan-report-details/:memberId" element={<LoanReportDetails />}/>
-          <Route path="/admin/shares-report" element={<SharesReport />}/>
+          <Route path="/admin/thrift-fund-report" element={<ThriftFundReport />}/>
+          <Route path="/admin/thrift-fund-details/:memberId" element={<ThriftFundDetails />}/>
+          <Route path="/admin/share-report" element={<ShareReport />}/>
+          <Route path="/admin/share-details/:memberId" element={<ShareDetails />}/>
           <Route path="/admin/share_approval_list"   element={<ShareApproval />} />
           <Route path="/admin/loan_approval_list"   element={<LoanApproval />} />
           <Route path="/admin/Global_update"   element={<GlobalUpdates />} />
@@ -110,8 +112,8 @@ function App() {
           />
           <Route path="/user/loan"   element={<Loan />} />
           <Route path="/user/report" element={<UserReport />} />
-          <Route path="/user/share"  element={<UserShare />} />
-          <Route path="/user/thrift" element={<UserThrift />} />
+          <Route path="/user/share"  element={<SharePurchase />} />
+          <Route path="/user/thrift" element={<ThriftFund />} />
           <Route path="/user/pi1"    element={<PI1 />} />
           <Route path="/user/mgi2"    element={<MGI2 />} />
           <Route path="/user/mbi3"   element={<MBI3 />} />
@@ -122,11 +124,13 @@ function App() {
           <Route path="/user/member_approval/:id"   element={<MemberApprovalDetail />} />
           <Route path="/user/loan-report" element={<LoanReport />}/>
           <Route path="/user/loan-report-details/:memberId" element={<LoanReportDetails />}/>
-          <Route path="/user/shares-report" element={<SharesReport />}/>
+          <Route path="/user/thrift-fund-report" element={<ThriftFundReport />}/>
+          <Route path="/user/thrift-fund-details/:memberId" element={<ThriftFundDetails />}/>
+          <Route path="/user/share-report" element={<ShareReport />}/>
+          <Route path="/user/share-details/:memberId" element={<ShareDetails />}/>
           <Route path="/user/Global_update"   element={<GlobalUpdates />} />
           <Route path="/user/share_approval_list"   element={<ShareApproval />} />
           <Route path="/user/loan_approval_list"   element={<LoanApproval />} />
-          <Route path="/user/thrift-fund-report" element={<ThriftFundReport />}/>
         </Route>
         </Route>
       </Routes>

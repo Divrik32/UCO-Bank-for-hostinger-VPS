@@ -85,7 +85,7 @@ export default function UserReport() {
           />
           <Card
             id="shares"
-            href="/user/shares-report"
+            href="/user/share-report"
             img="/assets/img/market-share.png"
             title="Shares Report"
             desc="This Report provides you information about Shares."

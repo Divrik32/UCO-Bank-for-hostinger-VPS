@@ -16,6 +16,7 @@ const debitShareSchema = new mongoose.Schema(
 
     paymentMode: {
       type: String,
+      enum: ["Cheque", "Cash", "UPI", "Net Banking", "NEFT", "RTGS", "IMPS", "Bank Transfer", "Demand Draft"],
       required: true,
       trim: true,
     },

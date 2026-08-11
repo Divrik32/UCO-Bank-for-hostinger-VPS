@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { Printer } from "lucide-react";
 
 // ✅ Dummy data — replace with real API call
 // const dummyMembers = [
@@ -29,6 +30,13 @@ export default function LoanReport() {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  const handlePrint = () => {
+  const pdfUrl =
+    `${api.defaults.baseURL}/loan/loan-report-pdf`;
+
+  window.open(pdfUrl, "_blank");
+};
   
   const fetchReports = async () => {
     try {
@@ -72,7 +80,77 @@ export default function LoanReport() {
     return matchMemberCode && matchMemberName && matchDate;
   });
 
-  return (
+
+  return (<>
+  <style>
+{`
+  .premium-print-btn {
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 9px;
+
+    padding: 11px 22px;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+
+    color: #ffffff;
+
+    background:
+      linear-gradient(
+        135deg,
+        #0b3d91,
+        #1a4b9b,
+        #2563eb
+      );
+
+    border: none;
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    overflow: hidden;
+
+    box-shadow:
+      0 4px 14px
+      rgba(1, 41, 112, 0.35);
+
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .premium-print-btn:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+      0 8px 20px
+      rgba(1, 41, 112, 0.45);
+  }
+
+  .premium-print-btn:active {
+    transform: scale(0.97);
+  }
+
+  .premium-print-btn .print-icon-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+      rgba(255,255,255,0.18);
+
+    border-radius: 50%;
+
+    padding: 3px;
+  }
+`}
+</style>
     <div style={styles.wrapper}>
     {/* ── Page Header ── */}
     <div style={styles.pageHeader}>
@@ -117,15 +195,8 @@ export default function LoanReport() {
           </p>
         </div>
       </div>
-
-      <div
-  style={{
-    display: "flex",
-    gap: "15px",
-    flexWrap: "wrap",
-    marginBottom: "20px",
-  }}
->
+<div style={styles.filterRow}>
+  {/* Member Code */}
   <input
     type="text"
     placeholder="Search Member Code"
@@ -134,6 +205,7 @@ export default function LoanReport() {
     style={styles.searchInput}
   />
 
+  {/* Member Name */}
   <input
     type="text"
     placeholder="Search Member Name"
@@ -142,8 +214,16 @@ export default function LoanReport() {
     style={styles.searchInput}
   />
 
-  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+  {/* From Date */}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    }}
+  >
     <label>From</label>
+
     <input
       type="date"
       value={fromDate}
@@ -152,8 +232,16 @@ export default function LoanReport() {
     />
   </div>
 
-  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+  {/* To Date */}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    }}
+  >
     <label>To</label>
+
     <input
       type="date"
       value={toDate}
@@ -161,6 +249,26 @@ export default function LoanReport() {
       style={styles.searchInput}
     />
   </div>
+
+  {/* Print Button */}
+<button
+  className="no-print premium-print-btn"
+  onClick={handlePrint}
+  style={{
+    marginLeft: "auto",
+    flexShrink: 0,
+    alignSelf: "flex-end",
+  }}
+>
+    <span className="print-icon-badge">
+      <Printer
+        size={12}
+        strokeWidth={2.4}
+      />
+    </span>
+
+    <span>Print Report</span>
+  </button>
 </div>
 
       {/* ── Table Card ── */}
@@ -246,6 +354,7 @@ export default function LoanReport() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -369,4 +478,21 @@ const styles = {
     minWidth: "180px",
     outline: "none",
   },
+  headerRight: {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "20px",
+},
+filterRow: {
+  display: "flex",
+  alignItems: "flex-end",
+  gap: "15px",
+  flexWrap: "wrap",
+  marginBottom: "20px",
+
+  width: "100%",
+  boxSizing: "border-box",
+
+  padding: "0",
+},
 };

@@ -1117,3 +1117,397 @@ res.send(pdf);
     });
   }
 };
+
+// ==========================================
+// Reusable Loan Report Data Helper
+// ==========================================
+
+const getLoanReportData = async () => {
+  const members = await PersonalInformation.find({
+    approval_status: "approved",
+  }).sort({ memberId: 1 });
+
+  const reports = [];
+
+  for (const member of members) {
+    const loans = await officialEntryModel
+      .find({
+        memberId: member.memberId,
+      })
+      .sort({ createdAt: 1 });
+
+    if (loans.length === 0) {
+      reports.push({
+        memberCode: member.memberId,
+        memberName: `${member.firstname} ${member.lastname}`,
+        firstLoanDate: "-",
+        totalLoanAmount: 0,
+        interest: "None",
+        paymentMode: "-",
+        transactionId: "-",
+      });
+    } else {
+      const totalLoanAmount = loans.reduce(
+        (sum, loan) =>
+          sum + Number(loan.loanAmount || 0),
+        0
+      );
+
+      const firstLoan = loans[0];
+
+      reports.push({
+        memberCode: member.memberId,
+
+        memberName:
+          `${member.firstname} ${member.lastname}`,
+
+        firstLoanDate: firstLoan.createdAt
+          ? firstLoan.createdAt
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
+          : "-",
+
+        totalLoanAmount,
+
+        interest: "None",
+
+        paymentMode:
+          firstLoan.paymentMode || "-",
+
+        transactionId:
+          firstLoan.transactionId || "-",
+      });
+    }
+  }
+
+  return reports;
+};
+
+exports.loanReportPDF = async (req, res) => {
+  let browser;
+
+  try {
+
+    // ==========================================
+    // 1. Get Loan Report Data
+    // ==========================================
+
+    const reports = await getLoanReportData();
+
+
+    // ==========================================
+    // 2. Generate Table HTML
+    // ==========================================
+
+    const rows = reports.map((report, index) => {
+
+      return `
+        <tr>
+
+          <td>${index + 1}</td>
+
+          <td>
+            ${report.memberCode || "-"}
+          </td>
+
+          <td>
+            ${report.memberName || "-"}
+          </td>
+
+          <td>
+            ${report.firstLoanDate || "-"}
+          </td>
+
+          <td>
+            ₹${Number(
+              report.totalLoanAmount || 0
+            ).toLocaleString("en-IN")}
+          </td>
+
+          <td>
+            ${report.interest || "-"}
+          </td>
+
+          <td>
+            ${report.paymentMode || "-"}
+          </td>
+
+          <td>
+            ${report.transactionId || "-"}
+          </td>
+
+        </tr>
+      `;
+    }).join("");
+
+
+    // ==========================================
+    // 3. Full HTML
+    // ==========================================
+
+    const html = `
+
+      <!DOCTYPE html>
+
+      <html>
+
+      <head>
+
+        <meta charset="UTF-8">
+
+        <title>
+          Loan Report
+        </title>
+
+        <style>
+
+          body {
+            font-family:
+              Arial,
+              Helvetica,
+              sans-serif;
+
+            margin: 0;
+            padding: 20px;
+
+            color: #333;
+          }
+
+          .header {
+            text-align: center;
+
+            margin-bottom: 20px;
+          }
+
+          .title {
+            font-size: 22px;
+            font-weight: 700;
+
+            color: #012970;
+
+            margin-bottom: 8px;
+          }
+
+          .address {
+            font-size: 13px;
+
+            line-height: 1.5;
+          }
+
+          table {
+            width: 100%;
+
+            border-collapse:
+              collapse;
+
+            font-size: 11px;
+          }
+
+          th,
+          td {
+            border:
+              1px solid #dee2e6;
+
+            padding: 8px;
+
+            text-align: center;
+          }
+
+          th {
+            background: #f8f9fa;
+
+            font-weight: 600;
+          }
+
+          @page {
+            size: A4 landscape;
+
+            margin: 12mm;
+          }
+
+        </style>
+
+      </head>
+
+
+      <body>
+
+        <div class="header">
+
+          <div class="title">
+            Loan Report
+          </div>
+
+          <div class="address">
+
+            <strong>
+              Regd. 203, Hari Om Commercial Complex
+            </strong>
+
+            <br />
+
+            New Dak Bunglow Road,
+            Patna-800001
+
+          </div>
+
+        </div>
+
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Sl.
+              </th>
+
+              <th>
+                Member Code
+              </th>
+
+              <th>
+                Member Name
+              </th>
+
+              <th>
+                First Loan Date
+              </th>
+
+              <th>
+                Total Loan Amount
+              </th>
+
+              <th>
+                Interest
+              </th>
+
+              <th>
+                Payment Mode
+              </th>
+
+              <th>
+                Transaction ID
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            ${
+              rows ||
+              `
+                <tr>
+                  <td colspan="8">
+                    No loan report found.
+                  </td>
+                </tr>
+              `
+            }
+
+          </tbody>
+
+        </table>
+
+      </body>
+
+      </html>
+
+    `;
+
+
+    // ==========================================
+    // 4. Launch Puppeteer
+    // ==========================================
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+    });
+
+
+    const page =
+      await browser.newPage();
+
+
+    // ==========================================
+    // 5. Load HTML
+    // ==========================================
+
+    await page.setContent(
+      html,
+      {
+        waitUntil: "networkidle0",
+      }
+    );
+
+
+    // ==========================================
+    // 6. Generate PDF
+    // ==========================================
+
+    const pdf =
+      await page.pdf({
+
+        format: "A4",
+
+        landscape: true,
+
+        printBackground: true,
+
+        margin: {
+          top: "12mm",
+          right: "12mm",
+          bottom: "12mm",
+          left: "12mm",
+        },
+
+      });
+
+
+    // ==========================================
+    // 7. Send PDF
+    // ==========================================
+
+    res.setHeader(
+      "Content-Type",
+      "application/pdf"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      'inline; filename="loan-report.pdf"'
+    );
+
+    res.end(pdf);
+
+
+  } catch (error) {
+
+    console.error(
+      "Loan report PDF error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to generate loan report PDF",
+    });
+
+  } finally {
+
+    if (browser) {
+      await browser.close();
+    }
+
+  }
+};

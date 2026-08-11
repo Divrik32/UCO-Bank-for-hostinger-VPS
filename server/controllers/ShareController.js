@@ -2390,3 +2390,490 @@ exports.printMemberShareDetails = async (req, res) => {
 
   }
 };
+
+// ================= PRINT SHARE REPORT =================
+exports.printShareReport = async (req, res) => {
+  let browser;
+
+  try {
+    // ==========================================
+    // 1. Get ALL approved members
+    // ==========================================
+
+    const members = await PersonalInformation.find({
+      approval_status: "approved",
+    })
+      .select("memberId firstname lastname")
+      .sort({ memberId: 1 });
+
+    // ==========================================
+    // 2. Get ALL member IDs
+    // ==========================================
+
+    const memberIds = members.map(
+      (member) => member.memberId
+    );
+
+    // ==========================================
+    // 3. Get ALL Credit Share entries
+    // ==========================================
+
+    const creditShares = await CreditShare.find({
+      memberId: { $in: memberIds },
+    });
+
+    // ==========================================
+    // 4. Get ALL Debit Share entries
+    // ==========================================
+
+    const debitShares = await DebitShare.find({
+      memberId: { $in: memberIds },
+    });
+
+    // ==========================================
+    // 5. Create Member Map
+    // ==========================================
+
+    const memberMap = new Map();
+
+    members.forEach((member) => {
+      memberMap.set(member.memberId, {
+        memberId: member.memberId,
+
+        memberName:
+          `${member.firstname || ""} ${member.lastname || ""}`.trim(),
+      });
+    });
+
+    // ==========================================
+    // 6. Format Credit Share Transactions
+    // ==========================================
+
+    const creditTransactions = creditShares.map(
+      (item) => {
+        const member = memberMap.get(
+          item.memberId
+        );
+
+        return {
+          memberId: item.memberId,
+
+          memberName: member
+            ? member.memberName
+            : "-",
+
+          // CreditShare has timestamps: true
+          transactionDate:
+            item.createdAt,
+
+          // CreditShare amount field
+          investmentAmount:
+            Number(item.investmentAmount || 0),
+
+          paymentMode:
+            item.paymentMode || "-",
+
+          transactionId:
+            item.transactionId || "-",
+
+          transactionType: "Credit",
+        };
+      }
+    );
+
+    // ==========================================
+    // 7. Format Debit Share Transactions
+    // ==========================================
+
+    const debitTransactions = debitShares.map(
+      (item) => {
+        const member = memberMap.get(
+          item.memberId
+        );
+
+        return {
+          memberId: item.memberId,
+
+          memberName: member
+            ? member.memberName
+            : "-",
+
+          // DebitShare has timestamps: true
+          transactionDate:
+            item.createdAt,
+
+          // DebitShare amount field
+          investmentAmount:
+            Number(item.amount || 0),
+
+          paymentMode:
+            item.paymentMode || "-",
+
+          transactionId:
+            item.transactionId || "-",
+
+          transactionType: "Debit",
+        };
+      }
+    );
+
+    // ==========================================
+    // 8. Merge Credit + Debit Transactions
+    // ==========================================
+
+    const allTransactions = [
+      ...creditTransactions,
+      ...debitTransactions,
+    ];
+
+    // ==========================================
+    // 9. Latest → Earliest
+    // ==========================================
+
+    allTransactions.sort((a, b) => {
+      return (
+        new Date(b.transactionDate) -
+        new Date(a.transactionDate)
+      );
+    });
+
+    // ==========================================
+    // 10. Format Date
+    // ==========================================
+
+    const formatDate = (date) => {
+      if (!date) return "-";
+
+      const parsedDate = new Date(date);
+
+      if (
+        isNaN(parsedDate.getTime())
+      ) {
+        return "-";
+      }
+
+      return parsedDate
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-");
+    };
+
+    // ==========================================
+    // 11. Generate Table Rows
+    // ==========================================
+
+    const rows = allTransactions
+      .map((transaction, index) => {
+        return `
+          <tr>
+
+            <td>
+              ${index + 1}
+            </td>
+
+            <td>
+              ${transaction.memberId || "-"}
+            </td>
+
+            <td>
+              ${transaction.memberName || "-"}
+            </td>
+
+            <td>
+              ${formatDate(
+                transaction.transactionDate
+              )}
+            </td>
+
+            <td>
+              ₹${Number(
+                transaction.investmentAmount || 0
+              ).toLocaleString("en-IN")}
+            </td>
+
+            <td>
+              ${transaction.paymentMode || "-"}
+            </td>
+
+            <td>
+              ${transaction.transactionId || "-"}
+            </td>
+
+            <td>
+              ${transaction.transactionType || "-"}
+            </td>
+
+          </tr>
+        `;
+      })
+      .join("");
+
+    // ==========================================
+    // 12. HTML
+    // ==========================================
+
+    const html = `
+      <!DOCTYPE html>
+
+      <html>
+
+      <head>
+
+        <meta charset="UTF-8">
+
+        <title>
+          Share Report
+        </title>
+
+        <style>
+
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            font-family:
+              Arial,
+              Helvetica,
+              sans-serif;
+
+            margin: 0;
+            padding: 20px;
+
+            color: #333;
+          }
+
+          .header {
+            text-align: center;
+
+            margin-bottom: 20px;
+          }
+
+          .title {
+            font-size: 22px;
+
+            font-weight: 700;
+
+            color: #012970;
+
+            margin-bottom: 8px;
+          }
+
+          .address {
+            font-size: 13px;
+
+            line-height: 1.5;
+          }
+
+          table {
+            width: 100%;
+
+            border-collapse:
+              collapse;
+
+            font-size: 10px;
+          }
+
+          th,
+          td {
+            border:
+              1px solid #dee2e6;
+
+            padding: 7px;
+
+            text-align: center;
+
+            vertical-align: middle;
+          }
+
+          th {
+            background: #f8f9fa;
+
+            font-weight: 600;
+
+            color: #444;
+          }
+
+          @page {
+            size: A4 landscape;
+
+            margin: 12mm;
+          }
+
+        </style>
+
+      </head>
+
+      <body>
+
+        <div class="header">
+
+          <div class="title">
+            Share Report
+          </div>
+
+          <div class="address">
+
+            <strong>
+              Regd. 203, Hari Om Commercial Complex
+            </strong>
+
+            <br />
+
+            New Dak Bunglow Road,
+            Patna-800001
+
+          </div>
+
+        </div>
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Sl.
+              </th>
+
+              <th>
+                Member Code
+              </th>
+
+              <th>
+                Member Name
+              </th>
+
+              <th>
+                Transaction Date
+              </th>
+
+              <th>
+                Amount
+              </th>
+
+              <th>
+                Payment Mode
+              </th>
+
+              <th>
+                Transaction ID
+              </th>
+
+              <th>
+                Type
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            ${
+              rows ||
+              `
+                <tr>
+
+                  <td colspan="8">
+                    No share report found.
+                  </td>
+
+                </tr>
+              `
+            }
+
+          </tbody>
+
+        </table>
+
+      </body>
+
+      </html>
+    `;
+
+    // ==========================================
+    // 13. Launch Puppeteer
+    // ==========================================
+
+    browser = await puppeteer.launch({
+      headless: true,
+
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+    });
+
+    const page =
+      await browser.newPage();
+
+    // ==========================================
+    // 14. Load HTML
+    // ==========================================
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+    // ==========================================
+    // 15. Generate PDF
+    // ==========================================
+
+    const pdf = await page.pdf({
+      format: "A4",
+
+      landscape: true,
+
+      printBackground: true,
+
+      margin: {
+        top: "12mm",
+        right: "12mm",
+        bottom: "12mm",
+        left: "12mm",
+      },
+    });
+
+    // ==========================================
+    // 16. Send PDF
+    // ==========================================
+
+    res.setHeader(
+      "Content-Type",
+      "application/pdf"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      'inline; filename="share-report.pdf"'
+    );
+
+    res.end(pdf);
+
+  } catch (error) {
+
+    console.error(
+      "Share report PDF error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to generate share report PDF",
+
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
+    });
+
+  } finally {
+
+    if (browser) {
+      await browser.close();
+    }
+  }
+};

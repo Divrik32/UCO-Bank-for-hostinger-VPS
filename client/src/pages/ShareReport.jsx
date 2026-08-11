@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import { Printer } from "lucide-react";
 
 export default function ShareReport() {
   const navigate = useNavigate();
@@ -151,7 +152,83 @@ export default function ShareReport() {
     return `${day}-${month}-${year}`;
   };
 
-  return (
+const handlePrint = () => {
+  const pdfUrl =
+    `${api.defaults.baseURL}/share/share-report-pdf`;
+
+  window.open(pdfUrl, "_blank");
+};
+
+  return (<>
+   <style>
+      {`
+        .premium-print-btn {
+          position: relative;
+
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+
+          gap: 9px;
+
+          padding: 11px 22px;
+
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+
+          color: #ffffff;
+
+          background:
+            linear-gradient(
+              135deg,
+              #0b3d91,
+              #1a4b9b,
+              #2563eb
+            );
+
+          border: none;
+          border-radius: 10px;
+
+          cursor: pointer;
+
+          overflow: hidden;
+
+          box-shadow:
+            0 4px 14px
+            rgba(1, 41, 112, 0.35);
+
+          transition:
+            transform 0.25s ease,
+            box-shadow 0.25s ease;
+        }
+
+        .premium-print-btn:hover {
+          transform: translateY(-2px);
+
+          box-shadow:
+            0 8px 20px
+            rgba(1, 41, 112, 0.45);
+        }
+
+        .premium-print-btn:active {
+          transform: scale(0.97);
+        }
+
+        .premium-print-btn .print-icon-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          background:
+            rgba(255,255,255,0.18);
+
+          border-radius: 50%;
+
+          padding: 3px;
+        }
+      `}
+    </style>
     <div style={styles.wrapper}>
 
       {/* ================================
@@ -321,6 +398,27 @@ export default function ShareReport() {
           />
 
         </div>
+
+        {/* Print Report */}
+
+<button
+  className="no-print premium-print-btn"
+  onClick={handlePrint}
+  style={{
+    marginLeft: "auto",
+    flexShrink: 0,
+    alignSelf: "flex-end",
+  }}
+>
+  <span className="print-icon-badge">
+    <Printer
+      size={12}
+      strokeWidth={2.4}
+    />
+  </span>
+
+  <span>Print Report</span>
+</button>
 
       </div>
 
@@ -518,7 +616,7 @@ export default function ShareReport() {
       </div>
 
     </div>
-  );
+  </>);
 }
 
 

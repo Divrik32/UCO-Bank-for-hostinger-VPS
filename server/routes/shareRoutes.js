@@ -15,7 +15,8 @@ const {
   getSharePaymentMethods,
   getMemberShareTransactions,
   memberShareDetailsById,
-  printMemberShareDetails
+  printMemberShareDetails,
+  printShareReport
 } = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
@@ -40,5 +41,6 @@ router.get("/payment-methods", getSharePaymentMethods);
 router.get("/member-share-transactions", getMemberShareTransactions);
 router.get("/member-share-details/:memberId", memberShareDetailsById);
 router.get("/member-share-details-pdf/:memberId", printMemberShareDetails);
+router.get("/share-report-pdf", printShareReport);
 
 module.exports = router;

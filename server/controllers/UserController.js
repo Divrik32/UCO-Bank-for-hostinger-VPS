@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const AdminLogin = require("../models/AdminLogin.js");
 const nodemailer = require("nodemailer");
+const { getMemberTotalLoan, getMemberShareBalance, getMemberThriftBalance} = require("../helpers/memberFinancialHelper.js");
 
 const otpStore = {};
 
@@ -233,19 +234,57 @@ const submitMemberForm = async (req, res) => {
 
 const getApprovalPendingMembers = async (req, res) => {
   try {
+    // ==========================================
+    // 1. Get All Pending Members
+    // ==========================================
     const members = await PersonalInformation.find({
       approval_status: "pending",
     }).sort({
       createdAt: -1,
     });
 
-    res.status(200).json({
+    // ==========================================
+    // 2. Get Financial Details For Each Member
+    // ==========================================
+    const membersWithFinancialDetails = await Promise.all(
+      members.map(async (member) => {
+        const memberId = member.memberId;
+
+        const [
+          totalLoan,
+          shareBalance,
+          thriftBalance,
+        ] = await Promise.all([
+          getMemberTotalLoan(memberId),
+          getMemberShareBalance(memberId),
+          getMemberThriftBalance(memberId),
+        ]);
+
+        return {
+          ...member.toObject(),
+
+          totalLoan,
+          shareBalance,
+          thriftBalance,
+        };
+      })
+    );
+
+    // ==========================================
+    // 3. Response
+    // ==========================================
+    return res.status(200).json({
       success: true,
-      count: members.length,
-      data: members,
+      count: membersWithFinancialDetails.length,
+      data: membersWithFinancialDetails,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error(
+      "Get approval pending members error:",
+      error
+    );
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

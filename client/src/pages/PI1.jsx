@@ -57,6 +57,7 @@ const [form, setForm] = useState(() => {
     lastname: "",
     dob: "",
     age: "",
+    membershipNumber: "",
     gender: "Male",
     status: "Married",
     guardian_firstname: "",
@@ -221,12 +222,13 @@ const handleSubmit = (e) => {
             { label: "Last Name",        name: "lastname",           type: "text" },
             { label: "Member D.O.B",     name: "dob",                type: "date", onChange: handleDOBChange, },
             { label: "Age",              name: "age",                type: "number" },
+            {label: "Membership Number", name: "membershipNumber",   type: "text"},
             { label: "Guardian Name",    name: "guardian_firstname", type: "text" },
             { label: "Phone",            name: "phoneno",            type: "tel" },
             { label: "Email Id",         name: "email",              type: "email" },
           ].map(({ label, name, type, onChange }) => (
             <div key={name} style={rowStyle}>
-              <div style={labelStyle}>{label} <span style={{ color: "red" }}>*</span></div>
+              <div style={labelStyle}>{label}{name !== "membershipNumber" && (<span style={{ color: "red" }}> *</span>)}</div>
               <div style={fieldCol}>
                 <input
                   type={type}

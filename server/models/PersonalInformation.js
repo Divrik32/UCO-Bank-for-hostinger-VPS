@@ -254,6 +254,14 @@ nominee_name: {   // ❗ fix mapping
       type: Number,
       required: true,
     },
+    
+    // ======= membership number =======
+    membershipNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
 
     // ======= member id =======
     memberId: {

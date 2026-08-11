@@ -92,68 +92,97 @@ export default function MemberApproval() {
 
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
-            <thead>
-              <tr style={styles.theadRow}>
-                <th style={styles.th}>Member Id</th>
-                <th style={styles.th}>Member Name</th>
-                <th style={styles.th}>Contact Number</th>
-                <th style={styles.th}>Email</th>
-                <th style={styles.th}>Action</th>
-              </tr>
-            </thead>
+<thead>
+  <tr style={styles.theadRow}>
+    <th style={styles.th}>Member Id</th>
+    <th style={styles.th}>Membership Number</th>
+    <th style={styles.th}>Member Name</th>
+    <th style={styles.th}>Contact Number</th>
+    <th style={styles.th}>Email</th>
+    <th style={styles.th}>Total Loan</th>
+    <th style={styles.th}>Share Balance</th>
+    <th style={styles.th}>Thrift Balance</th>
+    <th style={styles.th}>Action</th>
+  </tr>
+</thead>
 <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" style={styles.td}>
+                  <td colSpan="9" style={styles.td}>
                     Loading...
                   </td>
                 </tr>
               ) : members.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={styles.td}>
+                  <td colSpan="9" style={styles.td}>
                     No members found
                   </td>
                 </tr>
               ) : (
-                members.map((member, idx) => (
-                  <tr
-                    key={member._id}
-                    style={{
-                      ...styles.tr,
-                      backgroundColor:
-                        idx % 2 === 0 ? "white" : "#f9f9f9",
-                    }}
-                  >
-                    <td style={styles.td}>
-                      {member.memberId || member._id}
-                    </td>
+members.map((member, idx) => (
+  <tr
+    key={member._id}
+    style={{
+      ...styles.tr,
+      backgroundColor:
+        idx % 2 === 0 ? "white" : "#f9f9f9",
+    }}
+  >
+    {/* Member Id */}
+    <td style={styles.td}>
+      {member.memberId || member._id}
+    </td>
 
-                    <td style={styles.td}>
-                      {member.firstname} {member.lastname}
-                    </td>
+    {/* Membership Number */}
+    <td style={styles.td}>
+      {member.membershipNumber || "-"}
+    </td>
 
-                    <td style={styles.td}>
-                      {member.phoneno}
-                    </td>
+    {/* Member Name */}
+    <td style={styles.td}>
+      {member.firstname} {member.lastname}
+    </td>
 
-                    <td style={styles.td}>
-                      {member.email}
-                    </td>
+    {/* Contact Number */}
+    <td style={styles.td}>
+      {member.phoneno || "-"}
+    </td>
 
-                    <td style={styles.td}>
-                      <button
-                        style={styles.viewBtn}
-                        onClick={() =>
-                          navigate(
-                            `/${role}/member_approval/${member._id}`
-                          )
-                        }
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+    {/* Email */}
+    <td style={styles.td}>
+      {member.email || "-"}
+    </td>
+
+    {/* Total Loan */}
+    <td style={styles.td}>
+      ₹{Number(member.totalLoan || 0).toLocaleString("en-IN")}
+    </td>
+
+    {/* Share Balance */}
+    <td style={styles.td}>
+      ₹{Number(member.shareBalance || 0).toLocaleString("en-IN")}
+    </td>
+
+    {/* Thrift Balance */}
+    <td style={styles.td}>
+      ₹{Number(member.thriftBalance || 0).toLocaleString("en-IN")}
+    </td>
+
+    {/* Action */}
+    <td style={styles.td}>
+      <button
+        style={styles.viewBtn}
+        onClick={() =>
+          navigate(
+            `/${role}/member_approval/${member._id}`
+          )
+        }
+      >
+        View
+      </button>
+    </td>
+  </tr>
+))
               )}
             </tbody>
           </table>

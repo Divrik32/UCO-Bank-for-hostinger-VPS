@@ -23,6 +23,7 @@ export default function LoanReport() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [memberCodeSearch, setMemberCodeSearch] = useState("");
+  const [membershipNumberSearch, setMembershipNumberSearch] = useState("");
   const [memberNameSearch, setMemberNameSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -53,6 +54,11 @@ export default function LoanReport() {
     const matchMemberCode = report.memberCode
       ?.toLowerCase()
       .includes(memberCodeSearch.toLowerCase());
+
+    // Membership Number
+    const matchMembershipNumber = report.membershipNumber
+      ?.toLowerCase()
+      .includes(membershipNumberSearch.toLowerCase());
   
     // Member Name
     const matchMemberName = report.memberName
@@ -77,7 +83,7 @@ export default function LoanReport() {
       }
     }
   
-    return matchMemberCode && matchMemberName && matchDate;
+    return matchMemberCode && matchMembershipNumber && matchMemberName && matchDate;
   });
 
 
@@ -205,6 +211,17 @@ export default function LoanReport() {
     style={styles.searchInput}
   />
 
+  {/* Membership Number */}
+  <input
+    type="text"
+    placeholder="Search Membership Number"
+    value={membershipNumberSearch}
+    onChange={(e) =>
+      setMembershipNumberSearch(e.target.value)
+    }
+    style={styles.searchInput}
+  />
+
   {/* Member Name */}
   <input
     type="text"
@@ -267,7 +284,7 @@ export default function LoanReport() {
       />
     </span>
 
-    <span>Print Report</span>
+    <span>Print</span>
   </button>
 </div>
 
@@ -281,6 +298,7 @@ export default function LoanReport() {
             <tr style={styles.theadRow}>
               <th style={styles.th}>Sl.</th>
               <th style={styles.th}>Member Code</th>
+              <th style={styles.th}>Membership Number</th>
               <th style={styles.th}>Member Name</th>
               <th style={styles.th}>First Loan Date</th>
               <th style={styles.th}>Total Loan Amount</th>
@@ -293,13 +311,13 @@ export default function LoanReport() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} style={styles.td}>
+                <td colSpan={10} style={styles.td}>
                   Loading...
                 </td>
               </tr>
             ) : filteredReports.length === 0 ? (
               <tr>
-                <td colSpan={9} style={styles.td}>
+                <td colSpan={10} style={styles.td}>
                   No loan report found.
                 </td>
               </tr>
@@ -310,6 +328,9 @@ export default function LoanReport() {
           
                   <td style={styles.td}>
                     {report.memberCode || "-"}
+                  </td>
+                  <td style={styles.td}>
+                    {report.membershipNumber || "-"}
                   </td>
           
                   <td style={styles.td}>

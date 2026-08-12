@@ -304,7 +304,7 @@ const getMemberThriftTransactions = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     }).select(
-      "memberId firstname lastname"
+      "memberId membershipNumber firstname lastname"
     );
 
     if (!members.length) {
@@ -346,6 +346,7 @@ const getMemberThriftTransactions = async (req, res) => {
     members.forEach((member) => {
       memberMap.set(member.memberId, {
         memberId: member.memberId,
+        membershipNumber: member.membershipNumber || "-",
         memberName: `${member.firstname} ${member.lastname}`,
       });
     });
@@ -359,23 +360,13 @@ const getMemberThriftTransactions = async (req, res) => {
 
         return {
           memberId: item.memberId,
-
-          memberName: member
-            ? member.memberName
-            : "-",
-
+          membershipNumber: member? member.membershipNumber: "-",
+          memberName: member? member.memberName: "-",
           transactionDate: item.entryDate,
-
           thriftAmount: item.totalAmountReceived,
-
-          interest:
-            item.yearlyInterestAmount || 0,
-
+          interest: item.yearlyInterestAmount || 0,
           paymentMode: item.paymentMethod,
-
-          transactionId:
-            item.transactionId || "-",
-
+          transactionId:item.transactionId || "-",
           transactionType: "Entry",
         };
       }
@@ -392,22 +383,13 @@ const getMemberThriftTransactions = async (req, res) => {
 
         return {
           memberId: item.memberId,
-
-          memberName: member
-            ? member.memberName
-            : "-",
-
+          membershipNumber: member? member.membershipNumber : "-",
+          memberName: member? member.memberName: "-",
           transactionDate: item.withdrawalDate,
-
           thriftAmount: item.withdrawalAmount,
-
           interest: "-",
-
           paymentMode: item.paymentMethod,
-
-          transactionId:
-            item.transactionId || "-",
-
+          transactionId:item.transactionId || "-",
           transactionType: "Withdrawal",
         };
       });

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { toast } from "react-toastify";
-
+import { Printer } from "lucide-react";
 
 // ── Dummy data for preview ──────────────────────────────────────────────────
 const dummyMember = {
@@ -96,6 +96,14 @@ export default function MemberApprovalDetail() {
     .finally(() => setLoading(false));
 
 }, [id]);
+
+const handlePrint = () => {
+  const pdfUrl =
+    `${api.defaults.baseURL}/users/members/${id}/pdf`;
+
+  window.open(pdfUrl, "_blank");
+};
+
 const getImageUrl = (filePath) => {
   if (!filePath) return null;
 
@@ -111,6 +119,7 @@ const getImageUrl = (filePath) => {
 
   return `${backendRoot}/${normalizedPath}`;
 };
+
 const handleApprove = async () => {
   try {
     await api.patch(
@@ -146,7 +155,77 @@ const handleApprove = async () => {
   if (loading) return <p style={{ padding: 24 }}>Loading...</p>;
   if (!member) return <p style={{ padding: 24 }}>Member not found.</p>;
 
-  return (
+  return (<>
+  <style>
+  {`
+    .premium-print-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+
+      padding: 10px 18px;
+
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+
+      color: #ffffff;
+
+      background:
+        linear-gradient(
+          135deg,
+          #0b3d91,
+          #1a4b9b,
+          #2563eb
+        );
+
+      border: none;
+      border-radius: 9px;
+
+      cursor: pointer;
+
+      box-shadow:
+        0 4px 14px
+        rgba(1, 41, 112, 0.35);
+
+      transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .premium-print-btn:hover {
+      transform: translateY(-2px);
+
+      box-shadow:
+        0 8px 20px
+        rgba(1, 41, 112, 0.45);
+    }
+
+    .premium-print-btn:active {
+      transform: scale(0.97);
+    }
+
+    .print-icon-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background: rgba(255,255,255,0.18);
+
+      border-radius: 50%;
+
+      padding: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .member-header-right {
+        width: 100%;
+        align-items: flex-start !important;
+      }
+    }
+  `}
+</style>
     <div style={styles.wrapper}>
       {/* ── Page Header ── */}
       <div style={styles.pageHeader}>
@@ -183,13 +262,33 @@ const handleApprove = async () => {
     </>
   )}
 </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={styles.addressText}>
-            <strong>Regd. 203, Hari Om Commercial Complex</strong>
-            <br />
-            New Dak Bunglow Road, Patna-800001
-          </p>
-        </div>
+        <div style={styles.headerRight}>
+
+  <div style={{ textAlign: "right" }}>
+    <p style={styles.addressText}>
+      <strong>
+        Regd. 203, Hari Om Commercial Complex
+      </strong>
+      <br />
+      New Dak Bunglow Road, Patna-800001
+    </p>
+  </div>
+
+  <button
+    className="premium-print-btn"
+    onClick={handlePrint}
+  >
+    <span className="print-icon-badge">
+      <Printer
+        size={13}
+        strokeWidth={2.4}
+      />
+    </span>
+
+    <span>Print Details</span>
+  </button>
+
+</div>
       </div>
 
       {/* ── Two-column grid ── */}
@@ -316,7 +415,7 @@ const handleApprove = async () => {
         </button>
       </div>
     </div>
-  );
+  </>);
 }
 
 // ── Styles ──────────────────────────────────────────────────────────────────
@@ -336,6 +435,13 @@ const styles = {
     gap: "12px",
     marginBottom: "24px",
   },
+    headerRight: {
+  display: "flex",
+  alignItems: "flex-start",
+  alignItems: "center",
+  gap: "18px",
+  flexWrap: "wrap",
+},
   pageTitle: {
     fontSize: "24px",
     fontWeight: "700",

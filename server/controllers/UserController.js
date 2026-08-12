@@ -5,6 +5,9 @@ const jwt = require("jsonwebtoken");
 const AdminLogin = require("../models/AdminLogin.js");
 const nodemailer = require("nodemailer");
 const { getMemberTotalLoan, getMemberShareBalance, getMemberThriftBalance} = require("../helpers/memberFinancialHelper.js");
+const puppeteer = require("puppeteer");
+const fs = require("fs");
+const path = require("path");
 
 const otpStore = {};
 
@@ -503,6 +506,1314 @@ if (userType === "user") {
   }
 };
 
+const imageToDataUri = (filePath) => {
+  try {
+    if (!filePath) return null;
+
+    // Windows path -> Linux compatible path
+    const normalizedPath = filePath
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+
+    const absolutePath = path.resolve(
+      process.cwd(),
+      normalizedPath
+    );
+
+    if (!fs.existsSync(absolutePath)) {
+      console.log(
+        "Image not found:",
+        absolutePath
+      );
+
+      return null;
+    }
+
+    const extension = path
+      .extname(absolutePath)
+      .toLowerCase();
+
+    let mimeType = "image/jpeg";
+
+    if (extension === ".png") {
+      mimeType = "image/png";
+    } else if (extension === ".webp") {
+      mimeType = "image/webp";
+    } else if (extension === ".gif") {
+      mimeType = "image/gif";
+    } else if (extension === ".jpg" || extension === ".jpeg") {
+      mimeType = "image/jpeg";
+    }
+
+    const imageBuffer =
+      fs.readFileSync(absolutePath);
+
+    return `data:${mimeType};base64,${imageBuffer.toString(
+      "base64"
+    )}`;
+  } catch (error) {
+    console.error(
+      "Image conversion error:",
+      error
+    );
+
+    return null;
+  }
+};
+
+const printMemberDetails = async (req, res) => {
+  let browser;
+
+  try {
+    const { id } = req.params;
+
+    const member = await PersonalInformation.findById(id).lean();
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    // ==========================================
+    // Convert Images to Base64
+    // ==========================================
+
+    const profileImage = imageToDataUri(
+      member.profile_image
+    );
+
+    const signatureImage = imageToDataUri(
+      member.signature_image
+    );
+
+    const document1Image = imageToDataUri(
+      member.doc1File
+    );
+
+    const document2Image = imageToDataUri(
+      member.doc2File
+    );
+
+    // ==========================================
+    // Helper
+    // ==========================================
+
+    const value = (val) => {
+      if (
+        val === null ||
+        val === undefined ||
+        val === ""
+      ) {
+        return "—";
+      }
+
+      return String(val);
+    };
+
+    const formatDate = (date) => {
+      if (!date) return "—";
+
+      const parsed = new Date(date);
+
+      if (isNaN(parsed.getTime())) {
+        return value(date);
+      }
+
+      const day = String(
+        parsed.getDate()
+      ).padStart(2, "0");
+
+      const month = String(
+        parsed.getMonth() + 1
+      ).padStart(2, "0");
+
+      const year =
+        parsed.getFullYear();
+
+      return `${day}-${month}-${year}`;
+    };
+
+    // ==========================================
+    // Image HTML
+    // ==========================================
+
+    const imageBox = (
+      image,
+      title,
+      small = false
+    ) => {
+      if (!image) {
+        return `
+          <div class="image-box placeholder">
+            <span>${title}</span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="image-box ${small ? "small" : ""}">
+          <img
+            src="${image}"
+            alt="${title}"
+          />
+        </div>
+      `;
+    };
+
+    // ==========================================
+    // HTML
+    // ==========================================
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8" />
+
+<title>Member Details - ${value(
+      member.memberId
+    )}</title>
+
+<style>
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  color: #222;
+
+  background: #ffffff;
+
+  font-size: 12px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  border-bottom: 2px solid #012970;
+
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.company-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #012970;
+}
+
+.company-address {
+  margin-top: 5px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.report-title {
+  text-align: right;
+}
+
+.report-title h1 {
+  margin: 0;
+
+  color: #012970;
+
+  font-size: 19px;
+}
+
+.report-title p {
+  margin: 5px 0 0;
+
+  color: #555;
+}
+
+.card {
+  border: 1px solid #ddd;
+
+  border-radius: 7px;
+
+  margin-bottom: 16px;
+
+  overflow: hidden;
+
+  page-break-inside: avoid;
+}
+
+.card-title {
+  background: #f3f6fa;
+
+  color: #012970;
+
+  font-size: 15px;
+
+  font-weight: 700;
+
+  padding: 9px 12px;
+
+  border-bottom: 1px solid #ddd;
+}
+
+.details {
+  padding: 0 12px;
+}
+
+.row {
+  display: flex;
+
+  min-height: 29px;
+
+  border-bottom: 1px solid #eeeeee;
+
+  align-items: center;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.label {
+  width: 190px;
+
+  flex-shrink: 0;
+
+  font-weight: 600;
+
+  color: #555;
+}
+
+.value {
+  color: #222;
+
+  word-break: break-word;
+}
+
+.two-column {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 14px;
+
+  align-items: start;
+}
+
+.image-grid {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 12px;
+
+  padding: 12px;
+}
+
+.image-box {
+  height: 150px;
+
+  border: 1px solid #ddd;
+
+  border-radius: 6px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  overflow: hidden;
+
+  background: #fff;
+}
+
+.image-box.small {
+  height: 80px;
+}
+
+.image-box img {
+  max-width: 100%;
+  max-height: 100%;
+
+  object-fit: contain;
+}
+
+.placeholder {
+  color: #aaa;
+
+  font-size: 11px;
+}
+
+.member-id {
+  background: #eef4ff;
+
+  color: #012970;
+
+  padding: 4px 9px;
+
+  border-radius: 4px;
+
+  font-weight: 700;
+}
+
+.footer {
+  margin-top: 25px;
+
+  padding-top: 10px;
+
+  border-top: 1px solid #ddd;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  color: #666;
+
+  font-size: 10px;
+}
+
+@page {
+  size: A4;
+
+  margin: 12mm;
+}
+
+@media print {
+
+  body {
+    padding: 0;
+  }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ==========================================
+     HEADER
+========================================== -->
+
+<div class="header">
+
+  <div>
+
+    <div class="company-name">
+      BSUCB Cooperative
+    </div>
+
+    <div class="company-address">
+      Regd. 203, Hari Om Commercial Complex<br/>
+      New Dak Bunglow Road, Patna-800001
+    </div>
+
+  </div>
+
+  <div class="report-title">
+
+    <h1>
+      Member Details
+    </h1>
+
+    <p>
+      Member Code:
+      <span class="member-id">
+        ${value(member.memberId)}
+      </span>
+    </p>
+
+  </div>
+
+</div>
+
+
+<!-- ==========================================
+     MEMBER DETAILS + KYC
+========================================== -->
+
+<div class="two-column">
+
+<!-- LEFT -->
+
+<div>
+
+  <div class="card">
+
+    <div class="card-title">
+      Member Details
+    </div>
+
+    <div class="details">
+
+      <div class="row">
+        <div class="label">Member Name</div>
+        <div class="value">
+          ${value(member.firstname)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Last Name</div>
+        <div class="value">
+          ${value(member.lastname)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Member D.O.B</div>
+        <div class="value">
+          ${formatDate(member.dob)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Age</div>
+        <div class="value">
+          ${value(member.age)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Gender</div>
+        <div class="value">
+          ${value(member.gender)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Status</div>
+        <div class="value">
+          ${value(member.status)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Guardian Name</div>
+        <div class="value">
+          ${value(member.guardian_firstname)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Guardian Relation</div>
+        <div class="value">
+          ${value(member.guardian_relation)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Phone</div>
+        <div class="value">
+          ${value(member.phoneno)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Email Id</div>
+        <div class="value">
+          ${value(member.email)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">House/Flat No.</div>
+        <div class="value">
+          ${value(member.address_line1)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Street No./Area</div>
+        <div class="value">
+          ${value(member.address_line2)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">State</div>
+        <div class="value">
+          ${value(member.state)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Pincode</div>
+        <div class="value">
+          ${value(member.pincode)}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="image-grid">
+
+      ${imageBox(
+        profileImage,
+        "Profile Photo"
+      )}
+
+      ${imageBox(
+        signatureImage,
+        "Signature",
+        true
+      )}
+
+    </div>
+
+  </div>
+
+
+  <!-- BANKING -->
+
+  <div class="card">
+
+    <div class="card-title">
+      Member Banking Information
+    </div>
+
+    <div class="details">
+
+      <div class="row">
+        <div class="label">Bank Name</div>
+        <div class="value">
+          ${value(member.bank_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Branch Name</div>
+        <div class="value">
+          ${value(member.branch_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Account No.</div>
+        <div class="value">
+          ${value(member.account_number)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Category</div>
+        <div class="value">
+          ${value(member.category)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">IFSC Code</div>
+        <div class="value">
+          ${value(member.ifsc_code)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">MICR Code</div>
+        <div class="value">
+          ${value(member.micr_code)}
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- RIGHT -->
+
+<div>
+
+  <!-- KYC -->
+
+  <div class="card">
+
+    <div class="card-title">
+      KYC Details
+    </div>
+
+    <div class="details">
+
+      <div class="row">
+        <div class="label">PF No</div>
+        <div class="value">
+          ${value(member.pf_no)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">ID Proof Name</div>
+        <div class="value">
+          ${value(member.id_proof_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">ID Proof No</div>
+        <div class="value">
+          ${value(member.id_proof_no)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Address Proof</div>
+        <div class="value">
+          ${value(member.address_proof_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Address Proof No</div>
+        <div class="value">
+          ${value(member.address_proof_no)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Sign. Proof Name</div>
+        <div class="value">
+          ${value(member.sign_proof_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">PAN Card No</div>
+        <div class="value">
+          ${value(member.pan_no)}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="image-grid">
+
+      ${imageBox(
+        document1Image,
+        "KYC Document 1"
+      )}
+
+      ${imageBox(
+        document2Image,
+        "KYC Document 2"
+      )}
+
+    </div>
+
+  </div>
+
+
+  <!-- NOMINEE -->
+
+  <div class="card">
+
+    <div class="card-title">
+      Nominee Details
+    </div>
+
+    <div class="details">
+
+      <div class="row">
+        <div class="label">Nominee Name</div>
+        <div class="value">
+          ${value(member.nominee_name)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">D.O.B</div>
+        <div class="value">
+          ${formatDate(member.nominee_dob)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Age</div>
+        <div class="value">
+          ${value(member.nominee_age)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Relation</div>
+        <div class="value">
+          ${value(member.nominee_relation)}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">Per. Of Share</div>
+        <div class="value">
+          ${
+            member.percentage_share !==
+              undefined &&
+            member.percentage_share !==
+              null &&
+            member.percentage_share !== ""
+              ? `${member.percentage_share}%`
+              : "—"
+          }
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+</div>
+
+
+<!-- ==========================================
+     FOOTER
+========================================== -->
+
+<div class="footer">
+
+  <span>
+    Member Code: ${value(member.memberId)}
+  </span>
+
+  <span>
+    Generated on:
+    ${formatDate(new Date())}
+  </span>
+
+</div>
+
+</body>
+</html>
+`;
+
+    // ==========================================
+    // Puppeteer
+    // ==========================================
+
+    browser = await puppeteer.launch({
+      headless: "new",
+
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+
+      printBackground: true,
+
+      margin: {
+        top: "12mm",
+        right: "12mm",
+        bottom: "12mm",
+        left: "12mm",
+      },
+    });
+
+    await browser.close();
+    browser = null;
+
+    // ==========================================
+    // Response
+    // ==========================================
+
+    res.set({
+      "Content-Type": "application/pdf",
+
+      "Content-Disposition":
+        `inline; filename="member-${member.memberId || id}.pdf"`,
+
+      "Content-Length":
+        pdfBuffer.length,
+    });
+
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+
+    console.error(
+      "Member PDF Error:",
+      error
+    );
+
+    if (browser) {
+      await browser.close();
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to generate member PDF",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
+    });
+  }
+};
+
+const memberApprovalPDF = async (req, res) => {
+  let browser;
+
+  try {
+    // ==========================================
+    // 1. Get Members
+    // ==========================================
+
+    const { members } = req.body;
+
+    if (!Array.isArray(members)) {
+      return res.status(400).json({
+        success: false,
+        message: "Members data is required",
+      });
+    }
+
+    // ==========================================
+    // 2. Generate Table HTML
+    // ==========================================
+
+    const rows = members
+      .map((member, index) => {
+
+        const memberName =
+          `${member.firstname || ""} ${
+            member.lastname || ""
+          }`.trim();
+
+        return `
+          <tr>
+
+            <td>
+              ${index + 1}
+            </td>
+
+            <td>
+              ${member.memberId || "-"}
+            </td>
+
+            <td>
+              ${member.membershipNumber || "-"}
+            </td>
+
+            <td>
+              ${memberName || "-"}
+            </td>
+
+            <td>
+              ${member.phoneno || "-"}
+            </td>
+
+            <td>
+              ${member.email || "-"}
+            </td>
+
+            <td>
+              ₹${Number(
+                member.totalLoan || 0
+              ).toLocaleString("en-IN")}
+            </td>
+
+            <td>
+              ₹${Number(
+                member.shareBalance || 0
+              ).toLocaleString("en-IN")}
+            </td>
+
+            <td>
+              ₹${Number(
+                member.thriftBalance || 0
+              ).toLocaleString("en-IN")}
+            </td>
+
+          </tr>
+        `;
+      })
+      .join("");
+
+
+    // ==========================================
+    // 3. Full HTML
+    // ==========================================
+
+    const html = `
+
+      <!DOCTYPE html>
+
+      <html>
+
+      <head>
+
+        <meta charset="UTF-8">
+
+        <title>
+          Member Approval Report
+        </title>
+
+        <style>
+
+          body {
+
+            font-family:
+              Arial,
+              Helvetica,
+              sans-serif;
+
+            margin: 0;
+
+            padding: 20px;
+
+            color: #333;
+
+          }
+
+
+          .header {
+
+            text-align: center;
+
+            margin-bottom: 20px;
+
+          }
+
+
+          .title {
+
+            font-size: 22px;
+
+            font-weight: 700;
+
+            color: #012970;
+
+            margin-bottom: 8px;
+
+          }
+
+
+          .address {
+
+            font-size: 13px;
+
+            line-height: 1.5;
+
+          }
+
+
+          .report-info {
+
+            margin-top: 10px;
+
+            font-size: 11px;
+
+            color: #666;
+
+          }
+
+
+          table {
+
+            width: 100%;
+
+            border-collapse: collapse;
+
+            font-size: 10px;
+
+          }
+
+
+          th,
+          td {
+
+            border:
+              1px solid #dee2e6;
+
+            padding: 7px 5px;
+
+            text-align: center;
+
+            vertical-align: middle;
+
+          }
+
+
+          th {
+
+            background: #f8f9fa;
+
+            font-weight: 600;
+
+          }
+
+
+          tr:nth-child(even) {
+
+            background: #fafafa;
+
+          }
+
+
+          @page {
+
+            size: A4 landscape;
+
+            margin: 12mm;
+
+          }
+
+
+        </style>
+
+      </head>
+
+
+      <body>
+
+
+        <div class="header">
+
+          <div class="title">
+            Member Approval Report
+          </div>
+
+
+          <div class="address">
+
+            <strong>
+              Regd. 203, Hari Om Commercial Complex
+            </strong>
+
+            <br />
+
+            New Dak Bunglow Road,
+            Patna-800001
+
+          </div>
+
+
+          <div class="report-info">
+
+            Total Members:
+            <strong>
+              ${members.length}
+            </strong>
+
+            &nbsp;&nbsp; | &nbsp;&nbsp;
+
+            Generated:
+            ${new Date().toLocaleString("en-IN")}
+
+          </div>
+
+        </div>
+
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Sl.
+              </th>
+
+              <th>
+                Member ID
+              </th>
+
+              <th>
+                Membership Number
+              </th>
+
+              <th>
+                Member Name
+              </th>
+
+              <th>
+                Contact Number
+              </th>
+
+              <th>
+                Email
+              </th>
+
+              <th>
+                Total Loan
+              </th>
+
+              <th>
+                Share Balance
+              </th>
+
+              <th>
+                Thrift Balance
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            ${
+              rows ||
+              `
+                <tr>
+
+                  <td colspan="9">
+                    No members found.
+                  </td>
+
+                </tr>
+              `
+            }
+
+          </tbody>
+
+        </table>
+
+
+      </body>
+
+      </html>
+
+    `;
+
+
+    // ==========================================
+    // 4. Launch Puppeteer
+    // ==========================================
+
+    browser = await puppeteer.launch({
+
+      headless: true,
+
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+
+    });
+
+
+    const page =
+      await browser.newPage();
+
+
+    // ==========================================
+    // 5. Load HTML
+    // ==========================================
+
+    await page.setContent(
+      html,
+      {
+        waitUntil: "networkidle0",
+      }
+    );
+
+
+    // ==========================================
+    // 6. Generate PDF
+    // ==========================================
+
+    const pdf =
+      await page.pdf({
+
+        format: "A4",
+
+        landscape: true,
+
+        printBackground: true,
+
+        margin: {
+
+          top: "12mm",
+
+          right: "12mm",
+
+          bottom: "12mm",
+
+          left: "12mm",
+
+        },
+
+      });
+
+
+    // ==========================================
+    // 7. Send PDF
+    // ==========================================
+
+    res.setHeader(
+      "Content-Type",
+      "application/pdf"
+    );
+
+
+    res.setHeader(
+      "Content-Disposition",
+      'inline; filename="member-approval-report.pdf"'
+    );
+
+
+    res.end(pdf);
+
+
+  } catch (error) {
+
+    console.error(
+      "Member approval PDF error:",
+      error
+    );
+
+
+    res.status(500).json({
+
+      success: false,
+
+      message:
+        "Failed to generate member approval PDF",
+
+      error: error.message,
+
+    });
+
+
+  } finally {
+
+    if (browser) {
+
+      await browser.close();
+
+    }
+
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -513,5 +1824,7 @@ module.exports = {
   approveMember,
   logoutUser,
   sendForgotOtp,
-  resetPassword
+  resetPassword,
+  printMemberDetails,
+  memberApprovalPDF 
 };

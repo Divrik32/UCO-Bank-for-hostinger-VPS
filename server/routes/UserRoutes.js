@@ -13,7 +13,9 @@ const {
   sendForgotOtp,
   resetPassword,
   approveMember,
-  getApprovedMembers
+  getApprovedMembers,
+  printMemberDetails,
+  memberApprovalPDF
 } = require("../controllers/UserController.js");
 
 const router = express.Router();
@@ -67,5 +69,7 @@ router.get("/members/:id", getMemberById);
 router.patch("/members/:id/approve", authMiddleware, approveMember);
 router.post("/forgot-password", sendForgotOtp);
 router.post("/reset-password", resetPassword);
+router.get("/members/:id/pdf", printMemberDetails);
+router.post("/approval-pending-members/print", memberApprovalPDF);
 
 module.exports = router;

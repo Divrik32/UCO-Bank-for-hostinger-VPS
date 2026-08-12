@@ -521,22 +521,43 @@ exports.getAllLoanReports = async (req, res) => {
 
     for (const member of members) {
       const loans = await officialEntryModel
-        .find({ memberId: member.memberId })
+        .find({
+          memberId: member.memberId,
+        })
         .sort({ createdAt: 1 });
 
+      // ==========================================
+      // Member has NO loan
+      // ==========================================
       if (loans.length === 0) {
         reports.push({
           memberCode: member.memberId,
-          memberName: `${member.firstname} ${member.lastname}`,
+
+          membershipNumber:
+            member.membershipNumber || "-",
+
+          memberName:
+            `${member.firstname} ${member.lastname}`,
+
           firstLoanDate: "-",
+
           totalLoanAmount: 0,
+
           interest: "None",
+
           paymentMode: "-",
+
           transactionId: "-",
         });
-      } else {
+      }
+
+      // ==========================================
+      // Member has loan
+      // ==========================================
+      else {
         const totalLoanAmount = loans.reduce(
-          (sum, loan) => sum + Number(loan.loanAmount || 0),
+          (sum, loan) =>
+            sum + Number(loan.loanAmount || 0),
           0
         );
 
@@ -544,24 +565,43 @@ exports.getAllLoanReports = async (req, res) => {
 
         reports.push({
           memberCode: member.memberId,
-          memberName: `${member.firstname} ${member.lastname}`,
-          firstLoanDate: firstLoan.createdAt
-            .toLocaleDateString("en-GB")
-            .replace(/\//g, "-"),
+
+          membershipNumber:
+            member.membershipNumber || "-",
+
+          memberName:
+            `${member.firstname} ${member.lastname}`,
+
+          firstLoanDate:
+            firstLoan.createdAt
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-"),
+
           totalLoanAmount,
+
           interest: "None",
-          paymentMode: firstLoan.paymentMode || "-",
-          transactionId: firstLoan.transactionId || "-",
+
+          paymentMode:
+            firstLoan.paymentMode || "-",
+
+          transactionId:
+            firstLoan.transactionId || "-",
         });
       }
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: reports,
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.error(
+      "Get all loan reports error:",
+      error
+    );
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

@@ -796,7 +796,7 @@ exports.getMemberShareTransactions = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     }).select(
-      "memberId firstname lastname"
+      "memberId membershipNumber firstname lastname"
     );
 
     if (!members.length) {
@@ -836,6 +836,9 @@ exports.getMemberShareTransactions = async (req, res) => {
       memberMap.set(member.memberId, {
         memberId: member.memberId,
 
+        membershipNumber:
+          member.membershipNumber || "-",
+
         memberName:
           `${member.firstname} ${member.lastname}`,
       });
@@ -846,12 +849,15 @@ exports.getMemberShareTransactions = async (req, res) => {
     // ==========================================
     const creditTransactions = credits.map(
       (item) => {
-
         const member =
           memberMap.get(item.memberId);
 
         return {
           memberId: item.memberId,
+
+          membershipNumber: member
+            ? member.membershipNumber
+            : "-",
 
           memberName: member
             ? member.memberName
@@ -880,12 +886,15 @@ exports.getMemberShareTransactions = async (req, res) => {
     // ==========================================
     const debitTransactions = debits.map(
       (item) => {
-
         const member =
           memberMap.get(item.memberId);
 
         return {
           memberId: item.memberId,
+
+          membershipNumber: member
+            ? member.membershipNumber
+            : "-",
 
           memberName: member
             ? member.memberName
@@ -953,7 +962,6 @@ exports.getMemberShareTransactions = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error(
       "Get approved members share transactions error:",
       error

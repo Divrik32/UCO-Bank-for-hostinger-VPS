@@ -12,6 +12,7 @@ export default function ThriftFundReport() {
   const [loading, setLoading] = useState(true);
 
   const [memberCodeSearch, setMemberCodeSearch] = useState("");
+  const [membershipNumberSearch, setMembershipNumberSearch] = useState("");
   const [memberNameSearch, setMemberNameSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -47,6 +48,17 @@ export default function ThriftFundReport() {
     const matchMemberCode = report.memberId
       ?.toLowerCase()
       .includes(memberCodeSearch.toLowerCase());
+
+        // ================================
+  // Membership Number
+  // ================================
+  const matchMembershipNumber =
+    report.membershipNumber
+      ?.toString()
+      .toLowerCase()
+      .includes(
+        membershipNumberSearch.toLowerCase()
+      );
 
     // Member Name
     const matchMemberName = report.memberName
@@ -260,6 +272,18 @@ export default function ThriftFundReport() {
           style={styles.searchInput}
         />
 
+        {/* Membership Number */}
+
+<input
+  type="text"
+  placeholder="Search Membership Number"
+  value={membershipNumberSearch}
+  onChange={(e) =>
+    setMembershipNumberSearch(e.target.value)
+  }
+  style={styles.searchInput}
+/>
+
         <input
           type="text"
           placeholder="Search Member Name"
@@ -327,7 +351,7 @@ export default function ThriftFundReport() {
     />
   </span>
 
-  <span>Print Report</span>
+  <span>Print</span>
 </button>
 
       </div>
@@ -356,7 +380,10 @@ export default function ThriftFundReport() {
                 <th style={styles.th}>
                   Member Code
                 </th>
-
+                <th style={styles.th}>
+                  Membership Number
+                </th>
+                
                 <th style={styles.th}>
                   Member Name
                 </th>
@@ -399,7 +426,7 @@ export default function ThriftFundReport() {
 
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={styles.td}
                   >
                     Loading...
@@ -410,7 +437,7 @@ export default function ThriftFundReport() {
 
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={styles.td}
                   >
                     No thrift fund report found.
@@ -434,7 +461,10 @@ export default function ThriftFundReport() {
                       <td style={styles.td}>
                         {report.memberId || "-"}
                       </td>
-
+                      {/* Membership Number */}
+                      <td style={styles.td}>
+                        {report.membershipNumber || "-"}
+                      </td>
 
                       {/* Member Name */}
                       <td style={styles.td}>

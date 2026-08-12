@@ -9,12 +9,9 @@ export default function ShareReport() {
 
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const [memberCodeSearch, setMemberCodeSearch] =
-    useState("");
-
-  const [memberNameSearch, setMemberNameSearch] =
-    useState("");
+  const [memberCodeSearch, setMemberCodeSearch] =useState("");
+  const [membershipNumberSearch, setMembershipNumberSearch] = useState("");
+  const [memberNameSearch, setMemberNameSearch] = useState("");
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -55,6 +52,14 @@ export default function ShareReport() {
           .includes(
             memberCodeSearch.toLowerCase()
           );
+
+      const matchMembershipNumber =
+  report.membershipNumber
+    ?.toString()
+    .toLowerCase()
+    .includes(
+      membershipNumberSearch.toLowerCase()
+    );
 
       // ================================
       // Member Name
@@ -116,6 +121,7 @@ export default function ShareReport() {
 
       return (
         matchMemberCode &&
+        matchMembershipNumber &&
         matchMemberName &&
         matchDate
       );
@@ -328,6 +334,17 @@ const handlePrint = () => {
           style={styles.searchInput}
         />
 
+        {/* Membership Number */}
+<input
+  type="text"
+  placeholder="Search Membership Number"
+  value={membershipNumberSearch}
+  onChange={(e) =>
+    setMembershipNumberSearch(e.target.value)
+  }
+  style={styles.searchInput}
+/>
+
 
         {/* Member Name */}
 
@@ -417,7 +434,7 @@ const handlePrint = () => {
     />
   </span>
 
-  <span>Print Report</span>
+  <span>Print</span>
 </button>
 
       </div>
@@ -448,6 +465,10 @@ const handlePrint = () => {
 
                 <th style={styles.th}>
                   Member Code
+                </th>
+
+                <th style={styles.th}>
+                  Membership Number
                 </th>
 
                 <th style={styles.th}>
@@ -490,7 +511,7 @@ const handlePrint = () => {
                 <tr>
 
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={styles.td}
                   >
                     Loading...
@@ -503,7 +524,7 @@ const handlePrint = () => {
                 <tr>
 
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={styles.td}
                   >
                     No share report found.
@@ -532,6 +553,11 @@ const handlePrint = () => {
                       <td style={styles.td}>
                         {report.memberId || "-"}
                       </td>
+
+                      {/* Membership Number */}
+<td style={styles.td}>
+  {report.membershipNumber || "-"}
+</td>
 
 
                       {/* Member Name */}

@@ -254,7 +254,7 @@ export default function PreviewEditPage() {
         withCredentials: true,
       });
 
-      const returnedId = res.data?.userid || res.data?.member_id || "—";
+      const returnedId = res.data?.data?.memberId || "—";
 
       localStorage.removeItem("personalInfo");
       localStorage.removeItem("kycInfo");

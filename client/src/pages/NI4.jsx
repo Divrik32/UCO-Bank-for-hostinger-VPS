@@ -90,18 +90,35 @@ const isFormValid =
   form.nominee_relation &&
   form.percentage_share;
 
-  // const handleDOBChange = (e) => {
-  //   const dob = e.target.value;
-  //   let age = "";
-  //   if (dob) {
-  //     const today = new Date();
-  //     const birthDate = new Date(dob);
-  //     age = today.getFullYear() - birthDate.getFullYear();
-  //     const m = today.getMonth() - birthDate.getMonth();
-  //     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-  //   }
-  //   setForm((prev) => ({ ...prev, dob, age: age.toString() }));
-  // };
+const handleDOBChange = (e) => {
+  const dob = e.target.value;
+
+  let age = "";
+
+  if (dob) {
+    const today = new Date();
+    const birthDate = new Date(dob);
+
+    age = today.getFullYear() - birthDate.getFullYear();
+
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    nominee_dob: dob,
+    nominee_age: age.toString(),
+  }));
+
+  setIsSaved(false);
+};
 
 
 const handleSubmit = (e) => {
@@ -184,8 +201,17 @@ const handleSubmit = (e) => {
           type={type}
           name={name}
           value={form[name]}
-          onChange={handleChange}
-          style={inputStyle}
+          onChange={
+            name === "nominee_dob"
+              ? handleDOBChange
+              : handleChange
+          }
+          style={{
+            ...inputStyle,
+            backgroundColor:
+              name === "nominee_age" ? "#f8f9fa" : "#fff",
+          }}
+          readOnly={name === "nominee_age"}
         />
       )}
     </div>

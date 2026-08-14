@@ -115,7 +115,7 @@ date_of_retirement: {
     // ================= KYC INFO =================
     pf_no: {
       type: Number,
-      required: true,
+      // required: true,
     },
 
     id_proof_name: {

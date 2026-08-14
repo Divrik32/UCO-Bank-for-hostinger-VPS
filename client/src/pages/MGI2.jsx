@@ -124,8 +124,8 @@ const handleNext = (e) => {
     });
   }
 };
-const isFormValid =
-  form.pf_no.trim() !== "";
+const isFormValid = true
+//   form.pf_no.trim() !== "";
   // form.id_proof_name &&
   // form.id_proof_no &&
   // form.address_proof_name &&
@@ -207,7 +207,9 @@ const handleSubmit = (e) => {
       <div style={{ background: "#fff", borderRadius: "5px", boxShadow: "0px 0 30px rgba(1,41,112,0.1)", padding: "28px 32px" }}>
         <form onSubmit={handleSubmit}>
      <div style={rowStyle}>
-  <div style={labelStyle}>PF No <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>PF No 
+    {/* <span style={{ color: "red" }}>*</span> */}
+  </div>
   <div style={fieldCol}>
     <input
       type="text"

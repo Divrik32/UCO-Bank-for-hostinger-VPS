@@ -350,6 +350,23 @@ export default function PreviewEditPage() {
             <Field label="Member Name"       name="firstname"           value={formData.firstname}           onChange={handleChange} required />
             <Field label="Last Name"          name="lastname"            value={formData.lastname}            onChange={handleChange} required />
             <Field label="Member D.O.B"       name="dob"                 value={formData.dob}                 onChange={handleChange} required />
+            <Field
+              label="Date of Joining"
+              name="date_of_joining"
+              value={formData.date_of_joining}
+              onChange={handleChange}
+              type="date"
+              // required
+            />
+            
+            <Field
+              label="Date of Retirement"
+              name="date_of_retirement"
+              value={formData.date_of_retirement}
+              onChange={handleChange}
+              type="date"
+              // required
+              />
             <Field label="Age"                name="age"                 value={formData.age}                 onChange={handleChange} required />
             <Field label="Phone"              name="phoneno"             value={formData.phoneno}             onChange={handleChange} required />
             <Field label="Email"              name="email"               value={formData.email}               onChange={handleChange} required />

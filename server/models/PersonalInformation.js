@@ -20,6 +20,16 @@ const personalInformationSchema = new mongoose.Schema(
       required: true,
     },
 
+    date_of_joining: {
+  type: Date,
+  // required: true,
+},
+
+date_of_retirement: {
+  type: Date,
+  // required: true,
+},
+
     age: {
       type: Number,
       required: true,

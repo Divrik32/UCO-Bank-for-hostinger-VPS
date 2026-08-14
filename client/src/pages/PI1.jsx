@@ -56,6 +56,8 @@ const [form, setForm] = useState(() => {
     firstname: "",
     lastname: "",
     dob: "",
+    date_of_joining: "",
+    date_of_retirement: "",
     age: "",
     membershipNumber: "",
     gender: "Male",
@@ -95,6 +97,8 @@ const isFormValid =
   form.firstname &&
   form.lastname &&
   form.dob &&
+  // form.date_of_joining &&
+  // form.date_of_retirement &&
   form.age &&
   form.gender &&
   form.status &&
@@ -221,6 +225,17 @@ const handleSubmit = (e) => {
             { label: "Member Name",      name: "firstname",          type: "text" },
             { label: "Last Name",        name: "lastname",           type: "text" },
             { label: "Member D.O.B",     name: "dob",                type: "date", onChange: handleDOBChange, },
+              { 
+    label: "Date of Joining", 
+    name: "date_of_joining", 
+    type: "date" 
+  },
+
+  { 
+    label: "Date of Retirement", 
+    name: "date_of_retirement", 
+    type: "date" 
+  },
             { label: "Age",              name: "age",                type: "number" },
             {label: "Membership Number", name: "membershipNumber",   type: "text"},
             { label: "Guardian Name",    name: "guardian_firstname", type: "text" },
@@ -228,7 +243,14 @@ const handleSubmit = (e) => {
             { label: "Email Id",         name: "email",              type: "email" },
           ].map(({ label, name, type, onChange }) => (
             <div key={name} style={rowStyle}>
-              <div style={labelStyle}>{label}{name !== "membershipNumber" && (<span style={{ color: "red" }}> *</span>)}</div>
+<div style={labelStyle}>
+  {label}
+  {name !== "membershipNumber" &&
+   name !== "date_of_joining" &&
+   name !== "date_of_retirement" && (
+    <span style={{ color: "red" }}> *</span>
+  )}
+</div>
               <div style={fieldCol}>
                 <input
                   type={type}

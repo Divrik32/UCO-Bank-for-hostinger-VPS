@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { Link, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -51,6 +51,7 @@ export default function NI4() {
   localStorage.getItem("nomineeInfo")
 );
 const [isSaved, setIsSaved] = useState(false);
+const [nomineeRelations, setNomineeRelations] = useState([]);
 const [form, setForm] = useState({
   nominee_name: savedNominee?.nominee_name || "",
   nominee_dob: savedNominee?.nominee_dob || "",
@@ -82,6 +83,18 @@ const [form, setForm] = useState({
   const location = useLocation();
 
 const basePath = location.pathname.split("/")[1];
+
+useEffect(() => {
+  const fetchNomineeRelations = async () => {
+    try {
+      const response = await api.get("/users/nominee-relations");
+      setNomineeRelations(response.data.data);
+    } catch (error) {
+      console.error("Failed to fetch nominee relations:", error);
+    }
+  };
+  fetchNomineeRelations();
+}, []);
 
 const isFormValid =
   form.nominee_name &&
@@ -183,19 +196,20 @@ const handleSubmit = (e) => {
     <div style={labelStyle}>{label} <span style={{ color: "red" }}>*</span></div>
     <div style={fieldCol}>
       {name === "nominee_relation" ? (
-        <select
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          style={inputStyle}
-        >
-          <option value="">Select Relation</option>
-          <option value="Father">Father</option>
-          <option value="Mother">Mother</option>
-          <option value="Spouse">Spouse</option>
-          <option value="Brother">Brother</option>
-          <option value="Sister">Sister</option>
-        </select>
+<select
+  name={name}
+  value={form[name]}
+  onChange={handleChange}
+  style={inputStyle}
+>
+  <option value="">Select Relation</option>
+
+  {nomineeRelations.map((relation) => (
+    <option key={relation} value={relation}>
+      {relation}
+    </option>
+  ))}
+</select>
       ) : (
         <input
           type={type}

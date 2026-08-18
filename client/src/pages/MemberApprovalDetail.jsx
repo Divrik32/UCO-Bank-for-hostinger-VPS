@@ -155,6 +155,22 @@ const handleApprove = async () => {
   if (loading) return <p style={{ padding: 24 }}>Loading...</p>;
   if (!member) return <p style={{ padding: 24 }}>Member not found.</p>;
 
+  const formatDate = (date) => {
+  if (!date) return "—";
+
+  const parsed = new Date(date);
+
+  if (isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
+
   return (<>
   <style>
   {`
@@ -309,8 +325,11 @@ const handleApprove = async () => {
           <InfoCard title="Member Details">
             <InfoRow label="Member Name"       value={member.firstname} />
             <InfoRow label="Last Name"         value={member.lastname} />
-            <InfoRow label="Member D.O.B"      value={member.dob} />
+            <InfoRow label="Member D.O.B"      value={formatDate(member.dob)} />
+            <InfoRow label="Membership Number" value={member.membershipNumber} />
             <InfoRow label="Age"               value={member.age} />
+            <InfoRow label="Date of Joining"   value={formatDate(member.date_of_joining)} />
+            <InfoRow label="Date of Retirement" value={formatDate(member.date_of_retirement)} />
             <InfoRow label="Gender"            value={member.gender} />
             <InfoRow label="Status"            value={member.status} />
             <InfoRow label="Guardian Name"     value={member.guardian_firstname} />

@@ -73,7 +73,6 @@ date_of_retirement: {
 
     email: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
     },
@@ -256,7 +255,7 @@ nominee_name: {   // ❗ fix mapping
 
     nominee_relation: {
       type: String,
-      enum: ["Father", "Mother", "Spouse"],
+      enum: ["Father", "Mother", "Spouse","Brother","Sister"],
       required: true,
     },
 

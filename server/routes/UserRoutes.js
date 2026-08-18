@@ -15,7 +15,8 @@ const {
   approveMember,
   getApprovedMembers,
   printMemberDetails,
-  memberApprovalPDF
+  memberApprovalPDF,
+  getNomineeRelations
 } = require("../controllers/UserController.js");
 
 const router = express.Router();
@@ -71,5 +72,6 @@ router.post("/forgot-password", sendForgotOtp);
 router.post("/reset-password", resetPassword);
 router.get("/members/:id/pdf", printMemberDetails);
 router.post("/approval-pending-members/print", memberApprovalPDF);
+router.get("/nominee-relations", getNomineeRelations);
 
 module.exports = router;

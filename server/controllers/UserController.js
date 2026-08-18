@@ -174,6 +174,9 @@ const submitMemberForm = async (req, res) => {
       firstname: req.body.firstname,
       lastname: req.body.lastname,
       dob: req.body.dob,
+      membershipNumber: req.body.membershipNumber,
+      date_of_joining: req.body.date_of_joining,
+      date_of_retirement: req.body.date_of_retirement,
       age: req.body.age,
       // form_no: req.body.form_no,
       gender: req.body.gender,
@@ -977,12 +980,32 @@ body {
         </div>
       </div>
 
+      <div class="row"> 
+        <div class="label">Membership Number</div> 
+        <div class="value"> 
+          ${value(member.membershipNumber)} 
+        </div> 
+      </div>
+
       <div class="row">
         <div class="label">Age</div>
         <div class="value">
           ${value(member.age)}
         </div>
       </div>
+      <div class="row">
+  <div class="label">Date of Joining</div>
+  <div class="value">
+    ${formatDate(member.date_of_joining)}
+  </div>
+</div>
+
+<div class="row">
+  <div class="label">Date of Retirement</div>
+  <div class="value">
+    ${formatDate(member.date_of_retirement)}
+  </div>
+</div>
 
       <div class="row">
         <div class="label">Gender</div>
@@ -1812,6 +1835,25 @@ const memberApprovalPDF = async (req, res) => {
   }
 };
 
+const getNomineeRelations = async (req, res) => {
+  try {
+    const nomineeRelations =
+      PersonalInformation.schema
+        .path("nominee_relation")
+        .enumValues;
+
+    res.status(200).json({
+      success: true,
+      data: nomineeRelations,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1824,5 +1866,6 @@ module.exports = {
   sendForgotOtp,
   resetPassword,
   printMemberDetails,
-  memberApprovalPDF 
+  memberApprovalPDF,
+  getNomineeRelations
 };

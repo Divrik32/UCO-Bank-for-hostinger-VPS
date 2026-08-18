@@ -105,7 +105,7 @@ const isFormValid =
   form.guardian_firstname &&
   form.guardian_relation &&
   form.phoneno &&
-  form.email &&
+  // form.email &&
   form.address_line1 &&
   form.address_line2 &&
   form.state &&
@@ -247,7 +247,8 @@ const handleSubmit = (e) => {
   {label}
   {name !== "membershipNumber" &&
    name !== "date_of_joining" &&
-   name !== "date_of_retirement" && (
+   name !== "date_of_retirement" &&
+   name !== "email" && (
     <span style={{ color: "red" }}> *</span>
   )}
 </div>

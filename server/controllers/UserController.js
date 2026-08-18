@@ -240,9 +240,7 @@ const getApprovalPendingMembers = async (req, res) => {
     // ==========================================
     // 1. Get All Pending Members
     // ==========================================
-    const members = await PersonalInformation.find({
-      approval_status: "pending",
-    }).sort({
+    const members = await PersonalInformation.find({}).sort({
       createdAt: -1,
     });
 

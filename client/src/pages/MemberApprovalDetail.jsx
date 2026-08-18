@@ -262,7 +262,7 @@ const handleApprove = async () => {
     </>
   )}
 </div>
-        <div style={styles.headerRight}>
+<div style={styles.headerRight}>
 
   <div style={{ textAlign: "right" }}>
     <p style={styles.addressText}>
@@ -273,6 +273,15 @@ const handleApprove = async () => {
       New Dak Bunglow Road, Patna-800001
     </p>
   </div>
+
+  {/* Approved Status */}
+  {member.approval_status === "approved" && (
+    <div style={styles.approvedBadge}>
+      <span style={styles.approvedCheck}>✓</span>
+
+      <span>Approved</span>
+    </div>
+  )}
 
   <button
     className="premium-print-btn"
@@ -396,24 +405,39 @@ const handleApprove = async () => {
       </div>
 
       {/* ── Approve / Deny buttons ── */}
-      <div style={styles.actionRow}>
-        <button
-          style={styles.approveBtn}
-          onClick={handleApprove}
-          onMouseEnter={(e) => { e.target.style.backgroundColor = "#0f6e56"; e.target.style.color = "white"; }}
-          onMouseLeave={(e) => { e.target.style.backgroundColor = "transparent"; e.target.style.color = "#0f6e56"; }}
-        >
-          Approve
-        </button>
-        <button
-          style={styles.denyBtn}
-          onClick={handleDeny}
-          onMouseEnter={(e) => { e.target.style.backgroundColor = "#c0392b"; e.target.style.color = "white"; }}
-          onMouseLeave={(e) => { e.target.style.backgroundColor = "transparent"; e.target.style.color = "#c0392b"; }}
-        >
-          Deny
-        </button>
-      </div>
+{member.approval_status !== "approved" && (
+  <div style={styles.actionRow}>
+    <button
+      style={styles.approveBtn}
+      onClick={handleApprove}
+      onMouseEnter={(e) => {
+        e.target.style.backgroundColor = "#0f6e56";
+        e.target.style.color = "white";
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.backgroundColor = "transparent";
+        e.target.style.color = "#0f6e56";
+      }}
+    >
+      Approve
+    </button>
+
+    <button
+      style={styles.denyBtn}
+      onClick={handleDeny}
+      onMouseEnter={(e) => {
+        e.target.style.backgroundColor = "#c0392b";
+        e.target.style.color = "white";
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.backgroundColor = "transparent";
+        e.target.style.color = "#c0392b";
+      }}
+    >
+      Deny
+    </button>
+  </div>
+)}
     </div>
   </>);
 }
@@ -421,6 +445,33 @@ const handleApprove = async () => {
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = {
+  approvedBadge: {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "7px 13px",
+  borderRadius: "20px",
+  backgroundColor: "#e8f8ef",
+  border: "1px solid #b7e4c7",
+  color: "#198754",
+  fontSize: "13px",
+  fontWeight: "600",
+  boxShadow: "0 2px 8px rgba(25, 135, 84, 0.10)",
+},
+
+approvedCheck: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "20px",
+  height: "20px",
+  borderRadius: "50%",
+  backgroundColor: "#198754",
+  color: "#fff",
+  fontSize: "13px",
+  fontWeight: "700",
+  lineHeight: 1,
+},
   wrapper: {
     padding: "20px 24px",
     fontFamily: "Verdana, Geneva, Tahoma, sans-serif",

@@ -398,6 +398,10 @@ export default function MemberApproval() {
                 </th>
 
                 <th style={styles.th}>
+                  Status
+                </th>
+
+                <th style={styles.th}>
                   Action
                 </th>
               </tr>
@@ -407,7 +411,7 @@ export default function MemberApproval() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="10"
                     style={styles.td}
                   >
                     Loading...
@@ -416,7 +420,7 @@ export default function MemberApproval() {
               ) : filteredMembers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="10"
                     style={styles.td}
                   >
                     No members found
@@ -487,6 +491,20 @@ export default function MemberApproval() {
                         ).toLocaleString("en-IN")}
                       </td>
 
+                      <td style={styles.td}>
+  {member.approval_status === "approved" ? (
+    <span style={styles.approvedStatus}>
+      <span style={styles.approvedDot}></span>
+      Approved
+    </span>
+  ) : (
+    <span style={styles.pendingStatus}>
+      <span style={styles.pendingSymbol}>⚠</span>
+      Pending
+    </span>
+  )}
+</td>
+
                       {/* Action */}
                       <td style={styles.td}>
                         <button
@@ -513,6 +531,46 @@ export default function MemberApproval() {
 }
 
 const styles = {
+  approvedStatus: {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "7px",
+  color: "#198754",
+  backgroundColor: "#e8f7ee",
+  border: "1px solid #b7e4c7",
+  borderRadius: "20px",
+  padding: "5px 11px",
+  fontSize: "12px",
+  fontWeight: "600",
+},
+
+approvedDot: {
+  width: "8px",
+  height: "8px",
+  borderRadius: "50%",
+  backgroundColor: "#198754",
+  display: "inline-block",
+},
+
+pendingStatus: {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+  color: "#856404",
+  backgroundColor: "#fff8db",
+  border: "1px solid #ffe69c",
+  borderRadius: "20px",
+  padding: "5px 11px",
+  fontSize: "12px",
+  fontWeight: "600",
+},
+
+pendingSymbol: {
+  fontSize: "13px",
+  lineHeight: 1,
+},
   wrapper: {
     padding: "20px 24px",
     fontFamily:

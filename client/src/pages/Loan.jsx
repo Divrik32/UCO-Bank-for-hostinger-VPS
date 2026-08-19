@@ -63,6 +63,7 @@ const [officialForm, setOfficialForm] = useState({
   loanAmount: "",
   tenureMonths: "",
   emiAmount: "",
+  monthlyInterest: "",
   processingFees: "",
   paymentMode: "",
   transactionId: "",
@@ -135,26 +136,38 @@ useEffect(() => {
 
   const loanAmount = Number(officialForm.loanAmount);
   const tenure = Number(officialForm.tenureMonths);
+  const loanInterest = Number(interestRate);
 
-  if (!loanAmount || !tenure) {
-    setOfficialForm((prev) => ({
-      ...prev,
-      emiAmount: "",
-    }));
-    return;
+  // EMI calculation
+  let emiAmount = "";
+
+  if (loanAmount && tenure) {
+    const factor = emiFactors[tenure];
+
+    if (factor) {
+      emiAmount = ((loanAmount * factor) / 1000).toFixed(2);
+    }
   }
 
-  const factor = emiFactors[tenure];
+  // Monthly Interest calculation
+  let monthlyInterest = "";
 
-  if (!factor) return;
-
-  const emi = ((loanAmount * factor) / 1000).toFixed(2);
+  if (loanAmount && loanInterest) {
+    monthlyInterest = (
+      (loanAmount * 30 * loanInterest) / 36500
+    ).toFixed(2);
+  }
 
   setOfficialForm((prev) => ({
     ...prev,
-    emiAmount: emi,
+    emiAmount,
+    monthlyInterest,
   }));
-}, [officialForm.loanAmount, officialForm.tenureMonths]);
+}, [
+  officialForm.loanAmount,
+  officialForm.tenureMonths,
+  interestRate,
+]);
 
   useEffect(() => {
     fetchInterestRate();
@@ -209,7 +222,7 @@ useEffect(() => {
         currentBalance: data.currentBalance || 0,
       });
       console.log("Profile Image:", data.profileImage);
-console.log("Signature Image:", data.signatureImage);
+      console.log("Signature Image:", data.signatureImage);
 
       // if (data.loanData) {
       //   setOfficialForm({
@@ -296,10 +309,10 @@ const totalPaid = emiPayments.reduce(
 
 // loan adjustment autofill
 setAdjustmentForm((prev) => ({
-  ...prev,
-  totalAmount: officialData?.loanAmount || 0,
-  noOfEmi: officialData?.tenureMonths || "",  
-}));
+       ...prev,
+       totalAmount: officialData?.loanAmount || 0,
+       noOfEmi: officialData?.tenureMonths || "",  
+     }));
 
       await fetchAvailableBalance(memberCode);
       setActiveTab("official");
@@ -319,8 +332,8 @@ await api.post(
     loanType: officialForm.loanType,
     loanAmount: Number(officialForm.loanAmount),
     tenureMonths: Number(officialForm.tenureMonths),
+    monthlyInterest: Number(officialForm.monthlyInterest || 0),
     processingFees: Number(officialForm.processingFees || 0),
-
     paymentMode: officialForm.paymentMode,
     transactionId: officialForm.transactionId,
   }
@@ -1051,6 +1064,16 @@ const submitAdjustment = async () => {
                     style={inputDisabled}
                     disabled
                     value={officialForm.emiAmount}
+                    placeholder="Auto-calculated"
+                  />
+                </Field>
+
+                <Field label="Monthly Interest" isMobile={isMobile}>
+                  <input
+                    type="number"
+                    style={inputDisabled}
+                    readOnly
+                    value={officialForm.monthlyInterest}
                     placeholder="Auto-calculated"
                   />
                 </Field>

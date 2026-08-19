@@ -80,6 +80,7 @@ exports.createOfficialEntry = async (req, res) => {
       loanType,
       loanAmount,
       tenureMonths,
+      monthlyInterest,
       processingFees = 0,
       paymentMode,
       transactionId = ""
@@ -142,6 +143,7 @@ exports.createOfficialEntry = async (req, res) => {
       loanAmount,
       tenureMonths,
       emiAmount,
+      monthlyInterest,
       processingFees,
       paymentMode,
       transactionId

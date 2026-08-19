@@ -53,6 +53,12 @@ const officialEntrySchema = new mongoose.Schema(
       min: 0
     },
 
+    monthlyInterest: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+
     processingFees: {
       type: Number,
       default: 0,

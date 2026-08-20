@@ -433,9 +433,9 @@ const submitEmiPayment = async () => {
     //   return toast.error("Transaction ID required");
     // }
 
-    if (Number(emiForm.amount) > Number(emiForm.emiAmount)) {
-       return toast.error("Amount cannot exceed EMI amount");
-    }
+    // if (Number(emiForm.amount) > Number(emiForm.emiAmount)) {
+    //    return toast.error("Amount cannot exceed EMI amount");
+    // }
 
     await api.post(`${API}/emi-payment/${member.memberId}`, {
       memberId: member.memberId,

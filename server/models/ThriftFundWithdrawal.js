@@ -33,7 +33,7 @@ const thriftFundWithdrawalSchema = new mongoose.Schema(
       trim: true,
     },
     
-        availableBalance: {
+    availableBalance: {
       type: Number,
       default: 0,
     },

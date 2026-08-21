@@ -22,6 +22,11 @@ const loanAdjustmentSchema = new mongoose.Schema(
         'Amount given from Share A/C'
       ],
     },
+    adjustmentAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     chequeNumber: {
       type: String,
       trim: true,

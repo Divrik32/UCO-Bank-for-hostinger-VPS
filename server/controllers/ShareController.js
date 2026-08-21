@@ -4,6 +4,7 @@ const DebitShare = require("../models/DebitShare.js");
 const PersonalInformation = require("../models/PersonalInformation.js");
 const ShareOfficialDetails = require("../models/ShareOfficialDetails.js");
 const { default: puppeteer } = require("puppeteer");
+const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 
 
 /* ================= SHARE PAYMENT METHODS ================= */
@@ -33,28 +34,32 @@ exports.getSharePaymentMethods = async (req, res) => {
 
 /* ================= MEMBER-WISE SHARE BALANCE ================= */
 
-const getShareCurrentBalance = async (memberId)=>{
+const getShareCurrentBalance = async (memberId) => {
+  const credits = await CreditShare.find({ memberId });
 
- const credits =
-   await CreditShare.find({ memberId });
+  const debits = await DebitShare.find({ memberId });
 
- const debits =
-   await DebitShare.find({ memberId });
+  const loanAdjustments = await loanAdjustmentModel.find({
+    memberId,
+    paymentMode: "Amount given from Share A/C",
+  });
 
- const totalCredit = credits.reduce(
-   (sum,item)=>
-      sum + item.investmentAmount,
-   0
- );
+  const totalCredit = credits.reduce(
+    (sum, item) => sum + item.investmentAmount,
+    0
+  );
 
- const totalDebit = debits.reduce(
-   (sum,item)=>
-      sum + item.amount,
-   0
- );
+  const totalDebit = debits.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
 
- return totalCredit - totalDebit;
+  const totalLoanAdjustment = loanAdjustments.reduce(
+    (sum, item) => sum + item.adjustmentAmount,
+    0
+  );
 
+  return totalCredit - totalDebit - totalLoanAdjustment;
 };
 
 /* ================= SHARE INTEREST ================= */

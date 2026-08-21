@@ -3,6 +3,7 @@ const ThriftFundEntry = require("../models/ThriftFundEntry.js");
 const ThriftFundWithdrawal = require("../models/ThriftFundWithdrawal.js");
 const PersonalInformation = require("../models/PersonalInformation.js");
 const { default: puppeteer } = require("puppeteer");
+const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 
 const getThriftPaymentMethods = async (req, res) => {
   try {
@@ -25,8 +26,14 @@ const getThriftPaymentMethods = async (req, res) => {
 
 const getCurrentBalance = async (memberId) => {
   const entries = await ThriftFundEntry.find({ memberId });
+
   const withdrawals = await ThriftFundWithdrawal.find({
     memberId,
+  });
+
+  const loanAdjustments = await loanAdjustmentModel.find({
+    memberId,
+    paymentMode: "Amount given from thrift A/C",
   });
 
   const totalCredit = entries.reduce(
@@ -34,12 +41,17 @@ const getCurrentBalance = async (memberId) => {
     0
   );
 
-  const totalDebit = withdrawals.reduce(
+  const totalWithdrawal = withdrawals.reduce(
     (sum, item) => sum + item.withdrawalAmount,
     0
   );
 
-  return totalCredit - totalDebit;
+  const totalLoanAdjustment = loanAdjustments.reduce(
+    (sum, item) => sum + item.adjustmentAmount,
+    0
+  );
+
+  return totalCredit - totalWithdrawal - totalLoanAdjustment;
 };
 
 // ================= CREATE ENTRY =================

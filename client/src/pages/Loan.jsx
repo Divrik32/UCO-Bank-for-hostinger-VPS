@@ -90,6 +90,7 @@ const [officialForm, setOfficialForm] = useState({
     amountPaid: "",
     totalAmount: "",
     paymentMode: "Amount given by Member",
+    adjustmentAmount: "",
     chequeNumber: "",
     transactionId: "",
   });
@@ -284,6 +285,7 @@ setAdjustmentForm({
   amountPaid: 0,
   totalAmount: officialData?.loanAmount || "",
   paymentMode: "Amount given by Member",
+  adjustmentAmount: "",
   chequeNumber: "",
   transactionId: "",
 });
@@ -466,6 +468,7 @@ const submitAdjustment = async () => {
   try {
     await api.post(`${API}/loan-adjustment/${member.memberId}`, {
       paymentMode: adjustmentForm.paymentMode,
+      adjustmentAmount: Number(adjustmentForm.adjustmentAmount),
       chequeNumber: adjustmentForm.chequeNumber,
       transactionId: adjustmentForm.transactionId,
     });
@@ -1381,6 +1384,22 @@ const submitAdjustment = async () => {
                     ))}
                   </select>
                 </Field>
+
+                                <Field label="Adjustment Amount" isMobile={isMobile}>
+  <input
+    type="number"
+    style={inputStyle}
+    value={adjustmentForm.adjustmentAmount}
+    onChange={(e) =>
+      setAdjustmentForm({
+        ...adjustmentForm,
+        adjustmentAmount: e.target.value,
+      })
+    }
+    placeholder="Enter adjustment amount"
+    min="0"
+  />
+</Field>
 
                 <Field label="Cheque Number" isMobile={isMobile}>
                   <input

@@ -240,8 +240,10 @@ exports.createLoanPaymentForEmiDetails = async (req, res) => {
 exports.createLoanAdjustment = async (req, res) => {
   try {
     const { memberId } = req.params;
+
     const {
       paymentMode,
+      adjustmentAmount,
       chequeNumber = "",
       transactionId = ""
     } = req.body;
@@ -262,6 +264,7 @@ exports.createLoanAdjustment = async (req, res) => {
       memberId,
       loanCode: latestLoan.loanCode,
       paymentMode,
+      adjustmentAmount,
       chequeNumber,
       transactionId
     });
@@ -270,18 +273,19 @@ exports.createLoanAdjustment = async (req, res) => {
       success: true,
       data
     });
-  } catch (error) {
-  if (error.code === 11000) {
-    return res.status(400).json({
-      success: false,
-      message: "Transaction ID already exists"
-    });
-  }
 
-  res.status(500).json({
-    success: false,
-    message: error.message
-  });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID already exists"
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 

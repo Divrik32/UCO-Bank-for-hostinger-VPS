@@ -14,9 +14,11 @@ const handlePrint = () => {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [availableBalance, setAvailableBalance] = useState(0);
 
   useEffect(() => {
     fetchMemberLoanDetails();
+    fetchAvailableBalance();
   }, [memberId]);
 
   const fetchMemberLoanDetails = async () => {
@@ -40,6 +42,21 @@ const handlePrint = () => {
       setLoading(false);
     }
   };
+
+  const fetchAvailableBalance = async () => {
+  try {
+    const res = await api.get(
+      `/loan/available-balance/${memberId}`
+    );
+
+    setAvailableBalance(
+      Number(res.data?.availableBalance || 0)
+    );
+  } catch (err) {
+    console.error("Failed to fetch available balance:", err);
+    setAvailableBalance(0);
+  }
+};
 
   const formatDate = (date) => {
     if (!date) return "-";
@@ -323,7 +340,7 @@ const handlePrint = () => {
           Loan Information
         </h5>
 
-        <div style={styles.detailsGrid}>
+        <div style={styles.loanDetailsGrid}>
           <DetailItem
             label="First Loan Date"
             value={member.firstLoanDate}
@@ -335,6 +352,13 @@ const handlePrint = () => {
               member.totalLoanAmount || 0
             ).toLocaleString("en-IN")}`}
           />
+
+          <DetailItem 
+            label="Available Balance" 
+            value={`₹${Number(
+              availableBalance || 0
+            ).toLocaleString("en-IN")}`} 
+          /> 
 
           <DetailItem
             label="Payment Mode"
@@ -372,6 +396,13 @@ function DetailItem({ label, value }) {
 /* ================= STYLES ================= */
 
 const styles = {
+  loanDetailsGrid: {
+  display: "grid",
+  gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+  gap: "0",
+  borderTop: "1px solid #dee2e6",
+  borderLeft: "1px solid #dee2e6",
+},
   wrapper: {
     padding: "20px 24px",
     fontFamily:

@@ -6,6 +6,43 @@ const ShareOfficialDetails = require("../models/ShareOfficialDetails.js");
 const { default: puppeteer } = require("puppeteer");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 
+const generateTransactionId = async () => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+
+  let id;
+
+  do {
+    id = "";
+
+    // 3 uppercase letters
+    for (let i = 0; i < 3; i++) {
+      id += letters[
+        Math.floor(Math.random() * letters.length)
+      ];
+    }
+
+    // 2 numbers
+    for (let i = 0; i < 2; i++) {
+      id += numbers[
+        Math.floor(Math.random() * numbers.length)
+      ];
+    }
+
+    const exists =
+      (await CreditShare.exists({
+        transactionId: id,
+      })) ||
+      (await DebitShare.exists({
+        transactionId: id,
+      }));
+
+    if (!exists) {
+      return id;
+    }
+
+  } while (true);
+};
 
 /* ================= SHARE PAYMENT METHODS ================= */
 
@@ -154,30 +191,10 @@ exports.createCreditShare = async(req,res)=>{
  try{
 
    const {
-      memberId,
-      transactionId
+      memberId
    } = req.body;
 
-
-   // duplicate transaction check
-   if(transactionId?.trim()){
-
-      const existing =
-       await CreditShare.findOne({
-         transactionId
-       });
-
-      if(existing){
-
-        return res.status(400).json({
-          success:false,
-          message:"Transaction ID already exists"
-        });
-
-      }
-
-   }
-
+  const transactionId = await generateTransactionId();
 
    const currentBalance =
       await getShareCurrentBalance(
@@ -194,9 +211,7 @@ exports.createCreditShare = async(req,res)=>{
 
         ...req.body,
 
-        transactionId:
-         transactionId?.trim() ||
-         undefined,
+        transactionId,
 
         availableBalance:
          currentBalance,
@@ -266,30 +281,10 @@ exports.createDebitShare = async(req,res)=>{
  try{
 
   const {
-    memberId,
-    transactionId
+    memberId
   } = req.body;
 
-
-  if(transactionId?.trim()){
-
-     const existing =
-       await DebitShare.findOne({
-         transactionId
-       });
-
-     if(existing){
-
-       return res.status(400).json({
-         success:false,
-         message:"Transaction ID already exists"
-       });
-
-     }
-
-  }
-
-
+  const transactionId = await generateTransactionId();
 
   const currentBalance =
     await getShareCurrentBalance(
@@ -322,9 +317,7 @@ exports.createDebitShare = async(req,res)=>{
 
       ...req.body,
 
-      transactionId:
-        transactionId?.trim() ||
-        undefined,
+      transactionId,
 
       availableBalance:
         currentBalance,

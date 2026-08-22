@@ -5,6 +5,38 @@ const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDe
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 const puppeteer = require("puppeteer");
 
+const generateTransactionId = async () => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+
+  let id;
+
+  do {
+    id = "";
+
+    // 3 uppercase letters
+    for (let i = 0; i < 3; i++) {
+      id += letters[Math.floor(Math.random() * letters.length)];
+    }
+
+    // 2 numbers
+    for (let i = 0; i < 2; i++) {
+      id += numbers[Math.floor(Math.random() * numbers.length)];
+    }
+
+    // Check whether this ID already exists
+    const exists =
+      await officialEntryModel.exists({ transactionId: id }) ||
+      await loanPaymentForEmiDetailsModel.exists({ transactionId: id }) ||
+      await loanAdjustmentModel.exists({ transactionId: id });
+
+    if (!exists) {
+      return id;
+    }
+
+  } while (true);
+};
+
 const escapeHtml = (value) => {
   if (value === undefined || value === null) {
     return "-";
@@ -82,8 +114,7 @@ exports.createOfficialEntry = async (req, res) => {
       tenureMonths,
       monthlyInterest,
       processingFees = 0,
-      paymentMode,
-      transactionId = ""
+      paymentMode
     } = req.body;
 
     // EMI factors by tenure
@@ -134,6 +165,7 @@ exports.createOfficialEntry = async (req, res) => {
     }
 
     const loanCode = `${prefix}${serial}`;
+    const transactionId = await generateTransactionId();
 
     const data = await officialEntryModel.create({
       memberId,
@@ -201,8 +233,7 @@ exports.createLoanPaymentForEmiDetails = async (req, res) => {
     const { memberId } = req.params;
     const {
       paymentMode,
-      amount,
-      transactionId
+      amount
     } = req.body;
 
     // latest loan code for this member
@@ -217,6 +248,7 @@ exports.createLoanPaymentForEmiDetails = async (req, res) => {
       });
     }
 
+    const transactionId = await generateTransactionId();
     const data = await loanPaymentForEmiDetailsModel.create({
       memberId,
       loanCode: latestLoan.loanCode,
@@ -244,8 +276,7 @@ exports.createLoanAdjustment = async (req, res) => {
     const {
       paymentMode,
       adjustmentAmount,
-      chequeNumber = "",
-      transactionId = ""
+      chequeNumber = ""
     } = req.body;
 
     // latest loan code for this member
@@ -259,7 +290,7 @@ exports.createLoanAdjustment = async (req, res) => {
         message: "Official loan entry not found"
       });
     }
-
+    const transactionId = await generateTransactionId();
     const data = await loanAdjustmentModel.create({
       memberId,
       loanCode: latestLoan.loanCode,
@@ -416,33 +447,55 @@ exports.getTotalTransactionDetails = async (req, res) => {
   try {
     const { memberId } = req.params;
 
-    // 1. Official Entry data (LOAN GIVEN → CREDIT)
+    // 1. Official Entry
     const officialEntries = await officialEntryModel.find({ memberId });
 
-    // 2. EMI Payment data (LOAN PAID → DEBIT)
-    const emiPayments = await loanPaymentForEmiDetailsModel.find({ memberId });
+    // 2. EMI Payment
+    const emiPayments = await loanPaymentForEmiDetailsModel.find({
+      memberId,
+    });
 
-    // 3. Format Official Entries
+    // 3. Loan Adjustment
+    const loanAdjustments = await loanAdjustmentModel.find({
+      memberId,
+    });
+
+    // Official Entry → CREDIT
     const officialData = officialEntries.map((item) => ({
       amount: item.loanAmount,
       paymentMode: "-",
       transactionDate: item.createdAt,
       interest: "Included in EMI",
-      type: "CREDIT",   // 🔥 added
+      type: "CREDIT",
     }));
 
-    // 4. Format EMI Payments
+    // EMI Payment → DEBIT
     const emiData = emiPayments.map((item) => ({
       amount: item.amount,
       paymentMode: item.paymentMode,
       transactionDate: item.createdAt,
       interest: "Included in EMI",
-      type: "DEBIT",   // 🔥 added
+      type: "DEBIT",
     }));
 
-    // 5. Merge + sort
-    const allTransactions = [...officialData, ...emiData].sort(
-      (a, b) => new Date(a.transactionDate) - new Date(b.transactionDate)
+    // Loan Adjustment → DEBIT
+    const adjustmentData = loanAdjustments.map((item) => ({
+      amount: item.adjustmentAmount,
+      paymentMode: item.paymentMode,
+      transactionDate: item.createdAt,
+      interest: "Included in EMI",
+      type: "DEBIT",
+    }));
+
+    // Merge + sort by date
+    const allTransactions = [
+      ...officialData,
+      ...emiData,
+      ...adjustmentData,
+    ].sort(
+      (a, b) =>
+        new Date(a.transactionDate) -
+        new Date(b.transactionDate)
     );
 
     res.status(200).json({

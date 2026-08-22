@@ -65,7 +65,6 @@ export default function ThriftFund() {
   const [entryForm, setEntryForm] = useState({
     totalAmountReceived: "",
     paymentMethod: entryPaymentMethods[0] || "",
-    transactionId: "",
     chequeNumber: "",
     yearlyInterestAmount: "",
     entryDate: "",
@@ -75,7 +74,6 @@ export default function ThriftFund() {
   const [withdrawalForm, setWithdrawalForm] = useState({
     withdrawalAmount: "",
     paymentMethod: withdrawalPaymentMethods[0] || "",
-    transactionId: "",
     chequeNumber: "",
     withdrawalDate: "",
     approvedBy: "",
@@ -177,7 +175,7 @@ export default function ThriftFund() {
       });
       toast.success("Entry created successfully");
       await fetchAvailableBalance(member.memberId);
-      setEntryForm({ totalAmountReceived: "", paymentMethod: entryPaymentMethods[0] || "", transactionId: "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
+      setEntryForm({ totalAmountReceived: "", paymentMethod: entryPaymentMethods[0] || "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message); }
   };
@@ -191,7 +189,7 @@ export default function ThriftFund() {
       });
       toast.success("Withdrawal successful");
       await fetchAvailableBalance(member.memberId);
-      setWithdrawalForm({ withdrawalAmount: "", paymentMethod: withdrawalPaymentMethods[0] || "", transactionId: "", chequeNumber: "", withdrawalDate: "", approvedBy: "" });
+      setWithdrawalForm({ withdrawalAmount: "", paymentMethod: withdrawalPaymentMethods[0] || "", chequeNumber: "", withdrawalDate: "", approvedBy: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message); }
   };
@@ -477,9 +475,9 @@ export default function ThriftFund() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Transaction ID" isMobile={isMobile}>
+                {/* <Field label="Transaction ID" isMobile={isMobile}>
                   <input style={inputStyle} value={entryForm.transactionId} onChange={(e) => setEntryForm({ ...entryForm, transactionId: e.target.value })} placeholder="Enter transaction ID" />
-                </Field>
+                </Field> */}
                 <Field label="Cheque Number" isMobile={isMobile}>
                   <input style={inputStyle} value={entryForm.chequeNumber} onChange={(e) => setEntryForm({ ...entryForm, chequeNumber: e.target.value })} placeholder="If applicable" />
                 </Field>
@@ -537,9 +535,9 @@ export default function ThriftFund() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Transaction ID" isMobile={isMobile}>
+                {/* <Field label="Transaction ID" isMobile={isMobile}>
                   <input style={inputStyle} value={withdrawalForm.transactionId} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, transactionId: e.target.value })} placeholder="Enter transaction ID" />
-                </Field>
+                </Field> */}
                 <Field label="Cheque Number" isMobile={isMobile}>
                   <input style={inputStyle} value={withdrawalForm.chequeNumber} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, chequeNumber: e.target.value })} placeholder="If applicable" />
                 </Field>

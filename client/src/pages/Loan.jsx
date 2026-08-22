@@ -66,7 +66,6 @@ const [officialForm, setOfficialForm] = useState({
   monthlyInterest: "",
   processingFees: "",
   paymentMode: "",
-  transactionId: "",
 });
 
   const [guaranteerForm, setGuaranteerForm] = useState({
@@ -82,7 +81,6 @@ const [officialForm, setOfficialForm] = useState({
     emiAmount: "",
     paymentMode: "Amount given by Member",
     amount: "",
-    transactionId: "",
   });
 
   const [adjustmentForm, setAdjustmentForm] = useState({
@@ -92,7 +90,6 @@ const [officialForm, setOfficialForm] = useState({
     paymentMode: "Amount given by Member",
     adjustmentAmount: "",
     chequeNumber: "",
-    transactionId: "",
   });
 
   const API = "/loan";
@@ -258,7 +255,6 @@ setOfficialForm({
   emiAmount: "",
   processingFees: "",
   paymentMode: "",
-  transactionId: "",
 });
 
 // ✅ 2. Guarantee form = ALWAYS EMPTY
@@ -276,7 +272,6 @@ setEmiForm({
   emiAmount: officialData?.emiAmount || "",
   paymentMode: "Amount given by Member",
   amount: officialData?.emiAmount || "",
-  transactionId: "",
 });
 
 // ✅ 4. ADJUSTMENT TAB AUTOFILL
@@ -287,7 +282,6 @@ setAdjustmentForm({
   paymentMode: "Amount given by Member",
   adjustmentAmount: "",
   chequeNumber: "",
-  transactionId: "",
 });
 
 // ✅ EMI form autofill (FINAL FIX)
@@ -337,7 +331,6 @@ await api.post(
     monthlyInterest: Number(officialForm.monthlyInterest || 0),
     processingFees: Number(officialForm.processingFees || 0),
     paymentMode: officialForm.paymentMode,
-    transactionId: officialForm.transactionId,
   }
 );
 
@@ -444,7 +437,6 @@ const submitEmiPayment = async () => {
       emiAmount: Number(emiForm.emiAmount),
       paymentMode: emiForm.paymentMode,
       amount: Number(emiForm.amount),
-      transactionId: emiForm.transactionId,
     });
 
     toast.success("EMI payment submitted successfully");
@@ -455,7 +447,6 @@ const submitEmiPayment = async () => {
       emiAmount: officialForm.emiAmount,
       paymentMode: "Amount given by Member",
       amount: officialForm.emiAmount,
-      transactionId: "",
     });
 
     // handleSearch();
@@ -470,7 +461,6 @@ const submitAdjustment = async () => {
       paymentMode: adjustmentForm.paymentMode,
       adjustmentAmount: Number(adjustmentForm.adjustmentAmount),
       chequeNumber: adjustmentForm.chequeNumber,
-      transactionId: adjustmentForm.transactionId,
     });
 
     toast.success("Loan adjustment submitted successfully");
@@ -1110,7 +1100,7 @@ const submitAdjustment = async () => {
   </select>
 </Field>
 
-<Field label="Transaction ID" isMobile={isMobile}>
+{/* <Field label="Transaction ID" isMobile={isMobile}>
   <input
     style={inputStyle}
     value={officialForm.transactionId}
@@ -1122,7 +1112,7 @@ const submitAdjustment = async () => {
     }
     placeholder="Enter transaction ID"
   />
-</Field>
+</Field> */}
 
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitOfficialEntry}>
@@ -1263,8 +1253,8 @@ const submitAdjustment = async () => {
                   >
                     {[
                       'Amount given by Member', 
-                      'Amount given from thrift A/C',
-                      'Amount given from Share A/C',
+                      // 'Amount given from thrift A/C',
+                      // 'Amount given from Share A/C',
                     ].map((m) => (
                       <option key={m}>{m}</option>
                     ))}
@@ -1281,7 +1271,7 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
-                <Field label="Transaction ID" isMobile={isMobile}>
+                {/* <Field label="Transaction ID" isMobile={isMobile}>
                   <input
                     style={inputStyle}
                     value={emiForm.transactionId}
@@ -1290,7 +1280,7 @@ const submitAdjustment = async () => {
                     }
                     placeholder="Enter transaction ID"
                   />
-                </Field>
+                </Field> */}
 
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitEmiPayment}>
@@ -1412,7 +1402,7 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
-                <Field label="Transaction Id" isMobile={isMobile}>
+                {/* <Field label="Transaction Id" isMobile={isMobile}>
                   <input
                     style={inputStyle}
                     value={adjustmentForm.transactionId}
@@ -1421,7 +1411,7 @@ const submitAdjustment = async () => {
                     }
                     placeholder="Enter transaction ID"
                   />
-                </Field>
+                </Field> */}
 
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitAdjustment}>

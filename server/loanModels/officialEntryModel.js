@@ -88,8 +88,9 @@ const officialEntrySchema = new mongoose.Schema(
     // ✅ Transaction ID
     transactionId: {
       type: String,
+      unique: true,
       trim: true,
-      default: ""
+      uppercase: true
     }
   },
   {

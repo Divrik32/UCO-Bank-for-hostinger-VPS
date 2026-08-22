@@ -5,6 +5,44 @@ const PersonalInformation = require("../models/PersonalInformation.js");
 const { default: puppeteer } = require("puppeteer");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 
+const generateTransactionId = async () => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+
+  let id;
+
+  do {
+    id = "";
+
+    // 3 uppercase letters
+    for (let i = 0; i < 3; i++) {
+      id += letters[
+        Math.floor(Math.random() * letters.length)
+      ];
+    }
+
+    // 2 numbers
+    for (let i = 0; i < 2; i++) {
+      id += numbers[
+        Math.floor(Math.random() * numbers.length)
+      ];
+    }
+
+    const exists =
+      (await ThriftFundEntry.exists({
+        transactionId: id,
+      })) ||
+      (await ThriftFundWithdrawal.exists({
+        transactionId: id,
+      }));
+
+    if (!exists) {
+      return id;
+    }
+
+  } while (true);
+};
+
 const getThriftPaymentMethods = async (req, res) => {
   try {
     const entryMethods = ThriftFundEntry.schema.path("paymentMethod").enumValues;
@@ -61,24 +99,11 @@ const createThriftEntry = async (req, res) => {
       memberId,
       totalAmountReceived,
       paymentMethod,
-      transactionId,
       chequeNumber,
       receivedBy,
     } = req.body;
 
-    if (transactionId?.trim()) {
-      const existingEntry =
-        await ThriftFundEntry.findOne({
-          transactionId,
-        });
-
-      if (existingEntry) {
-        return res.status(400).json({
-          success: false,
-          message: "Transaction ID already exists",
-        });
-      }
-    }
+    const transactionId = await generateTransactionId();
 
     const interestData = await InterestRate.findOne();
     const rate = interestData ? interestData.rate : 7;
@@ -95,7 +120,7 @@ const createThriftEntry = async (req, res) => {
       memberId,
       totalAmountReceived,
       paymentMethod,
-      transactionId: transactionId?.trim() || undefined,
+      transactionId,
       chequeNumber,
       receivedBy,
       yearlyInterestAmount,
@@ -124,24 +149,12 @@ const createThriftWithdrawal = async (req, res) => {
       memberId,
       withdrawalAmount,
       paymentMethod,
-      transactionId,
       chequeNumber,
       approvedBy,
     } = req.body;
 
-    if (transactionId?.trim()) {
-      const existingWithdrawal =
-        await ThriftFundWithdrawal.findOne({
-          transactionId,
-        });
 
-      if (existingWithdrawal) {
-        return res.status(400).json({
-          success: false,
-          message: "Transaction ID already exists",
-        });
-      }
-    }
+    const transactionId = await generateTransactionId();
 
     const currentBalance =
       await getCurrentBalance(memberId);
@@ -161,7 +174,7 @@ const createThriftWithdrawal = async (req, res) => {
         memberId,
         withdrawalAmount,
         paymentMethod,
-        transactionId: transactionId?.trim() || undefined,
+        transactionId,
         chequeNumber,
         approvedBy,
         availableBalance: currentBalance,

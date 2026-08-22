@@ -72,7 +72,6 @@ export default function SharePurchase() {
     investmentAmount: "",
     numberOfShares: "",
     paymentMode: creditPaymentMethods[0] || "",
-    transactionId: "",
   });
   
   const [debitForm, setDebitForm] = useState({
@@ -81,7 +80,6 @@ export default function SharePurchase() {
     remainingCount: "",
     paymentMode: debitPaymentMethods[0] || "",
     chequeNumber: "",
-    transactionId: "",
     transferShareTo: "Members Loan Account",
     shareCertificateNumber: "",
   });
@@ -184,8 +182,7 @@ export default function SharePurchase() {
         pricePerShare: PRICE_PER_SHARE,
         investmentAmount: Number(creditForm.investmentAmount),
         numberOfShares: Number(creditForm.numberOfShares),
-        paymentMode: creditForm.paymentMode,
-        transactionId: creditForm.transactionId,
+        paymentMode: creditForm.paymentMode
       });
   
       toast.success("Credit shares updated successfully");
@@ -193,8 +190,7 @@ export default function SharePurchase() {
       setCreditForm({
         investmentAmount: "",
         numberOfShares: "",
-        paymentMode: creditPaymentMethods[0] || "",
-        transactionId: "",
+        paymentMode: creditPaymentMethods[0] || ""
       });
   
       handleSearch();
@@ -205,9 +201,9 @@ export default function SharePurchase() {
 
   const submitDebit = async () => {
     try {
-      await api.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transactionId: debitForm.transactionId, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
+      await api.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
       toast.success("Debit shares updated successfully");
-      setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: debitPaymentMethods[0] || "", chequeNumber: "", transactionId: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
+      setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: debitPaymentMethods[0] || "", chequeNumber: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
   };
@@ -459,7 +455,7 @@ export default function SharePurchase() {
       </select>
     </Field>
 
-    <Field label="Transaction ID" isMobile={isMobile}>
+    {/* <Field label="Transaction ID" isMobile={isMobile}>
       <input
         style={inputStyle}
         value={creditForm.transactionId}
@@ -471,7 +467,7 @@ export default function SharePurchase() {
         }
         placeholder="Enter transaction ID"
       />
-    </Field>
+    </Field> */}
 
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <button style={btnPrimary} onClick={submitCredit}>
@@ -507,7 +503,7 @@ export default function SharePurchase() {
                   </select>
                 </Field>
                 <Field label="Cheque Number" isMobile={isMobile}><input style={inputStyle} value={debitForm.chequeNumber} onChange={(e) => setDebitForm({ ...debitForm, chequeNumber: e.target.value })} placeholder="If applicable" /></Field>
-                <Field label="Transaction Id" isMobile={isMobile}><input style={inputStyle} value={debitForm.transactionId} onChange={(e) => setDebitForm({ ...debitForm, transactionId: e.target.value })} placeholder="Enter transaction ID" /></Field>
+                {/* <Field label="Transaction Id" isMobile={isMobile}><input style={inputStyle} value={debitForm.transactionId} onChange={(e) => setDebitForm({ ...debitForm, transactionId: e.target.value })} placeholder="Enter transaction ID" /></Field> */}
                 <Field label="Transfer Share To" isMobile={isMobile}>
                   <select style={inputStyle} value={debitForm.transferShareTo} onChange={(e) => setDebitForm({ ...debitForm, transferShareTo: e.target.value })}>
                     <option value="Members Loan Account">Members Loan Account</option>

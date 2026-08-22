@@ -29,6 +29,7 @@ const debitShareSchema = new mongoose.Schema(
     transactionId: {
       type: String,
       trim: true,
+      uppercase: true,
       sparse: true,
       unique: true,
     },

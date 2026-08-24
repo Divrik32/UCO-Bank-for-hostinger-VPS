@@ -369,6 +369,20 @@ const handlePrint = () => {
             label="Transaction ID"
             value={member.transactionId}
           />
+
+          <DetailItem
+  label="Loan Paid from Thrift A/C"
+  value={`₹${Number(
+    member.thriftLoanPaid || 0
+  ).toLocaleString("en-IN")}`}
+/>
+
+<DetailItem
+  label="Loan Paid from Share A/C"
+  value={`₹${Number(
+    member.shareLoanPaid || 0
+  ).toLocaleString("en-IN")}`}
+/>
         </div>
       </div>
     </div>

@@ -59,11 +59,23 @@ const officialEntrySchema = new mongoose.Schema(
       min: 0
     },
 
-    processingFees: {
+    interestDays: {
       type: Number,
-      default: 0,
+      required: true,
       min: 0
     },
+    
+    interestAmount: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+
+    // processingFees: {
+    //   type: Number,
+    //   default: 0,
+    //   min: 0
+    // },
 
     // ✅ Payment Mode
     paymentMode: {

@@ -78,21 +78,32 @@ const getShareCurrentBalance = async (memberId) => {
 
   const loanAdjustments = await loanAdjustmentModel.find({
     memberId,
-    paymentMode: "Amount given from Share A/C",
+    paymentMode: {
+      $in: [
+        "Amount given from Share A/C",
+        "Both",
+      ],
+    },
   });
 
   const totalCredit = credits.reduce(
-    (sum, item) => sum + item.investmentAmount,
+    (sum, item) => sum + Number(item.investmentAmount || 0),
     0
   );
 
   const totalDebit = debits.reduce(
-    (sum, item) => sum + item.amount,
+    (sum, item) => sum + Number(item.amount || 0),
     0
   );
 
   const totalLoanAdjustment = loanAdjustments.reduce(
-    (sum, item) => sum + item.adjustmentAmount,
+    (sum, item) => {
+      if (item.paymentMode === "Both") {
+        return sum + Number(item.shareAdjustmentAmount || 0);
+      }
+
+      return sum + Number(item.adjustmentAmount || 0);
+    },
     0
   );
 

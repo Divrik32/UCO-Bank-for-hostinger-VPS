@@ -113,8 +113,9 @@ exports.createOfficialEntry = async (req, res) => {
       loanAmount,
       tenureMonths,
       monthlyInterest,
-      processingFees = 0,
-      paymentMode
+      interestDays,
+      interestAmount,
+      paymentMode,
     } = req.body;
 
     // EMI factors by tenure
@@ -127,7 +128,7 @@ exports.createOfficialEntry = async (req, res) => {
       144: 12.24,
       156: 11.78,
       168: 11.38,
-      180: 11.05
+      180: 11.05,
     };
 
     const factor = emiFactors[tenureMonths];
@@ -135,7 +136,7 @@ exports.createOfficialEntry = async (req, res) => {
     if (!factor) {
       return res.status(400).json({
         success: false,
-        message: "Invalid tenure months"
+        message: "Invalid tenure months",
       });
     }
 
@@ -153,7 +154,7 @@ exports.createOfficialEntry = async (req, res) => {
 
     const lastLoan = await officialEntryModel
       .findOne({
-        loanCode: { $regex: `^${prefix}` }
+        loanCode: { $regex: `^${prefix}` },
       })
       .sort({ createdAt: -1 });
 
@@ -165,8 +166,11 @@ exports.createOfficialEntry = async (req, res) => {
     }
 
     const loanCode = `${prefix}${serial}`;
+
+    // Generate transaction ID
     const transactionId = await generateTransactionId();
 
+    // Create Official Entry
     const data = await officialEntryModel.create({
       memberId,
       loanCode,
@@ -176,20 +180,20 @@ exports.createOfficialEntry = async (req, res) => {
       tenureMonths,
       emiAmount,
       monthlyInterest,
-      processingFees,
+      interestDays,
+      interestAmount,
       paymentMode,
-      transactionId
+      transactionId,
     });
 
     res.status(201).json({
       success: true,
-      data
+      data,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -276,10 +280,58 @@ exports.createLoanAdjustment = async (req, res) => {
     const {
       paymentMode,
       adjustmentAmount,
-      chequeNumber = ""
+      thriftAdjustmentAmount,
+      shareAdjustmentAmount,
+      chequeNumber = "",
     } = req.body;
 
-    // latest loan code for this member
+    // ─────────────────────────────────────────
+    // Validate Payment Mode
+    // ─────────────────────────────────────────
+
+    const allowedPaymentModes = [
+      "Amount given by Member",
+      "Amount given from thrift A/C",
+      "Amount given from Share A/C",
+      "Both",
+    ];
+
+    if (!allowedPaymentModes.includes(paymentMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment mode",
+      });
+    }
+
+    // ─────────────────────────────────────────
+    // Validate Amounts
+    // ─────────────────────────────────────────
+
+    if (paymentMode === "Both") {
+      // Both হলে normal adjustmentAmount লাগবে না
+      if (
+        (!thriftAdjustmentAmount || Number(thriftAdjustmentAmount) <= 0) &&
+        (!shareAdjustmentAmount || Number(shareAdjustmentAmount) <= 0)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Enter thrift or share adjustment amount",
+        });
+      }
+    } else {
+      // Member / Thrift / Share হলে adjustmentAmount required
+      if (!adjustmentAmount || Number(adjustmentAmount) <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Adjustment amount is required",
+        });
+      }
+    }
+
+    // ─────────────────────────────────────────
+    // Latest loan code for this member
+    // ─────────────────────────────────────────
+
     const latestLoan = await officialEntryModel
       .findOne({ memberId })
       .sort({ createdAt: -1 });
@@ -287,35 +339,63 @@ exports.createLoanAdjustment = async (req, res) => {
     if (!latestLoan) {
       return res.status(404).json({
         success: false,
-        message: "Official loan entry not found"
+        message: "Official loan entry not found",
       });
     }
+
+    // ─────────────────────────────────────────
+    // Generate transaction ID
+    // ─────────────────────────────────────────
+
     const transactionId = await generateTransactionId();
+
+    // ─────────────────────────────────────────
+    // Create Loan Adjustment
+    // ─────────────────────────────────────────
+
     const data = await loanAdjustmentModel.create({
       memberId,
       loanCode: latestLoan.loanCode,
       paymentMode,
-      adjustmentAmount,
+
+      // Used for Member / Thrift / Share
+      adjustmentAmount:
+        paymentMode !== "Both"
+          ? Number(adjustmentAmount)
+          : undefined,
+
+      // Used only for Both
+      thriftAdjustmentAmount:
+        paymentMode === "Both"
+          ? Number(thriftAdjustmentAmount || 0)
+          : undefined,
+
+      shareAdjustmentAmount:
+        paymentMode === "Both"
+          ? Number(shareAdjustmentAmount || 0)
+          : undefined,
+
       chequeNumber,
-      transactionId
+      transactionId,
     });
 
     res.status(201).json({
       success: true,
-      data
+      data,
     });
 
   } catch (error) {
+    // Duplicate transaction ID
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: "Transaction ID already exists"
+        message: "Transaction ID already exists",
       });
     }
 
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -722,24 +802,63 @@ exports.memberLoanDetailsById = async (req, res) => {
     if (loans.length > 0) {
       const firstLoan = loans[0];
 
-      // First Loan Date
       firstLoanDate = firstLoan.createdAt
-        .toLocaleDateString("en-GB")
-        .replace(/\//g, "-");
+        ? firstLoan.createdAt
+            .toLocaleDateString("en-GB")
+            .replace(/\//g, "-")
+        : "-";
 
-      // Total Loan Amount
       totalLoanAmount = loans.reduce(
         (sum, loan) => sum + Number(loan.loanAmount || 0),
         0
       );
 
-      // First Loan Payment Details
       paymentMode = firstLoan.paymentMode || "-";
       transactionId = firstLoan.transactionId || "-";
     }
 
+    // =====================================================
+    // 4. GET LOAN ADJUSTMENTS
+    // =====================================================
+    const loanAdjustments = await loanAdjustmentModel.find({
+      memberId,
+      paymentMode: {
+        $in: [
+          "Amount given from thrift A/C",
+          "Amount given from Share A/C",
+          "Both",
+        ],
+      },
+    });
+
+    // =====================================================
+    // 5. CALCULATE THRIFT & SHARE LOAN PAYMENT
+    // =====================================================
+    let thriftLoanPaid = 0;
+    let shareLoanPaid = 0;
+
+    loanAdjustments.forEach((item) => {
+      if (item.paymentMode === "Amount given from thrift A/C") {
+        thriftLoanPaid += Number(item.adjustmentAmount || 0);
+      }
+
+      if (item.paymentMode === "Amount given from Share A/C") {
+        shareLoanPaid += Number(item.adjustmentAmount || 0);
+      }
+
+      if (item.paymentMode === "Both") {
+        thriftLoanPaid += Number(
+          item.thriftAdjustmentAmount || 0
+        );
+
+        shareLoanPaid += Number(
+          item.shareAdjustmentAmount || 0
+        );
+      }
+    });
+
     // ================================
-    // 4. Response
+    // 6. Response
     // ================================
     res.status(200).json({
       success: true,
@@ -775,6 +894,10 @@ exports.memberLoanDetailsById = async (req, res) => {
         totalLoanAmount,
         paymentMode,
         transactionId,
+
+        // ===== Loan Adjustment Information =====
+        thriftLoanPaid,
+        shareLoanPaid,
       },
     });
   } catch (error) {
@@ -817,33 +940,72 @@ exports.printMemberLoanDetails = async (req, res) => {
       })
       .sort({ createdAt: 1 });
 
-    // ==========================================
-    // 3. Calculate Loan Information
-    // SAME LOGIC AS YOUR EXISTING API
-    // ==========================================
-    let firstLoanDate = "-";
-    let totalLoanAmount = 0;
-    let paymentMode = "-";
-    let transactionId = "-";
+// ==========================================
+// 3. Calculate Loan Information
+// ==========================================
+let firstLoanDate = "-";
+let totalLoanAmount = 0;
+let paymentMode = "-";
+let transactionId = "-";
 
-    if (loans.length > 0) {
-      const firstLoan = loans[0];
+if (loans.length > 0) {
+  const firstLoan = loans[0];
 
-      firstLoanDate = firstLoan.createdAt
-        ? firstLoan.createdAt
-            .toLocaleDateString("en-GB")
-            .replace(/\//g, "-")
-        : "-";
+  firstLoanDate = firstLoan.createdAt
+    ? firstLoan.createdAt
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-")
+    : "-";
 
-      totalLoanAmount = loans.reduce(
-        (sum, loan) =>
-          sum + Number(loan.loanAmount || 0),
-        0
-      );
+  totalLoanAmount = loans.reduce(
+    (sum, loan) =>
+      sum + Number(loan.loanAmount || 0),
+    0
+  );
 
-      paymentMode = firstLoan.paymentMode || "-";
-      transactionId = firstLoan.transactionId || "-";
-    }
+  paymentMode = firstLoan.paymentMode || "-";
+  transactionId = firstLoan.transactionId || "-";
+}
+
+// ==========================================
+// 4. GET LOAN ADJUSTMENTS
+// ==========================================
+const loanAdjustments = await loanAdjustmentModel.find({
+  memberId,
+  paymentMode: {
+    $in: [
+      "Amount given from thrift A/C",
+      "Amount given from Share A/C",
+      "Both",
+    ],
+  },
+});
+
+// ==========================================
+// 5. CALCULATE THRIFT & SHARE LOAN PAYMENT
+// ==========================================
+let thriftLoanPaid = 0;
+let shareLoanPaid = 0;
+
+loanAdjustments.forEach((item) => {
+  if (item.paymentMode === "Amount given from thrift A/C") {
+    thriftLoanPaid += Number(item.adjustmentAmount || 0);
+  }
+
+  if (item.paymentMode === "Amount given from Share A/C") {
+    shareLoanPaid += Number(item.adjustmentAmount || 0);
+  }
+
+  if (item.paymentMode === "Both") {
+    thriftLoanPaid += Number(
+      item.thriftAdjustmentAmount || 0
+    );
+
+    shareLoanPaid += Number(
+      item.shareAdjustmentAmount || 0
+    );
+  }
+});
 
     // ==========================================
     // 4. Helper
@@ -1145,6 +1307,24 @@ exports.printMemberLoanDetails = async (req, res) => {
                   ${valueOrDash(transactionId)}
                 </div>
               </div>
+
+              <div class="detail-item">
+  <div class="label">
+    Loan Paid from Thrift A/C
+  </div>
+  <div class="value">
+    ₹${Number(thriftLoanPaid).toLocaleString("en-IN")}
+  </div>
+</div>
+
+<div class="detail-item">
+  <div class="label">
+    Loan Paid from Share A/C
+  </div>
+  <div class="value">
+    ₹${Number(shareLoanPaid).toLocaleString("en-IN")}
+  </div>
+</div>
 
             </div>
 

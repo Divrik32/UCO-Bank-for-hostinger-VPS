@@ -55,17 +55,19 @@ export default function Loan() {
   const [activeTab, setActiveTab] = useState("official");
   const [interestRate, setInterestRate] = useState("");
 
-const [officialForm, setOfficialForm] = useState({
-  loanCode: "",
-  officeName: "",
-  loanDate: new Date().toISOString().split("T")[0],
-  loanType: "Housing",
-  loanAmount: "",
-  tenureMonths: "",
-  emiAmount: "",
-  monthlyInterest: "",
-  processingFees: "",
-  paymentMode: "",
+const [officialForm, setOfficialForm] = useState({ 
+  loanCode: "", 
+  officeName: "", 
+  loanDate: new Date().toISOString().split("T")[0], 
+  loanType: "Housing", 
+  loanAmount: "", 
+  tenureMonths: "", 
+  emiAmount: "", 
+  monthlyInterest: "", 
+  interestDays: "",
+  interestAmount: "",
+  processingFees: "", 
+  paymentMode: "", 
 });
 
   const [guaranteerForm, setGuaranteerForm] = useState({
@@ -89,6 +91,8 @@ const [officialForm, setOfficialForm] = useState({
     totalAmount: "",
     paymentMode: "Amount given by Member",
     adjustmentAmount: "",
+    thriftAdjustmentAmount: "",
+    shareAdjustmentAmount: "",
     chequeNumber: "",
   });
 
@@ -119,52 +123,64 @@ const [officialForm, setOfficialForm] = useState({
     }
   }, [activeTab, transactions]);
 
-useEffect(() => {
-  const emiFactors = {
-    84: 16.86,
-    96: 15.44,
-    108: 14.35,
-    120: 13.49,
-    132: 12.8,
-    144: 12.24,
-    156: 11.78,
-    168: 11.38,
-    180: 11.05,
-  };
-
-  const loanAmount = Number(officialForm.loanAmount);
-  const tenure = Number(officialForm.tenureMonths);
-  const loanInterest = Number(interestRate);
-
+useEffect(() => { 
+  const emiFactors = { 
+    84: 16.86, 
+    96: 15.44, 
+    108: 14.35, 
+    120: 13.49, 
+    132: 12.8, 
+    144: 12.24, 
+    156: 11.78, 
+    168: 11.38, 
+    180: 11.05, 
+  }; 
+ 
+  const loanAmount = Number(officialForm.loanAmount); 
+  const tenure = Number(officialForm.tenureMonths); 
+  const loanInterest = Number(interestRate); 
+  const interestDays = Number(officialForm.interestDays); 
+ 
   // EMI calculation
-  let emiAmount = "";
-
-  if (loanAmount && tenure) {
-    const factor = emiFactors[tenure];
-
-    if (factor) {
-      emiAmount = ((loanAmount * factor) / 1000).toFixed(2);
-    }
-  }
-
+  let emiAmount = ""; 
+ 
+  if (loanAmount && tenure) { 
+    const factor = emiFactors[tenure]; 
+ 
+    if (factor) { 
+      emiAmount = ((loanAmount * factor) / 1000).toFixed(2); 
+    } 
+  } 
+ 
   // Monthly Interest calculation
-  let monthlyInterest = "";
-
-  if (loanAmount && loanInterest) {
-    monthlyInterest = (
-      (loanAmount * 30 * loanInterest) / 36500
-    ).toFixed(2);
-  }
-
-  setOfficialForm((prev) => ({
-    ...prev,
-    emiAmount,
-    monthlyInterest,
-  }));
-}, [
-  officialForm.loanAmount,
-  officialForm.tenureMonths,
-  interestRate,
+  let monthlyInterest = ""; 
+ 
+  if (loanAmount && loanInterest) { 
+    monthlyInterest = ( 
+      (loanAmount * 30 * loanInterest) / 36500 
+    ).toFixed(2); 
+  } 
+ 
+  // Interest Amount calculation
+  let interestAmount = ""; 
+ 
+  if (loanAmount && interestDays && loanInterest) { 
+    interestAmount = ( 
+      (loanAmount * interestDays * loanInterest) / 36500 
+    ).toFixed(2); 
+  } 
+ 
+  setOfficialForm((prev) => ({ 
+    ...prev, 
+    emiAmount, 
+    monthlyInterest, 
+    interestAmount, 
+  })); 
+}, [ 
+  officialForm.loanAmount, 
+  officialForm.tenureMonths, 
+  officialForm.interestDays, 
+  interestRate, 
 ]);
 
   useEffect(() => {
@@ -245,16 +261,18 @@ const officialData = officialRes.data.data;
 
 
 // ✅ 1. Official form = ALWAYS EMPTY
-setOfficialForm({
-  loanCode: "",
-  officeName: "",
-  loanDate: new Date().toISOString().split("T")[0],
-  loanType: "Housing",
-  loanAmount: "",
-  tenureMonths: "",
-  emiAmount: "",
-  processingFees: "",
-  paymentMode: "",
+setOfficialForm({ 
+  loanCode: "", 
+  officeName: "", 
+  loanDate: new Date().toISOString().split("T")[0], 
+  loanType: "Housing", 
+  loanAmount: "", 
+  tenureMonths: "", 
+  emiAmount: "", 
+  monthlyInterest: "", 
+  interestDays: "", 
+  interestAmount: "", 
+  paymentMode: "", 
 });
 
 // ✅ 2. Guarantee form = ALWAYS EMPTY
@@ -281,6 +299,8 @@ setAdjustmentForm({
   totalAmount: officialData?.loanAmount || "",
   paymentMode: "Amount given by Member",
   adjustmentAmount: "",
+  thriftAdjustmentAmount: "",
+  shareAdjustmentAmount: "",
   chequeNumber: "",
 });
 
@@ -321,17 +341,18 @@ setAdjustmentForm((prev) => ({
 
 const submitOfficialEntry = async () => {
   try {
-await api.post(
-  `${API}/official-entry/${member.memberId}`,
-  {
-    officeName: officialForm.officeName,
-    loanType: officialForm.loanType,
-    loanAmount: Number(officialForm.loanAmount),
-    tenureMonths: Number(officialForm.tenureMonths),
-    monthlyInterest: Number(officialForm.monthlyInterest || 0),
-    processingFees: Number(officialForm.processingFees || 0),
-    paymentMode: officialForm.paymentMode,
-  }
+await api.post( 
+  `${API}/official-entry/${member.memberId}`, 
+  { 
+    officeName: officialForm.officeName, 
+    loanType: officialForm.loanType, 
+    loanAmount: Number(officialForm.loanAmount), 
+    tenureMonths: Number(officialForm.tenureMonths), 
+    monthlyInterest: Number(officialForm.monthlyInterest || 0), 
+    interestDays: Number(officialForm.interestDays || 0), 
+    interestAmount: Number(officialForm.interestAmount || 0), 
+    paymentMode: officialForm.paymentMode, 
+  } 
 );
 
     toast.success("Official entry updated successfully");
@@ -457,16 +478,65 @@ const submitEmiPayment = async () => {
 
 const submitAdjustment = async () => {
   try {
-    await api.post(`${API}/loan-adjustment/${member.memberId}`, {
-      paymentMode: adjustmentForm.paymentMode,
-      adjustmentAmount: Number(adjustmentForm.adjustmentAmount),
-      chequeNumber: adjustmentForm.chequeNumber,
-    });
+    if (!member?.memberId) {
+      return toast.error("Search member first");
+    }
+
+    const paymentMode = adjustmentForm.paymentMode;
+
+    // ─────────────────────────────────────
+    // Both
+    // ─────────────────────────────────────
+    if (paymentMode === "Both") {
+      const thriftAmount = Number(
+        adjustmentForm.thriftAdjustmentAmount || 0
+      );
+
+      const shareAmount = Number(
+        adjustmentForm.shareAdjustmentAmount || 0
+      );
+
+      if (thriftAmount <= 0 && shareAmount <= 0) {
+        return toast.error(
+          "Enter thrift or share adjustment amount"
+        );
+      }
+
+      await api.post(`${API}/loan-adjustment/${member.memberId}`, {
+        paymentMode,
+        thriftAdjustmentAmount: thriftAmount,
+        shareAdjustmentAmount: shareAmount,
+        chequeNumber: adjustmentForm.chequeNumber,
+      });
+    }
+
+    // ─────────────────────────────────────
+    // Member / Thrift / Share
+    // ─────────────────────────────────────
+    else {
+      const adjustmentAmount = Number(
+        adjustmentForm.adjustmentAmount || 0
+      );
+
+      if (adjustmentAmount <= 0) {
+        return toast.error("Enter adjustment amount");
+      }
+
+      await api.post(`${API}/loan-adjustment/${member.memberId}`, {
+        paymentMode,
+        adjustmentAmount,
+        chequeNumber: adjustmentForm.chequeNumber,
+      });
+    }
 
     toast.success("Loan adjustment submitted successfully");
-    handleSearch();
+
+    await handleSearch();
+
   } catch (error) {
-    toast.error(error.response?.data?.message || "Failed to submit");
+    toast.error(
+      error.response?.data?.message || "Failed to submit"
+    );
   }
 };
 
@@ -1071,13 +1141,36 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
-                <Field label="Processing Fees" isMobile={isMobile}>
-                  <input
-                    style={inputStyle}
-                    value={officialForm.processingFees}
-                    placeholder="0"
-                  />
-                </Field>
+<Field label="Interest Days" isMobile={isMobile}>
+  <input
+    type="number"
+    style={inputStyle}
+    value={officialForm.interestDays}
+    onChange={(e) => {
+      const value = e.target.value;
+
+      if (value === "" || Number(value) <= 31) {
+        setOfficialForm({
+          ...officialForm,
+          interestDays: value,
+        });
+      }
+    }}
+    placeholder="Enter interest days"
+    min="0"
+    max="31"
+  />
+</Field>
+
+<Field label="Interest Amount" isMobile={isMobile}> 
+  <input 
+    type="number" 
+    style={inputDisabled} 
+    readOnly 
+    value={officialForm.interestAmount} 
+    placeholder="Auto-calculated" 
+  /> 
+</Field>
 
                 <Field label="Payment Mode" isMobile={isMobile}>
   <select
@@ -1141,14 +1234,14 @@ const submitAdjustment = async () => {
                   Guaranteer Member Details
                 </h5>
 
-                <Field label="Employee Name" isMobile={isMobile}>
+                <Field label="Witness Name" isMobile={isMobile}>
                   <input
                     style={inputStyle}
                     value={guaranteerForm.employeeName}
                     onChange={(e) =>
                       setGuaranteerForm({ ...guaranteerForm, employeeName: e.target.value })
                     }
-                    placeholder="Enter employee name"
+                    placeholder="Enter witness name"
                   />
                 </Field>
 
@@ -1369,27 +1462,64 @@ const submitAdjustment = async () => {
                       'Amount given by Member', 
                       'Amount given from thrift A/C',
                       'Amount given from Share A/C',
+                      'Both'
                     ].map((m) => (
                       <option key={m}>{m}</option>
                     ))}
                   </select>
                 </Field>
 
-                                <Field label="Adjustment Amount" isMobile={isMobile}>
-  <input
-    type="number"
-    style={inputStyle}
-    value={adjustmentForm.adjustmentAmount}
-    onChange={(e) =>
-      setAdjustmentForm({
-        ...adjustmentForm,
-        adjustmentAmount: e.target.value,
-      })
-    }
-    placeholder="Enter adjustment amount"
-    min="0"
-  />
-</Field>
+{adjustmentForm.paymentMode !== "Both" ? (
+  <Field label="Adjustment Amount" isMobile={isMobile}>
+    <input
+      type="number"
+      style={inputStyle}
+      value={adjustmentForm.adjustmentAmount}
+      onChange={(e) =>
+        setAdjustmentForm({
+          ...adjustmentForm,
+          adjustmentAmount: e.target.value,
+        })
+      }
+      placeholder="Enter adjustment amount"
+      min="0"
+    />
+  </Field>
+) : (
+  <>
+    <Field label="Thrift Adjustment Amount" isMobile={isMobile}>
+      <input
+        type="number"
+        style={inputStyle}
+        value={adjustmentForm.thriftAdjustmentAmount}
+        onChange={(e) =>
+          setAdjustmentForm({
+            ...adjustmentForm,
+            thriftAdjustmentAmount: e.target.value,
+          })
+        }
+        placeholder="Enter thrift adjustment amount"
+        min="0"
+      />
+    </Field>
+
+    <Field label="Share Adjustment Amount" isMobile={isMobile}>
+      <input
+        type="number"
+        style={inputStyle}
+        value={adjustmentForm.shareAdjustmentAmount}
+        onChange={(e) =>
+          setAdjustmentForm({
+            ...adjustmentForm,
+            shareAdjustmentAmount: e.target.value,
+          })
+        }
+        placeholder="Enter share adjustment amount"
+        min="0"
+      />
+    </Field>
+  </>
+)}
 
                 <Field label="Cheque Number" isMobile={isMobile}>
                   <input

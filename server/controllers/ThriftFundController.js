@@ -71,21 +71,32 @@ const getCurrentBalance = async (memberId) => {
 
   const loanAdjustments = await loanAdjustmentModel.find({
     memberId,
-    paymentMode: "Amount given from thrift A/C",
+    paymentMode: {
+      $in: [
+        "Amount given from thrift A/C",
+        "Both",
+      ],
+    },
   });
 
   const totalCredit = entries.reduce(
-    (sum, item) => sum + item.totalAmountReceived,
+    (sum, item) => sum + Number(item.totalAmountReceived || 0),
     0
   );
 
   const totalWithdrawal = withdrawals.reduce(
-    (sum, item) => sum + item.withdrawalAmount,
+    (sum, item) => sum + Number(item.withdrawalAmount || 0),
     0
   );
 
   const totalLoanAdjustment = loanAdjustments.reduce(
-    (sum, item) => sum + item.adjustmentAmount,
+    (sum, item) => {
+      if (item.paymentMode === "Both") {
+        return sum + Number(item.thriftAdjustmentAmount || 0);
+      }
+
+      return sum + Number(item.adjustmentAmount || 0);
+    },
     0
   );
 

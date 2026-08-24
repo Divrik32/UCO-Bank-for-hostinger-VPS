@@ -19,12 +19,24 @@ const loanAdjustmentSchema = new mongoose.Schema(
       enum: [
         'Amount given by Member', 
         'Amount given from thrift A/C',
-        'Amount given from Share A/C'
+        'Amount given from Share A/C',
+        "Both",
       ],
     },
+    // Member / Thrift / Share single-mode amount
     adjustmentAmount: {
       type: Number,
-      required: true,
+      min: 0,
+    },
+
+    // Used only when paymentMode === "Both"
+    thriftAdjustmentAmount: {
+      type: Number,
+      min: 0,
+    },
+
+    shareAdjustmentAmount: {
+      type: Number,
       min: 0,
     },
     chequeNumber: {

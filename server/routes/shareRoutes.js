@@ -16,7 +16,10 @@ const {
   getMemberShareTransactions,
   memberShareDetailsById,
   printMemberShareDetails,
-  printShareReport
+  printShareReport,
+  getDividendPayments,
+  createDividendPayment,
+  getDividendAvailableBalance
 } = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
@@ -42,5 +45,11 @@ router.get("/member-share-transactions", getMemberShareTransactions);
 router.get("/member-share-details/:memberId", memberShareDetailsById);
 router.get("/member-share-details-pdf/:memberId", printMemberShareDetails);
 router.get("/share-report-pdf", printShareReport);
+// CREATE
+router.post("/dividend-payment", createDividendPayment);
+
+// GET
+router.get("/dividend-payment/:memberId", getDividendPayments);
+router.get("/dividend-balance/:memberId", getDividendAvailableBalance);
 
 module.exports = router;

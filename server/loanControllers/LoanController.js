@@ -3,7 +3,9 @@ const officialEntryModel = require("../loanModels/officialEntryModel.js");
 const guaranteerMemberDetailsModel = require("../loanModels/guaranteerMemberDetailsModel.js");
 const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDetailsModel.js");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
+const LoanInterest = require("../loanModels/loanInterest.js");
 const puppeteer = require("puppeteer");
+
 
 const generateTransactionId = async () => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -622,6 +624,7 @@ exports.getAvailableBalance = async (req, res) => {
 
     const loans = await officialEntryModel.find({ memberId });
     const payments = await loanPaymentForEmiDetailsModel.find({ memberId });
+    const adjustments = await loanAdjustmentModel.find({ memberId });
 
     const totalLoanAmount = loans.reduce(
       (sum, item) => sum + Number(item.loanAmount || 0),
@@ -633,13 +636,27 @@ exports.getAvailableBalance = async (req, res) => {
       0
     );
 
-    const availableBalance = totalLoanAmount - totalPaid;
+    const totalAdjustment = adjustments.reduce((sum, item) => {
+      if (item.paymentMode === "Both") {
+        return (
+          sum +
+          Number(item.thriftAdjustmentAmount || 0) +
+          Number(item.shareAdjustmentAmount || 0)
+        );
+      }
+
+      return sum + Number(item.adjustmentAmount || 0);
+    }, 0);
+
+    const availableBalance =
+      totalLoanAmount - totalPaid - totalAdjustment;
 
     return res.status(200).json({
       success: true,
       memberId,
       totalLoanAmount,
       totalPaid,
+      totalAdjustment,
       availableBalance
     });
   } catch (error) {
@@ -1788,5 +1805,84 @@ exports.loanReportPDF = async (req, res) => {
       await browser.close();
     }
 
+  }
+};
+
+// 👉 GET Total Loan Interest
+exports.getTotalLoanInterest = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    // 1️⃣ Get current loan interest rate
+    let interest = await LoanInterest.findOne();
+
+    // DB te interest na thakle default create
+    if (!interest) {
+      interest = await LoanInterest.create({
+        rate: 10.5,
+        updatedBy: "system",
+        remarks: "Default interest rate",
+      });
+    }
+
+    const loanInterest = Number(interest.rate || 0);
+
+    // 2️⃣ Get all loan related data
+    const loans = await officialEntryModel.find({ memberId });
+    const payments = await loanPaymentForEmiDetailsModel.find({ memberId });
+    const adjustments = await loanAdjustmentModel.find({ memberId });
+
+    // 3️⃣ Total loan amount
+    const totalLoanAmount = loans.reduce(
+      (sum, item) => sum + Number(item.loanAmount || 0),
+      0
+    );
+
+    // 4️⃣ Total paid amount
+    const totalPaid = payments.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+
+    // 5️⃣ Total adjustment
+    const totalAdjustment = adjustments.reduce((sum, item) => {
+      if (item.paymentMode === "Both") {
+        return (
+          sum +
+          Number(item.thriftAdjustmentAmount || 0) +
+          Number(item.shareAdjustmentAmount || 0)
+        );
+      }
+
+      return sum + Number(item.adjustmentAmount || 0);
+    }, 0);
+
+    // 6️⃣ Available balance
+    const availableBalance =
+      totalLoanAmount - totalPaid - totalAdjustment;
+
+    // 7️⃣ Calculate total loan interest
+    // Formula:
+    // (balance * 30 * loanInterest) / 36500
+    const totalLoanInterest =
+      (availableBalance * 30 * loanInterest) / 36500;
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+
+      totalLoanAmount,
+      totalPaid,
+      totalAdjustment,
+      availableBalance,
+
+      loanInterest,
+      totalLoanInterest,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

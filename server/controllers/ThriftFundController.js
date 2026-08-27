@@ -2066,6 +2066,46 @@ const printThriftFundReport = async (req, res) => {
   }
 };
 
+// ================= GET TOTAL THRIFT INTEREST =================
+
+const getTotalThriftInterest = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    // 1️⃣ Get current interest rate
+    const interestData = await InterestRate.findOne();
+
+    // DB te interest rate na thakle default 7%
+    const interestRate = interestData
+      ? Number(interestData.rate || 0)
+      : 7;
+
+    // 2️⃣ Get current thrift balance
+    const balance = await getCurrentBalance(memberId);
+
+    // 3️⃣ Calculate total thrift interest
+    // Formula:
+    // (balance * 30 * interestRate) / 36500
+
+    const totalThriftInterest = (Number(balance || 0) * 30 * interestRate) / 36500;
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+
+      balance,
+      interestRate,
+
+      totalThriftInterest,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getThriftPaymentMethods,
   createThriftEntry,
@@ -2076,5 +2116,6 @@ module.exports = {
   getMemberThriftTransactions,
   memberThriftDetailsById,
   printMemberThriftDetails,
-  printThriftFundReport
+  printThriftFundReport,
+  getTotalThriftInterest
 };

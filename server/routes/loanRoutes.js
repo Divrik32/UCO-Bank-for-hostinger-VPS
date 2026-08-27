@@ -23,7 +23,8 @@ const {
   getPaymentModes,
   memberLoanDetailsById,
   printMemberLoanDetails,
-  loanReportPDF
+  loanReportPDF,
+  getTotalLoanInterest
 } = require("../loanControllers/LoanController.js");
 
 // loan interest routes
@@ -64,5 +65,6 @@ router.get("/payment-modes", getPaymentModes);
 router.get("/member-loan-details/:memberId", memberLoanDetailsById);
 router.get("/member-loan-details-pdf/:memberId", printMemberLoanDetails);
 router.get("/loan-report-pdf", loanReportPDF);
+router.get("/total-loan-interest/:memberId", getTotalLoanInterest);
 
 module.exports = router;

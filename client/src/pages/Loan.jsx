@@ -54,6 +54,7 @@ export default function Loan() {
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("official");
   const [interestRate, setInterestRate] = useState("");
+  const [totalLoanInterest, setTotalLoanInterest] = useState(0);
 
 const [officialForm, setOfficialForm] = useState({ 
   loanCode: "", 
@@ -111,6 +112,16 @@ const [officialForm, setOfficialForm] = useState({
       console.log(err);
     }
   };
+
+  const fetchTotalLoanInterest = async (memberId) => {
+  try {
+    const res = await api.get(`${API}/total-loan-interest/${memberId}`);
+
+    setTotalLoanInterest(res.data.totalLoanInterest || 0);
+  } catch (error) {
+    toast.error("Failed to fetch total loan interest");
+  }
+};
   
   useEffect(() => {
     fetchPaymentModes();
@@ -331,6 +342,7 @@ setAdjustmentForm((prev) => ({
      }));
 
       await fetchAvailableBalance(memberCode);
+      await fetchTotalLoanInterest(memberCode);
       setActiveTab("official");
     } catch (error) {
       toast.error(error.response?.data?.message || "Member not found");
@@ -766,6 +778,53 @@ const submitAdjustment = async () => {
             </div>
           </div>
         )}
+
+        {/* Total Loan Interest pill */}
+{member && (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "stretch",
+      borderRadius: "7px",
+      overflow: "hidden",
+      border: "1.5px solid #fef3c7",
+      boxShadow: "0 1px 4px rgba(245,158,11,0.08)",
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "#d97706",
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: isMobile ? "12px" : "13px",
+        fontFamily: "'Inter', sans-serif",
+        padding: isMobile ? "7px 10px" : "8px 14px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Total Loan Interest
+    </div>
+
+    <div
+      style={{
+        backgroundColor: "#fffbeb",
+        color: "#92400e",
+        fontWeight: "800",
+        fontSize: isMobile ? "13px" : "14px",
+        fontFamily: "'Inter', sans-serif",
+        padding: isMobile ? "7px 10px" : "8px 14px",
+        whiteSpace: "nowrap",
+        minWidth: "70px",
+        textAlign: "center",
+      }}
+    >
+₹{Number(totalLoanInterest.toFixed(2)).toLocaleString("en-IN", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}
+    </div>
+  </div>
+)}
       </div>
 
       {/* ── Search Bar ── */}

@@ -58,6 +58,7 @@ export default function SharePurchase() {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
 
   const [currentBalance, setCurrentBalance] = useState(null);
+  const [dividendBalance, setDividendBalance] = useState(null);
   const [memberCode, setMemberCode] = useState("");
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("official");
@@ -66,6 +67,9 @@ export default function SharePurchase() {
   const [dividendRate, setDividendRate] = useState(0);
   const [creditPaymentMethods, setCreditPaymentMethods] = useState([]);
   const [debitPaymentMethods, setDebitPaymentMethods] = useState([]);
+const [dividendPaidAmount, setDividendPaidAmount] = useState("");
+const [dividendPaymentMode, setDividendPaymentMode] = useState("");
+const [dividendAccountNumber, setDividendAccountNumber] = useState("");
 
   const [officialForm, setOfficialForm] = useState({ officeName: "", dateOfJoin: "", dateOfAllotment: "", dateOfRetirement: "" });
   const [creditForm, setCreditForm] = useState({
@@ -114,6 +118,26 @@ export default function SharePurchase() {
       toast.error("Failed to fetch payment methods");
     }
   };
+  const submitDividend = async () => {
+  try {
+    await api.post(`${API}/dividend-payment`, {
+      memberId: member.memberId,
+      dividendPaidAmount: Number(dividendPaidAmount),
+      paymentTransferTo: dividendPaymentMode,
+      accountNumber: dividendAccountNumber,
+    });
+
+    toast.success("Dividend paid successfully");
+
+    setDividendPaidAmount("");
+    setDividendPaymentMode("");
+    setDividendAccountNumber("");
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message || "Failed to pay dividend"
+    );
+  }
+};
 
     const formatDateTime = (dateString) => {
     if (!dateString) return "-";
@@ -156,6 +180,13 @@ export default function SharePurchase() {
       setActiveTab("official");
       const balanceRes = await api.get(`${API}/share-balance/${memberCode.trim()}`);
       setCurrentBalance(balanceRes.data.availableBalance);
+      const dividendBalanceRes = await api.get(
+        `${API}/dividend-balance/${memberCode.trim()}`
+      );
+      
+      setDividendBalance(
+        dividendBalanceRes.data.availableDividendBalance || 0
+      );
       const creditRes = await api.get(`${API}/credit-share/${memberCode.trim()}`);
       const debitRes = await api.get(`${API}/debit-share/${memberCode.trim()}`);
       const credits = creditRes.data.data.map((item) => ({ amount: item.investmentAmount, type: "Credit", createdAt: item.createdAt, }));
@@ -266,37 +297,197 @@ export default function SharePurchase() {
     <div style={{ minHeight: "100vh", backgroundColor: "#f8fafc", padding: isMobile ? "16px 12px" : isTablet ? "20px 18px" : "28px 32px", fontFamily: "'Inter', sans-serif", boxSizing: "border-box" }}>
 
       {/* ── Top Bar ── */}
-      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: isMobile ? "10px" : "0", marginBottom: "6px" }}>
-        <div>
-          <h1 style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: "#1a2052", margin: 0, fontFamily: "'Inter', sans-serif" }}>Share Purchase</h1>
-          <nav style={{ fontSize: "13px", color: "#888", marginTop: "5px" }}>
-            <a href="/" style={{ color: "#1e40af", textDecoration: "none", fontWeight: "600" }}>Home</a>
-            <span style={{ margin: "0 6px" }}>/</span>
-            <span style={{ fontWeight: "600" }}>Share Purchase</span>
-          </nav>
+{/* ── Header ── */}
+<div style={{ marginBottom: "6px" }}>
 
-          {/* Pills */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "12px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "stretch", borderRadius: "8px", overflow: "hidden", boxShadow: "0 1px 6px rgba(10,25,47,0.10)" }}>
-              <span style={{ ...pillLabel, backgroundColor: "#1e40af" }}>Interest Rate</span>
-              <span style={{ ...pillValue, backgroundColor: "#eff6ff", color: "#1e40af" }}>{dividendRate}%</span>
-            </div>
-            {member && (
-              <div style={{ display: "flex", alignItems: "stretch", borderRadius: "8px", overflow: "hidden", boxShadow: "0 1px 6px rgba(10,25,47,0.10)" }}>
-                <span style={{ ...pillLabel, backgroundColor: "#059669" }}>Share Balance</span>
-                <span style={{ ...pillValue, backgroundColor: "#ecfdf5", color: "#065f46" }}>₹{Number(currentBalance || 0).toLocaleString("en-IN")}</span>
-              </div>
-            )}
-          </div>
-        </div>
+  {/* Title + Address */}
+  <div
+    style={{
+      display: "flex",
+      flexDirection: isMobile ? "column" : "row",
+      justifyContent: "space-between",
+      alignItems: isMobile ? "flex-start" : "flex-start",
+      gap: "10px",
+    }}
+  >
+    {/* LEFT: এই অংশ আর কখনও pills-এর জন্য ডানদিকে সরবে না */}
+    <div
+      style={{
+        flexShrink: 0,
+        position: "relative",
+        left: isMobile ? "0px" : "-18px",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: isMobile ? "20px" : "26px",
+          fontWeight: "700",
+          color: "#1a2052",
+          margin: 0,
+          fontFamily: "'Inter', sans-serif",
+        }}
+      >
+        Share Purchase
+      </h1>
 
-        {!isMobile && (
-          <div style={{ textAlign: "right" }}>
-            <p style={{ margin: 0, fontWeight: "700", fontSize: "16px", color: "#1a2052" }}>Regd. 203, Hari Om Commercial Complex</p>
-            <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>New Dak Bunglow Road, Patna-800001</p>
-          </div>
-        )}
+      <nav
+        style={{
+          fontSize: "13px",
+          color: "#888",
+          marginTop: "5px",
+        }}
+      >
+        <a
+          href="/"
+          style={{
+            color: "#1e40af",
+            textDecoration: "none",
+            fontWeight: "600",
+          }}
+        >
+          Home
+        </a>
+
+        <span style={{ margin: "0 6px" }}>/</span>
+
+        <span style={{ fontWeight: "600" }}>
+          Share Purchase
+        </span>
+      </nav>
+    </div>
+
+    {/* RIGHT: Address */}
+    {!isMobile && (
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <p
+          style={{
+            margin: 0,
+            fontWeight: "700",
+            fontSize: "16px",
+            color: "#1a2052",
+          }}
+        >
+          Regd. 203, Hari Om Commercial Complex
+        </p>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#666",
+          }}
+        >
+          New Dak Bunglow Road, Patna-800001
+        </p>
       </div>
+    )}
+  </div>
+
+  {/* Pills — আলাদা row */}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      marginTop: "20px",
+      flexWrap: "wrap",
+    }}
+  >
+    {/* Interest Rate */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        borderRadius: "8px",
+        overflow: "hidden",
+        boxShadow: "0 1px 6px rgba(10,25,47,0.10)",
+      }}
+    >
+      <span
+        style={{
+          ...pillLabel,
+          backgroundColor: "#1e40af",
+        }}
+      >
+        Interest Rate
+      </span>
+
+      <span
+        style={{
+          ...pillValue,
+          backgroundColor: "#eff6ff",
+          color: "#1e40af",
+        }}
+      >
+        {dividendRate}%
+      </span>
+    </div>
+
+    {/* Share Balance */}
+    {member && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          borderRadius: "8px",
+          overflow: "hidden",
+          boxShadow: "0 1px 6px rgba(10,25,47,0.10)",
+        }}
+      >
+        <span
+          style={{
+            ...pillLabel,
+            backgroundColor: "#059669",
+          }}
+        >
+          Share Balance
+        </span>
+
+        <span
+          style={{
+            ...pillValue,
+            backgroundColor: "#ecfdf5",
+            color: "#065f46",
+          }}
+        >
+          ₹{Number(currentBalance || 0).toLocaleString("en-IN")}
+        </span>
+      </div>
+    )}
+
+    {/* Dividend Balance */}
+    {member && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          borderRadius: "8px",
+          overflow: "hidden",
+          boxShadow: "0 1px 6px rgba(10,25,47,0.10)",
+        }}
+      >
+        <span
+          style={{
+            ...pillLabel,
+            backgroundColor: "#7c3aed",
+          }}
+        >
+          Dividend Balance
+        </span>
+
+        <span
+          style={{
+            ...pillValue,
+            backgroundColor: "#f5f3ff",
+            color: "#6d28d9",
+          }}
+        >
+          ₹{Number(dividendBalance || 0).toLocaleString("en-IN")}
+        </span>
+      </div>
+    )}
+  </div>
+</div>
 
       {/* ── Search Bar ── */}
       <div style={{ display: "flex", justifyContent: isMobile ? "stretch" : "flex-end", marginBottom: "14px", marginTop: "14px" }}>
@@ -522,8 +713,67 @@ export default function SharePurchase() {
                   <h5 style={sectionTitle}>Dividend Details</h5>
                   <Field label="Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={Number(currentBalance || 0).toLocaleString()} /></Field>
                   <Field label="Dividend Rate" isMobile={isMobile}><input style={inputDisabled} disabled value={`${dividendRate}%`} /></Field>
-                  <Field label="Dividend Amount" isMobile={isMobile}><input style={inputDisabled} disabled value={Number(dividendAmount).toLocaleString()} /></Field>
-                </div>
+
+<Field label="Dividend Amount" isMobile={isMobile}>
+  <input
+    style={inputDisabled}
+    disabled
+    value={Number(dividendAmount).toLocaleString()}
+  />
+</Field>
+
+<Field label="Amount Paid From Dividend" isMobile={isMobile}>
+  <input
+    type="number"
+    style={inputStyle}
+    value={dividendPaidAmount}
+    onChange={(e) => setDividendPaidAmount(e.target.value)}
+    placeholder="Enter amount"
+  />
+</Field>
+
+<Field label="Payment Transfer To" isMobile={isMobile}>
+  <select
+    style={inputStyle}
+    value={dividendPaymentMode}
+    onChange={(e) => {
+      setDividendPaymentMode(e.target.value);
+
+      // Members Account select na korle account number clear
+      if (e.target.value !== "Paid to Members Account") {
+        setDividendAccountNumber("");
+      }
+    }}
+  >
+    <option value="">Select Payment Account</option>
+    <option value="Paid to Thrift Account">
+      Paid to Thrift Account
+    </option>
+    <option value="Paid to Loan Account">
+      Paid to Loan Account
+    </option>
+    <option value="Paid to Members Account">
+      Paid to Members Account
+    </option>
+  </select>
+</Field>
+
+{dividendPaymentMode === "Paid to Members Account" && (
+  <Field label="Account Number" isMobile={isMobile}>
+    <input
+      type="text"
+      style={inputStyle}
+      value={dividendAccountNumber}
+      onChange={(e) => setDividendAccountNumber(e.target.value)}
+      placeholder="Enter account number"
+    />
+  </Field>
+)}                </div>
+<div style={{ textAlign: "center", marginTop: "20px" }}>
+  <button style={btnPrimary} onClick={submitDividend}>
+    Pay Dividend
+  </button>
+</div>
                 <div style={{ display: "flex", justifyContent: "center", marginTop: "28px" }}>
                   <div style={{ backgroundColor: "#fff5f5", border: "1px solid #fca5a5", borderRadius: "6px", padding: "12px 20px", color: "#dc2626", fontSize: "13px", fontWeight: "600", lineHeight: "1.6", fontFamily: "'Inter', sans-serif", textAlign: "center", maxWidth: "560px", width: "100%" }}>
                     ⚠️ Withdrawal is allowed only after completion of one financial year (1 April to 31 March); otherwise, no dividend will be payable.

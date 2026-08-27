@@ -61,7 +61,7 @@ export default function ThriftFund() {
   const [interestRate, setInterestRate] = useState("");
   const [entryPaymentMethods, setEntryPaymentMethods] = useState([]);
   const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState([]);
-
+  const [totalThriftInterest, setTotalThriftInterest] = useState(0);
   const [entryForm, setEntryForm] = useState({
     totalAmountReceived: "",
     paymentMethod: entryPaymentMethods[0] || "",
@@ -100,6 +100,19 @@ export default function ThriftFund() {
     const interest = (Number(entryForm.totalAmountReceived) * Number(interestRate) * 1) / 100;
     setEntryForm((prev) => ({ ...prev, yearlyInterestAmount: interest.toFixed(2) }));
   }, [entryForm.totalAmountReceived, interestRate]);
+
+  const fetchTotalThriftInterest = async (memberId) => {
+  try {
+    const res = await api.get(`${API}/total-thrift-interest/${memberId}`);
+
+    setTotalThriftInterest(
+      Number(res.data.totalThriftInterest || 0)
+    );
+  } catch (error) {
+    console.error("Failed to fetch total thrift interest");
+    setTotalThriftInterest(0);
+  }
+};
 
   useEffect(() => {
     fetchInterestRate();
@@ -158,6 +171,7 @@ export default function ThriftFund() {
       const txRes = await api.get(`${API}/transaction/${memberCode}`);
       setTransactions(txRes.data.data || []);
       await fetchAvailableBalance(memberCode);
+      await fetchTotalThriftInterest(memberCode);
       setActiveTab("entry");
     } catch (error) {
       toast.error(error.response?.data?.message || "Member not found");
@@ -175,6 +189,7 @@ export default function ThriftFund() {
       });
       toast.success("Entry created successfully");
       await fetchAvailableBalance(member.memberId);
+      await fetchTotalThriftInterest(member.memberId);
       setEntryForm({ totalAmountReceived: "", paymentMethod: entryPaymentMethods[0] || "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
       handleSearch();
     } catch (error) { toast.error(error.response?.data?.message); }
@@ -325,6 +340,52 @@ export default function ThriftFund() {
             </div>
           </div>
         )}
+        {member && (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "stretch",
+      borderRadius: "7px",
+      overflow: "hidden",
+      border: "1.5px solid #fef3c7",
+      boxShadow: "0 1px 4px rgba(245,158,11,0.08)",
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "#d97706",
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: "13px",
+        fontFamily: "'Inter', sans-serif",
+        padding: "8px 14px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Total Thrift Interest
+    </div>
+
+    <div
+      style={{
+        backgroundColor: "#fffbeb",
+        color: "#92400e",
+        fontWeight: "800",
+        fontSize: "14px",
+        fontFamily: "'Inter', sans-serif",
+        padding: "8px 14px",
+        whiteSpace: "nowrap",
+        minWidth: "80px",
+        textAlign: "center",
+      }}
+    >
+
+      ₹{Number(totalThriftInterest.toFixed(2)).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </div>
+  </div>
+)}
       </div>
 
       {/* ── Search Bar ── */}

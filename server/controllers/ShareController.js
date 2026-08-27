@@ -5,6 +5,7 @@ const PersonalInformation = require("../models/PersonalInformation.js");
 const ShareOfficialDetails = require("../models/ShareOfficialDetails.js");
 const { default: puppeteer } = require("puppeteer");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
+const dividendPayment = require("../models/dividendPayment.js");
 
 const generateTransactionId = async () => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -2892,5 +2893,154 @@ exports.printShareReport = async (req, res) => {
     if (browser) {
       await browser.close();
     }
+  }
+};
+
+
+// ================= CREATE DIVIDEND PAYMENT =================
+
+exports.createDividendPayment = async (req, res) => {
+  try {
+    const {
+      memberId,
+      dividendPaidAmount,
+      paymentTransferTo,
+      accountNumber,
+    } = req.body;
+
+    if (!memberId) {
+      return res.status(400).json({
+        success: false,
+        message: "Member ID is required",
+      });
+    }
+
+    if (!dividendPaidAmount || Number(dividendPaidAmount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid dividend amount is required",
+      });
+    }
+
+    if (!paymentTransferTo) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment transfer method is required",
+      });
+    }
+
+    if (
+      paymentTransferTo === "Paid to Members Account" &&
+      !accountNumber
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Account number is required",
+      });
+    }
+
+    // এখানে Dividend model-এ save করবে
+    const dividend = await dividendPayment.create({
+      memberId,
+      dividendPaidAmount: Number(dividendPaidAmount),
+      paymentDestination: paymentTransferTo,
+      accountNumber:
+        paymentTransferTo === "Paid to Members Account"
+          ? accountNumber
+          : "",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Dividend paid successfully",
+      data: dividend,
+    });
+  } catch (error) {
+    console.error("Create Dividend Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to pay dividend",
+    });
+  }
+};
+
+// ================= GET DIVIDEND PAYMENTS =================
+
+exports.getDividendPayments = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    const data = await dividendPayment
+      .find({ memberId })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+      data,
+    });
+  } catch (error) {
+    console.error("Get dividend payments error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/* ================= DIVIDEND AVAILABLE BALANCE ================= */
+
+exports.getDividendAvailableBalance = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    // 1. Current share balance
+    const shareBalance = await getShareCurrentBalance(memberId);
+
+    // 2. Latest share interest rate
+    const shareInterest = await ShareInterest.findOne()
+      .sort({ createdAt: -1 });
+
+    const interestRate = Number(shareInterest?.rate || 0);
+
+    // 3. Total dividend amount
+    const dividendPayments = await dividendPayment.find({
+      memberId,
+    });
+
+    const totalDividendPaid = dividendPayments.reduce(
+      (sum, item) =>
+        sum + Number(item.dividendPaidAmount || 0),
+      0
+    );
+
+    // 4. Total dividend earned
+    const totalDividend = (shareBalance * interestRate) / 100;
+
+    // 5. Remaining dividend balance
+    const availableDividendBalance =
+      totalDividend - totalDividendPaid;
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+      shareBalance,
+      interestRate,
+      totalDividend,
+      totalDividendPaid,
+      availableDividendBalance,
+    });
+  } catch (error) {
+    console.error(
+      "Get dividend available balance error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

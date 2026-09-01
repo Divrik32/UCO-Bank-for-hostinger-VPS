@@ -27,10 +27,10 @@ const officialEntrySchema = new mongoose.Schema(
       enum: [
         "Housing",
         "Personal",
-        "Vehicle",
         "Education",
-        "Business",
-        "Gold"
+        "Repair of House",
+        "Dwelling of House",
+        "Medical"
       ],
       trim: true
     },

@@ -58,7 +58,7 @@ export default function Loan() {
 
 const [officialForm, setOfficialForm] = useState({ 
   loanCode: "", 
-  officeName: "", 
+  officeName: "BSUCBO", 
   loanDate: new Date().toISOString().split("T")[0], 
   loanType: "Housing", 
   loanAmount: "", 
@@ -274,7 +274,7 @@ const officialData = officialRes.data.data;
 // ✅ 1. Official form = ALWAYS EMPTY
 setOfficialForm({ 
   loanCode: "", 
-  officeName: "", 
+  officeName: "BSUCBO", 
   loanDate: new Date().toISOString().split("T")[0], 
   loanType: "Housing", 
   loanAmount: "", 
@@ -356,7 +356,7 @@ const submitOfficialEntry = async () => {
 await api.post( 
   `${API}/official-entry/${member.memberId}`, 
   { 
-    officeName: officialForm.officeName, 
+    officeName: "BSUCBO", 
     loanType: officialForm.loanType, 
     loanAmount: Number(officialForm.loanAmount), 
     tenureMonths: Number(officialForm.tenureMonths), 
@@ -371,7 +371,7 @@ await api.post(
 
     setOfficialForm({
       loanCode: "",
-      officeName: "",
+      officeName: "BSUCBO",
       loanDate: new Date().toISOString().split("T")[0],
       loanType: "Housing",
       loanAmount: "",
@@ -1114,24 +1114,26 @@ const submitAdjustment = async () => {
                 </Field>
 
                 <Field label="Office Name" isMobile={isMobile}>
-                  <input
-                    style={inputStyle}
-                    value={officialForm.officeName}
-                    onChange={(e) =>
-                      setOfficialForm({ ...officialForm, officeName: e.target.value })
-                    }
-                    placeholder="Enter office name"
-                  />
-                </Field>
+  <input
+    style={inputDisabled}
+    disabled
+    value="BSUCBO"
+  />
+</Field>
 
-  <Field label="Loan Date" isMobile={isMobile}>
-    <input
-      type="date"
-      style={inputDisabled}
-      disabled
-      value={officialForm.loanDate}
-    />
-  </Field>
+<Field label="Loan Date" isMobile={isMobile}> 
+  <input 
+    type="date" 
+    style={inputStyle} 
+    value={officialForm.loanDate}
+    onChange={(e) => 
+      setOfficialForm({
+        ...officialForm,
+        loanDate: e.target.value,
+      })
+    }
+  /> 
+</Field>
 
                 <Field label="Loan Type" isMobile={isMobile}>
                   <select
@@ -1141,7 +1143,12 @@ const submitAdjustment = async () => {
                       setOfficialForm({ ...officialForm, loanType: e.target.value })
                     }
                   >
-                    {["Housing", "Personal", "Vehicle", "Education", "Business", "Gold"].map(
+                    {[  "Housing",
+  "Personal",
+  "Education",
+  "Repair of House",
+  "Dwelling of House",
+  "Medical"].map(
                       (t) => (
                         <option key={t}>{t}</option>
                       )

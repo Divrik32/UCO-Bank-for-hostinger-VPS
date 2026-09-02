@@ -5,6 +5,7 @@ const loanPaymentForEmiDetailsModel = require("../loanModels/loanPaymentForEmiDe
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 const LoanInterest = require("../loanModels/loanInterest.js");
 const puppeteer = require("puppeteer");
+const loanInterest = require("../loanModels/loanInterest.js");
 
 
 const generateTransactionId = async () => {
@@ -538,55 +539,130 @@ exports.getTotalTransactionDetails = async (req, res) => {
     });
 
     // 3. Loan Adjustment
-    const loanAdjustments = await loanAdjustmentModel.find({
-      memberId,
-    });
+    const loanAdjustments = await loanAdjustmentModel.find({ memberId });
 
-    // Official Entry → CREDIT
+    // ─────────────────────────────────────────────
+    // Get all interest rate history
+    // ─────────────────────────────────────────────
+    const interestRates = await loanInterest
+      .find({})
+      .sort({ createdAt: 1 })
+      .lean();
+
+    console.log("INTEREST RATES:", interestRates);
+
+    // ─────────────────────────────────────────────
+    // Find interest rate applicable at transaction date
+    // ─────────────────────────────────────────────
+    const getInterestRateAtDate = (transactionDate) => {
+      if (!transactionDate || interestRates.length === 0) {
+        return null;
+      }
+
+      const transactionTime = new Date(transactionDate).getTime();
+
+      let applicableRate = null;
+
+      for (const rate of interestRates) {
+        const rateTime = new Date(rate.createdAt).getTime();
+
+        if (rateTime <= transactionTime) {
+          applicableRate = rate;
+        } else {
+          break;
+        }
+      }
+
+      // If no rate existed before transaction date,
+      // use first available rate
+      if (!applicableRate) {
+        return interestRates[0].rate;
+      }
+
+      return applicableRate.rate;
+    };
+
+    // ─────────────────────────────────────────────
+    // Official Entry → DEBIT
+    // ─────────────────────────────────────────────
     const officialData = officialEntries.map((item) => ({
-      amount: item.loanAmount,
+      amount: Number(item.loanAmount || 0),
       paymentMode: "-",
       transactionDate: item.createdAt,
       interest: "Included in EMI",
+      interestRate: getInterestRateAtDate(item.createdAt),
+      type: "DEBIT",
+    }));
+
+    // ─────────────────────────────────────────────
+    // EMI Payment → CREDIT
+    // ─────────────────────────────────────────────
+    const emiData = emiPayments.map((item) => ({
+      amount: Number(item.amount || 0),
+      paymentMode: item.paymentMode,
+      transactionDate: item.createdAt,
+      interest: "Included in EMI",
+      interestRate: getInterestRateAtDate(item.createdAt),
       type: "CREDIT",
     }));
 
-    // EMI Payment → DEBIT
-    const emiData = emiPayments.map((item) => ({
-      amount: item.amount,
-      paymentMode: item.paymentMode,
-      transactionDate: item.createdAt,
-      interest: "Included in EMI",
-      type: "DEBIT",
-    }));
-
-    // Loan Adjustment → DEBIT
+    // ─────────────────────────────────────────────
+    // Loan Adjustment → CREDIT
+    // ─────────────────────────────────────────────
     const adjustmentData = loanAdjustments.map((item) => ({
-      amount: item.adjustmentAmount,
+      amount: Number(item.adjustmentAmount || 0),
       paymentMode: item.paymentMode,
       transactionDate: item.createdAt,
       interest: "Included in EMI",
-      type: "DEBIT",
+      interestRate: getInterestRateAtDate(item.createdAt),
+      type: "CREDIT",
     }));
 
-    // Merge + sort by date
-    const allTransactions = [
-      ...officialData,
-      ...emiData,
-      ...adjustmentData,
-    ].sort(
-      (a, b) =>
-        new Date(a.transactionDate) -
-        new Date(b.transactionDate)
-    );
+    // ─────────────────────────────────────────────
+    // Merge + sort by transaction date
+    // ─────────────────────────────────────────────
+const allTransactions = [
+  ...officialData,
+  ...emiData,
+  ...adjustmentData,
+].sort(
+  (a, b) =>
+    new Date(a.transactionDate) -
+    new Date(b.transactionDate)
+);
 
-    res.status(200).json({
-      success: true,
-      count: allTransactions.length,
-      data: allTransactions,
-    });
 
+    // ─────────────────────────────────────────────
+    // Calculate running balance
+    // ─────────────────────────────────────────────
+    let balance = 0;
+
+const transactionsWithBalance = allTransactions.map((transaction) => {
+  const amount = Number(transaction.amount || 0);
+
+  if (transaction.type === "DEBIT") {
+    balance += amount;
+  } else if (transaction.type === "CREDIT") {
+    balance -= amount;
+  }
+
+  return {
+    ...transaction,
+    balance,
+  };
+});
+
+    // ─────────────────────────────────────────────
+    // Response
+    // ─────────────────────────────────────────────
+res.status(200).json({
+  success: true,
+  count: transactionsWithBalance.length,
+  data: transactionsWithBalance,
+});
   } catch (error) {
+    console.error("getTotalTransactionDetails error:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,

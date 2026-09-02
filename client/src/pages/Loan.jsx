@@ -1649,62 +1649,220 @@ const submitAdjustment = async () => {
                   <table
                     style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}
                   >
-                    <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
-                      <tr>
-                        {["#", "Amount", "Payment Mode", "Transaction Date", "Interest", "Credit/Debit"].map(
-                          (h) => (
-                            <th key={h} style={th}>
-                              {h}
-                            </th>
-                          )
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            style={{
-                              textAlign: "center",
-                              padding: "28px",
-                              color: "#aaa",
-                              fontFamily: "'Inter', sans-serif",
-                            }}
-                          >
-                            No transactions found
-                          </td>
-                        </tr>
-                      ) : (
-                        transactions.map((item, i) => (
-                          <tr
-                            key={i}
-                            style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#fdfdfd" }}
-                          >
-                            <td style={td}>{i + 1}</td>
-                            <td style={{ ...td, fontWeight: "600" }}>
-                              ₹{Number(item.Amount || item.amount || 0).toLocaleString()}
-                            </td>
-                            <td style={td}>
-                              {item.PaymentMode || item.paymentMode || "-"}
-                            </td>
-                            <td style={td}>
-                              {formatDateTime(
-                                item.TransactionDate || item.transactionDate || item.date
-                              )}
-                            </td>
-                            <td style={td}>
-  {!isNaN(item.Interest || item.interest)
-    ? Number(item.Interest || item.interest).toFixed(2)
-    : "Included in EMI"}
-</td>
-                            <td style={td}>
-                              {item.type || "-"}  
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
+<thead>
+  <tr>
+    {[
+      "Sl No",
+      "Transaction Date",
+      "Particulars",
+      "Debit",
+      "Credit",
+      "Balance",
+      "No of Days",
+      "Interest",
+      "Product",
+      "Interest Charge",
+      "Interest Balance",
+    ].map((header) => (
+      <th
+        key={header}
+        style={{
+          ...th,
+          position: "sticky",
+          top: 0,
+          zIndex: 2,
+          background: "#f8f9fa",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {header}
+      </th>
+    ))}
+  </tr>
+</thead>
+
+<tbody>
+  {transactions.length === 0 ? (
+    <tr>
+      <td
+        colSpan={11}
+        style={{
+          ...td,
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        No transactions found
+      </td>
+    </tr>
+  ) : (
+    (() => {
+      let runningBalance = 0;
+      let runningInterestBalance = 0;
+
+      return transactions.map((item, i) => {
+        const transactionType = String(
+          item.type || item.transactionType || ""
+        ).toUpperCase();
+
+        const amount = Number(item.amount || item.Amount || 0);
+
+        const currentDate = new Date(
+          item.TransactionDate ||
+            item.transactionDate ||
+            item.date
+        );
+
+        // ─────────────────────────────────────
+        // NO OF DAYS
+        // ─────────────────────────────────────
+        let noOfDays = "-";
+
+        if (i < transactions.length - 1) {
+          const nextItem = transactions[i + 1];
+
+          const nextDate = new Date(
+            nextItem.TransactionDate ||
+              nextItem.transactionDate ||
+              nextItem.date
+          );
+
+          const diffTime =
+            nextDate.getTime() - currentDate.getTime();
+
+          const diffDays = Math.floor(
+            diffTime / (1000 * 60 * 60 * 24)
+          );
+
+          noOfDays = Math.max(diffDays - 1, 0);
+        }
+
+        // ─────────────────────────────────────
+        // DEBIT → ADD TO BALANCE
+        // ─────────────────────────────────────
+        if (transactionType === "DEBIT") {
+          runningBalance += amount;
+        }
+
+        // ─────────────────────────────────────
+        // INTEREST CHARGE
+        // ─────────────────────────────────────
+        let interestCharge = 0;
+
+        if (noOfDays !== "-") {
+          interestCharge =
+            (runningBalance *
+              Number(item.interestRate || 0) *
+              Number(noOfDays || 0)) /
+            36500;
+        }
+
+        runningInterestBalance += interestCharge;
+
+        // ─────────────────────────────────────
+        // CREDIT → FIRST CLEAR INTEREST
+        // THEN REDUCE BALANCE
+        // ─────────────────────────────────────
+        if (transactionType === "CREDIT") {
+          if (amount <= runningInterestBalance) {
+            runningInterestBalance -= amount;
+          } else {
+            const remainingCredit =
+              amount - runningInterestBalance;
+
+            runningInterestBalance = 0;
+
+            runningBalance = Math.max(
+              runningBalance - remainingCredit,
+              0
+            );
+          }
+        }
+
+        // ─────────────────────────────────────
+        // PRODUCT
+        // ─────────────────────────────────────
+        const product =
+          noOfDays !== "-"
+            ? runningBalance * Number(noOfDays || 0)
+            : "-";
+
+        return (
+          <tr key={item._id || i}>
+            {/* Sl No */}
+            <td style={td}>{i + 1}</td>
+
+            {/* Transaction Date */}
+            <td style={td}>
+              {formatDateTime(
+                item.TransactionDate ||
+                  item.transactionDate ||
+                  item.date
+              )}
+            </td>
+
+            {/* Particulars */}
+            <td style={td}>
+              {item.PaymentMode ||
+                item.paymentMode ||
+                "-"}
+            </td>
+
+            {/* Debit */}
+            <td style={td}>
+              {transactionType === "DEBIT"
+                ? amount.toFixed(2)
+                : "-"}
+            </td>
+
+            {/* Credit */}
+            <td style={td}>
+              {transactionType === "CREDIT"
+                ? amount.toFixed(2)
+                : "-"}
+            </td>
+
+            {/* Balance */}
+            <td style={td}>
+              {runningBalance.toFixed(2)}
+            </td>
+
+            {/* No of Days */}
+            <td style={td}>{noOfDays}</td>
+
+            {/* Interest Rate */}
+            <td style={td}>
+              {item.interestRate !== undefined &&
+              item.interestRate !== null &&
+              item.interestRate !== ""
+                ? `${Number(item.interestRate).toFixed(2)}%`
+                : "-"}
+            </td>
+
+            {/* Product */}
+            <td style={td}>
+              {product !== "-"
+                ? product.toFixed(2)
+                : "-"}
+            </td>
+
+            {/* Interest Charge */}
+            <td style={td}>
+              {noOfDays !== "-"
+                ? interestCharge.toFixed(2)
+                : "-"}
+            </td>
+
+            {/* Interest Balance */}
+            <td style={td}>
+              {runningInterestBalance.toFixed(2)}
+            </td>
+          </tr>
+        );
+      });
+    })()
+  )}
+</tbody>
                   </table>
                 </div>
 

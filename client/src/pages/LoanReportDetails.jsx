@@ -15,10 +15,12 @@ const handlePrint = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
     fetchMemberLoanDetails();
     fetchAvailableBalance();
+    fetchTransactions();
   }, [memberId]);
 
   const fetchMemberLoanDetails = async () => {
@@ -58,6 +60,19 @@ const handlePrint = () => {
   }
 };
 
+const fetchTransactions = async () => {
+  try {
+    const res = await api.get(
+      `/loan/transactions/${memberId}`
+    );
+
+    setTransactions(res.data.data || []);
+  } catch (err) {
+    console.error("Failed to fetch transactions:", err);
+    setTransactions([]);
+  }
+};
+
   const formatDate = (date) => {
     if (!date) return "-";
 
@@ -65,6 +80,20 @@ const handlePrint = () => {
       .toLocaleDateString("en-GB")
       .replace(/\//g, "-");
   };
+
+  const formatDateTime = (dateString) => {
+  if (!dateString) return "-";
+
+  return new Date(dateString).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+};
 
   if (loading) {
     return (
@@ -257,15 +286,10 @@ const handlePrint = () => {
             value={member.memberId}
           />
 
-          <DetailItem
-            label="Member Name"
-            value={member.firstname}
-          />
-
-          <DetailItem
-            label="Last Name"
-            value={member.lastname}
-          />
+          <DetailItem 
+  label="Member Name" 
+  value={`${member.firstname || ""} ${member.lastname || ""}`.trim()} 
+/>
 
           <DetailItem
             label="Member D.O.B"
@@ -383,6 +407,385 @@ const handlePrint = () => {
     member.shareLoanPaid || 0
   ).toLocaleString("en-IN")}`}
 />
+        </div>
+      </div>
+
+            {/* ================= TOTAL TRANSACTION DETAILS ================= */}
+      <div className="print-card" style={styles.card}>
+        <h5 style={styles.cardTitle}>
+          Total Transaction Details
+        </h5>
+
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: "420px",
+            border: "1px solid #dee2e6",
+            borderRadius: "6px",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              minWidth: "1100px",
+              borderCollapse: "collapse",
+              fontSize: "14px",
+            }}
+          >
+            <thead>
+              <tr>
+                {[
+                  "Sl No",
+                  "Transaction Date",
+                  "Particulars",
+                  "Debit",
+                  "Credit",
+                  "Balance",
+                  "No of Days",
+                  "Interest Rate",
+                  "Product",
+                  "Interest Charge",
+                  "Interest Balance",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    style={{
+                      ...styles.transactionTh,
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 2,
+                    }}
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {transactions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={11}
+                    style={{
+                      ...styles.transactionTd,
+                      textAlign: "center",
+                      padding: "25px",
+                      color: "#888",
+                    }}
+                  >
+                    No transactions found
+                  </td>
+                </tr>
+              ) : (
+                (() => {
+                  let runningBalance = 0;
+                  let runningInterestBalance = 0;
+
+                  return transactions.map((item, i) => {
+                    const transactionType = String(
+                      item.type ||
+                        item.transactionType ||
+                        ""
+                    ).toUpperCase();
+
+                    const amount = Number(
+                      item.amount ||
+                        item.Amount ||
+                        0
+                    );
+
+                    const currentDate = new Date(
+                      item.TransactionDate ||
+                        item.transactionDate ||
+                        item.date
+                    );
+
+                    // ============================
+                    // NO OF DAYS
+                    // ============================
+
+                    let noOfDays = "-";
+
+                    if (i < transactions.length - 1) {
+                      const nextItem =
+                        transactions[i + 1];
+
+                      const nextDate = new Date(
+                        nextItem.TransactionDate ||
+                          nextItem.transactionDate ||
+                          nextItem.date
+                      );
+
+                      const diffTime =
+                        nextDate.getTime() -
+                        currentDate.getTime();
+
+                      const diffDays = Math.floor(
+                        diffTime /
+                          (1000 * 60 * 60 * 24)
+                      );
+
+                      noOfDays = Math.max(
+                        diffDays - 1,
+                        0
+                      );
+                    }
+
+                    // ============================
+                    // DEBIT → ADD BALANCE
+                    // ============================
+
+                    if (
+                      transactionType === "DEBIT"
+                    ) {
+                      runningBalance += amount;
+                    }
+
+                    // ============================
+                    // INTEREST CHARGE
+                    // ============================
+
+                    let interestCharge = 0;
+
+                    if (noOfDays !== "-") {
+                      interestCharge =
+                        (runningBalance *
+                          Number(
+                            item.interestRate || 0
+                          ) *
+                          Number(noOfDays || 0)) /
+                        36500;
+                    }
+
+                    runningInterestBalance +=
+                      interestCharge;
+
+                    // ============================
+                    // CREDIT
+                    // ============================
+
+                    if (
+                      transactionType === "CREDIT"
+                    ) {
+                      if (
+                        amount <=
+                        runningInterestBalance
+                      ) {
+                        runningInterestBalance -=
+                          amount;
+                      } else {
+                        const remainingCredit =
+                          amount -
+                          runningInterestBalance;
+
+                        runningInterestBalance = 0;
+
+                        runningBalance = Math.max(
+                          runningBalance -
+                            remainingCredit,
+                          0
+                        );
+                      }
+                    }
+
+                    // ============================
+                    // PRODUCT
+                    // ============================
+
+                    const product =
+                      noOfDays !== "-"
+                        ? runningBalance *
+                          Number(noOfDays || 0)
+                        : "-";
+
+                    return (
+                      <tr
+                        key={item._id || i}
+                      >
+                        {/* Sl No */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {i + 1}
+                        </td>
+
+                        {/* Transaction Date */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {formatDateTime(
+                            item.TransactionDate ||
+                              item.transactionDate ||
+                              item.date
+                          )}
+                        </td>
+
+                        {/* Particulars */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {item.PaymentMode ||
+                            item.paymentMode ||
+                            "-"}
+                        </td>
+
+                        {/* Debit */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {transactionType ===
+                          "DEBIT"
+                            ? amount.toFixed(2)
+                            : "-"}
+                        </td>
+
+                        {/* Credit */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {transactionType ===
+                          "CREDIT"
+                            ? amount.toFixed(2)
+                            : "-"}
+                        </td>
+
+                        {/* Balance */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {runningBalance.toFixed(
+                            2
+                          )}
+                        </td>
+
+                        {/* No of Days */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {noOfDays}
+                        </td>
+
+                        {/* Interest Rate */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {item.interestRate !==
+                            undefined &&
+                          item.interestRate !==
+                            null &&
+                          item.interestRate !== ""
+                            ? `${Number(
+                                item.interestRate
+                              ).toFixed(2)}%`
+                            : "-"}
+                        </td>
+
+                        {/* Product */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {product !== "-"
+                            ? product.toFixed(2)
+                            : "-"}
+                        </td>
+
+                        {/* Interest Charge */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {noOfDays !== "-"
+                            ? interestCharge.toFixed(
+                                2
+                              )
+                            : "-"}
+                        </td>
+
+                        {/* Interest Balance */}
+                        <td
+                          style={
+                            styles.transactionTd
+                          }
+                        >
+                          {runningInterestBalance.toFixed(
+                            2
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ================= BALANCE FOOTER ================= */}
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "stretch",
+            borderRadius: "8px",
+            overflow: "hidden",
+            boxShadow:
+              "0 2px 8px rgba(30,64,175,0.10)",
+            border: "1.5px solid #dbeafe",
+            width: "fit-content",
+            marginLeft: "auto",
+            marginTop: "12px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#1e40af",
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: "13px",
+              padding: "10px 18px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Available Balance
+          </div>
+
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              color: "#1e40af",
+              fontWeight: "800",
+              fontSize: "14px",
+              padding: "10px 18px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ₹
+            {Number(
+              availableBalance
+            ).toLocaleString("en-IN")}
+          </div>
         </div>
       </div>
     </div>
@@ -562,4 +965,25 @@ printBtn: {
   transition: "all 0.2s ease",
   minWidth: "105px",
 },
+
+  transactionTh: {
+    padding: "11px 14px",
+    textAlign: "left",
+    fontWeight: "700",
+    color: "#1a2052",
+    backgroundColor: "#e2e8f0",
+    borderBottom: "2px solid #cbd5e1",
+    borderRight: "1px solid #dee2e6",
+    whiteSpace: "nowrap",
+    fontSize: "13px",
+  },
+
+  transactionTd: {
+    padding: "10px 14px",
+    borderBottom: "1px solid #f0f2ff",
+    borderRight: "1px solid #f0f2ff",
+    color: "#333",
+    fontSize: "14px",
+    whiteSpace: "nowrap",
+  },
 };

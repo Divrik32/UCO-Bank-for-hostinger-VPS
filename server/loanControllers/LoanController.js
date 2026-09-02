@@ -1103,21 +1103,316 @@ loanAdjustments.forEach((item) => {
     // ==========================================
     // 4. Helper
     // ==========================================
-    const valueOrDash = (value) => {
-      return value !== undefined &&
-        value !== null &&
-        value !== ""
-        ? value
-        : "-";
-    };
+// ==========================================
+// 4. GET ALL TRANSACTIONS
+// ==========================================
 
-    const formatDate = (date) => {
-      if (!date) return "-";
+const officialEntries = await officialEntryModel
+  .find({ memberId })
+  .sort({ createdAt: 1 })
+  .lean();
 
-      return new Date(date)
-        .toLocaleDateString("en-GB")
-        .replace(/\//g, "-");
+const emiPayments = await loanPaymentForEmiDetailsModel
+  .find({ memberId })
+  .sort({ createdAt: 1 })
+  .lean();
+
+const allLoanAdjustments = await loanAdjustmentModel
+  .find({ memberId })
+  .sort({ createdAt: 1 })
+  .lean();
+
+// ==========================================
+// GET INTEREST RATE HISTORY
+// ==========================================
+
+const interestRates = await LoanInterest
+  .find({})
+  .sort({ createdAt: 1 })
+  .lean();
+
+// ==========================================
+// FIND INTEREST RATE AT TRANSACTION DATE
+// ==========================================
+
+const getInterestRateAtDate = (transactionDate) => {
+  if (!transactionDate || interestRates.length === 0) {
+    return null;
+  }
+
+  const transactionTime = new Date(transactionDate).getTime();
+
+  let applicableRate = null;
+
+  for (const rate of interestRates) {
+    const rateTime = new Date(rate.createdAt).getTime();
+
+    if (rateTime <= transactionTime) {
+      applicableRate = rate;
+    } else {
+      break;
+    }
+  }
+
+  if (!applicableRate) {
+    return Number(interestRates[0].rate || 0);
+  }
+
+  return Number(applicableRate.rate || 0);
+};
+
+// ==========================================
+// OFFICIAL ENTRY → DEBIT
+// ==========================================
+
+const officialTransactionData = officialEntries.map((item) => ({
+  amount: Number(item.loanAmount || 0),
+
+  paymentMode: item.paymentMode || "-",
+
+  transactionId: item.transactionId || "-",
+
+  transactionDate: item.createdAt,
+
+  interestRate: getInterestRateAtDate(item.createdAt),
+
+  type: "DEBIT",
+}));
+
+// ==========================================
+// EMI PAYMENT → CREDIT
+// ==========================================
+
+const emiTransactionData = emiPayments.map((item) => ({
+  amount: Number(item.amount || 0),
+
+  paymentMode: item.paymentMode || "-",
+
+  transactionId: item.transactionId || "-",
+
+  transactionDate: item.createdAt,
+
+  interestRate: getInterestRateAtDate(item.createdAt),
+
+  type: "CREDIT",
+}));
+
+// ==========================================
+// LOAN ADJUSTMENT → CREDIT
+// ==========================================
+
+const adjustmentTransactionData = allLoanAdjustments.map((item) => {
+
+  let amount = 0;
+
+  if (item.paymentMode === "Both") {
+    amount =
+      Number(item.thriftAdjustmentAmount || 0) +
+      Number(item.shareAdjustmentAmount || 0);
+  } else {
+    amount = Number(item.adjustmentAmount || 0);
+  }
+
+  return {
+    amount,
+
+    paymentMode: item.paymentMode || "-",
+
+    transactionId: item.transactionId || "-",
+
+    transactionDate: item.createdAt,
+
+    interestRate: getInterestRateAtDate(item.createdAt),
+
+    type: "CREDIT",
+  };
+});
+
+// ==========================================
+// MERGE ALL TRANSACTIONS
+// ==========================================
+
+const allTransactions = [
+  ...officialTransactionData,
+  ...emiTransactionData,
+  ...adjustmentTransactionData,
+].sort(
+  (a, b) =>
+    new Date(a.transactionDate) -
+    new Date(b.transactionDate)
+);
+
+// ==========================================
+// CALCULATE BALANCE + INTEREST
+// ==========================================
+
+let runningBalance = 0;
+let runningInterestBalance = 0;
+
+const transactionsWithBalance = allTransactions.map(
+  (item, index) => {
+
+    const amount = Number(item.amount || 0);
+
+    const currentDate = new Date(item.transactionDate);
+
+    // ========================================
+    // NO OF DAYS
+    // ========================================
+
+    let noOfDays = "-";
+
+    if (index < allTransactions.length - 1) {
+
+      const nextItem = allTransactions[index + 1];
+
+      const nextDate = new Date(
+        nextItem.transactionDate
+      );
+
+      const diffTime =
+        nextDate.getTime() -
+        currentDate.getTime();
+
+      const diffDays = Math.floor(
+        diffTime /
+          (1000 * 60 * 60 * 24)
+      );
+
+      noOfDays = Math.max(
+        diffDays - 1,
+        0
+      );
+    }
+
+    // ========================================
+    // DEBIT → ADD TO BALANCE
+    // ========================================
+
+    if (item.type === "DEBIT") {
+      runningBalance += amount;
+    }
+
+    // ========================================
+    // INTEREST CHARGE
+    // ========================================
+
+    let interestCharge = 0;
+
+    if (noOfDays !== "-") {
+
+      interestCharge =
+        (
+          runningBalance *
+          Number(item.interestRate || 0) *
+          Number(noOfDays || 0)
+        ) / 36500;
+    }
+
+    runningInterestBalance += interestCharge;
+
+    // ========================================
+    // CREDIT → FIRST PAY INTEREST
+    // THEN MAIN BALANCE
+    // ========================================
+
+    if (item.type === "CREDIT") {
+
+      if (
+        amount <=
+        runningInterestBalance
+      ) {
+
+        runningInterestBalance -= amount;
+
+      } else {
+
+        const remainingCredit =
+          amount -
+          runningInterestBalance;
+
+        runningInterestBalance = 0;
+
+        runningBalance = Math.max(
+          runningBalance -
+            remainingCredit,
+          0
+        );
+      }
+    }
+
+    // ========================================
+    // PRODUCT
+    // ========================================
+
+    const product =
+      noOfDays !== "-"
+        ? runningBalance * Number(noOfDays)
+        : 0;
+
+    return {
+      ...item,
+
+      balance: runningBalance,
+
+      noOfDays,
+
+      product,
+
+      interestCharge,
+
+      interestBalance:
+        runningInterestBalance,
     };
+  }
+);
+
+// ==========================================
+// HELPER
+// ==========================================
+
+const valueOrDash = (value) => {
+  return value !== undefined &&
+    value !== null &&
+    value !== ""
+    ? value
+    : "-";
+};
+
+const formatDate = (date) => {
+  if (!date) return "-";
+
+  return new Date(date)
+    .toLocaleDateString("en-GB")
+    .replace(/\//g, "-");
+};
+
+const formatDateTime = (date) => {
+  if (!date) return "-";
+
+  return new Date(date).toLocaleString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    }
+  );
+};
+
+const formatAmount = (amount) => {
+  return Number(amount || 0).toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  );
+};
 
     // ==========================================
     // 5. HTML FOR PDF
@@ -1221,10 +1516,146 @@ loanAdjustments.forEach((item) => {
             color: #777;
           }
 
-          @page {
-            size: A4;
-            margin: 15mm;
-          }
+/* ==========================================
+   TRANSACTION TABLE
+   ========================================== */
+
+.transaction-card {
+  width: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+
+.transaction-table-wrapper {
+  width: 100%;
+  overflow: hidden;
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 9px;
+}
+
+.transaction-table th,
+.transaction-table td {
+  padding: 7px 6px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid #dee2e6;
+  border-right: 1px solid #dee2e6;
+  line-height: 1.25;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.transaction-table th:last-child,
+.transaction-table td:last-child {
+  border-right: none;
+}
+
+.transaction-table th {
+  background: #f8f9fa;
+  color: #012970;
+  font-weight: 700;
+  white-space: normal;
+}
+
+.transaction-table td {
+  color: #222;
+}
+
+/* Individual column widths */
+
+.transaction-table th:nth-child(1),
+.transaction-table td:nth-child(1) {
+  width: 4%;
+}
+
+.transaction-table th:nth-child(2),
+.transaction-table td:nth-child(2) {
+  width: 12%;
+}
+
+.transaction-table th:nth-child(3),
+.transaction-table td:nth-child(3) {
+  width: 14%;
+}
+
+.transaction-table th:nth-child(4),
+.transaction-table td:nth-child(4) {
+  width: 9%;
+}
+
+.transaction-table th:nth-child(5),
+.transaction-table td:nth-child(5) {
+  width: 9%;
+}
+
+.transaction-table th:nth-child(6),
+.transaction-table td:nth-child(6) {
+  width: 10%;
+}
+
+.transaction-table th:nth-child(7),
+.transaction-table td:nth-child(7) {
+  width: 7%;
+}
+
+.transaction-table th:nth-child(8),
+.transaction-table td:nth-child(8) {
+  width: 8%;
+}
+
+.transaction-table th:nth-child(9),
+.transaction-table td:nth-child(9) {
+  width: 9%;
+}
+
+.transaction-table th:nth-child(10),
+.transaction-table td:nth-child(10) {
+  width: 9%;
+}
+
+.transaction-table th:nth-child(11),
+.transaction-table td:nth-child(11) {
+  width: 9%;
+}
+
+/* Date */
+.date-cell {
+  white-space: normal;
+}
+
+/* Particulars */
+.particular-cell {
+  text-align: left !important;
+}
+
+/* Amount columns */
+.debit-cell,
+.credit-cell {
+  white-space: nowrap;
+}
+
+/* Empty row */
+.empty-cell {
+  text-align: center !important;
+  padding: 15px !important;
+}
+
+/* ==========================================
+   PDF PAGE
+   ========================================== */
+
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
 
         </style>
       </head>
@@ -1254,19 +1685,14 @@ loanAdjustments.forEach((item) => {
                 </div>
               </div>
 
-              <div class="detail-item">
-                <div class="label">Member Name</div>
-                <div class="value">
-                  ${valueOrDash(member.firstname)}
-                </div>
-              </div>
-
-              <div class="detail-item">
-                <div class="label">Last Name</div>
-                <div class="value">
-                  ${valueOrDash(member.lastname)}
-                </div>
-              </div>
+<div class="detail-item"> 
+  <div class="label">Member Name</div> 
+  <div class="value"> 
+    ${valueOrDash(
+      `${member.firstname || ""} ${member.lastname || ""}`.trim()
+    )} 
+  </div> 
+</div>
 
               <div class="detail-item">
                 <div class="label">Member D.O.B</div>
@@ -1424,6 +1850,192 @@ loanAdjustments.forEach((item) => {
           </div>
 
 
+          <!-- ========================================== -->
+          <!-- TOTAL TRANSACTION DETAILS -->
+          <!-- ========================================== -->
+
+          <div class="transaction-card">
+
+            <h2 class="card-title">
+              Total Transaction Details
+            </h2>
+
+            <div class="transaction-table-wrapper">
+
+              <table class="transaction-table">
+
+                <thead>
+
+                  <tr>
+
+                    <th>Sl No</th>
+
+                    <th>
+                      Transaction Date
+                    </th>
+
+                    <th>
+                      Particulars
+                    </th>
+
+                    <th>
+                      Debit
+                    </th>
+
+                    <th>
+                      Credit
+                    </th>
+
+                    <th>
+                      Balance
+                    </th>
+
+                    <th>
+                      No of Days
+                    </th>
+
+                    <th>
+                      Interest Rate
+                    </th>
+
+                    <th>
+                      Product
+                    </th>
+
+                    <th>
+                      Interest Charge
+                    </th>
+
+                    <th>
+                      Interest Balance
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  ${
+                    transactionsWithBalance.length > 0
+                      ? transactionsWithBalance
+                          .map((item, index) => {
+
+                            return `
+                              <tr>
+
+                                <td>
+                                  ${index + 1}
+                                </td>
+
+                                <td class="date-cell">
+                                  ${formatDateTime(
+                                    item.transactionDate
+                                  )}
+                                </td>
+
+                                <td class="particular-cell">
+                                  ${valueOrDash(
+                                    item.paymentMode
+                                  )}
+                                </td>
+
+                                <td class="debit-cell">
+                                  ${
+                                    item.type === "DEBIT"
+                                      ? `₹${formatAmount(
+                                          item.amount
+                                        )}`
+                                      : "-"
+                                  }
+                                </td>
+
+                                <td class="credit-cell">
+                                  ${
+                                    item.type === "CREDIT"
+                                      ? `₹${formatAmount(
+                                          item.amount
+                                        )}`
+                                      : "-"
+                                  }
+                                </td>
+
+                                <td>
+                                  ₹${formatAmount(
+                                    item.balance
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${valueOrDash(
+                                    item.noOfDays
+                                  )}
+                                </td>
+
+                                <td>
+                                  ${
+                                    item.interestRate !==
+                                      undefined &&
+                                    item.interestRate !==
+                                      null &&
+                                    item.interestRate !==
+                                      ""
+                                      ? `${Number(
+                                          item.interestRate
+                                        ).toFixed(2)}%`
+                                      : "-"
+                                  }
+                                </td>
+
+                                <td>
+                                  ${
+                                    item.noOfDays !== "-"
+                                      ? `₹${formatAmount(
+                                          item.product
+                                        )}`
+                                      : "-"
+                                  }
+                                </td>
+
+                                <td>
+                                  ₹${formatAmount(
+                                    item.interestCharge
+                                  )}
+                                </td>
+
+                                <td>
+                                  ₹${formatAmount(
+                                    item.interestBalance
+                                  )}
+                                </td>
+
+                              </tr>
+                            `;
+                          })
+                          .join("")
+                      : `
+                        <tr>
+
+                          <td
+                            colspan="11"
+                            class="empty-cell"
+                          >
+                            No transaction found.
+                          </td>
+
+                        </tr>
+                      `
+                  }
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+
           <div class="footer">
             Loan Report
           </div>
@@ -1454,12 +2066,13 @@ loanAdjustments.forEach((item) => {
 
 const pdf = await page.pdf({
   format: "A4",
+  landscape: true,
   printBackground: true,
   margin: {
-    top: "15mm",
-    right: "15mm",
-    bottom: "15mm",
-    left: "15mm",
+    top: "10mm",
+    right: "10mm",
+    bottom: "10mm",
+    left: "10mm",
   },
 });
 

@@ -97,7 +97,7 @@ const getShareCurrentBalance = async (memberId) => {
     0
   );
 
-  const totalLoanAdjustment = loanAdjustmentModel.reduce(
+  const totalLoanAdjustment = loanAdjustments.reduce(
     (sum, item) => {
       if (item.paymentMode === "Both") {
         return sum + Number(item.shareAdjustmentAmount || 0);

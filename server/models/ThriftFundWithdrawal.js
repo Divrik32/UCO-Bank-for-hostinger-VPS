@@ -33,6 +33,13 @@ const thriftFundWithdrawalSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+
+    particular: {
+      type: String,
+      required: true,
+      default: "Balance refund to member",
+      trim: true,
+    },
     
     availableBalance: {
       type: Number,

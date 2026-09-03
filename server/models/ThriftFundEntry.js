@@ -34,6 +34,13 @@ const thriftFundEntrySchema = new mongoose.Schema(
       trim: true,
     },
 
+    particular: {
+      type: String,
+      required: true,
+      default: "By Installement",
+      trim: true,
+    },
+
     yearlyInterestAmount: {
       type: Number,
       default: 0,

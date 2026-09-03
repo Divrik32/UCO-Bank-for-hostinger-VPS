@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions, getThriftPaymentMethods, memberThriftDetailsById, printMemberThriftDetails, printThriftFundReport, getTotalThriftInterest } = require("../controllers/ThriftFundController.js");
+const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions, getThriftPaymentMethods, memberThriftDetailsById, printMemberThriftDetails, printThriftFundReport, getTotalThriftInterest, updateThriftEntryParticular, updateThriftWithdrawalParticular } = require("../controllers/ThriftFundController.js");
 const { updateInterestRate, getInterestRate } = require("../controllers/interestController.js");
 
 router.get("/payment-methods", getThriftPaymentMethods);
@@ -16,5 +16,7 @@ router.get("/member-thrift-details/:memberId", memberThriftDetailsById);
 router.get("/member-thrift-details-pdf/:memberId", printMemberThriftDetails);
 router.get("/thrift-fund-report-pdf", printThriftFundReport);
 router.get("/total-thrift-interest/:memberId", getTotalThriftInterest);
+router.patch("/entry-particular/:id", updateThriftEntryParticular);
+router.patch("/withdrawal-particular/:id", updateThriftWithdrawalParticular);
 
 module.exports = router;

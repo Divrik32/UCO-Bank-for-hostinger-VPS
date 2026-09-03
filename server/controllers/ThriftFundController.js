@@ -119,7 +119,8 @@ const createThriftEntry = async (req, res) => {
     const interestData = await InterestRate.findOne();
     const rate = interestData ? interestData.rate : 7;
 
-    const yearlyInterestAmount = (totalAmountReceived * rate) / 100;
+    const yearlyInterestAmount =
+      (totalAmountReceived * rate) / 100;
 
     const currentBalance =
       await getCurrentBalance(memberId);
@@ -133,6 +134,10 @@ const createThriftEntry = async (req, res) => {
       paymentMethod,
       transactionId,
       chequeNumber,
+
+      // Particular
+      particular: "By Installement",
+
       receivedBy,
       yearlyInterestAmount,
       availableBalance: currentBalance,
@@ -164,7 +169,6 @@ const createThriftWithdrawal = async (req, res) => {
       approvedBy,
     } = req.body;
 
-
     const transactionId = await generateTransactionId();
 
     const currentBalance =
@@ -187,6 +191,10 @@ const createThriftWithdrawal = async (req, res) => {
         paymentMethod,
         transactionId,
         chequeNumber,
+
+        // Particular
+        particular: "Balance refund to member",
+
         approvedBy,
         availableBalance: currentBalance,
         remainingBalance,
@@ -222,23 +230,27 @@ const getTotalTransactionDetails = async (req, res) => {
     });
 
     // Format entries as CREDIT
-    const creditTransactions = entries.map((item) => ({
-      amount: item.totalAmountReceived,
-      type: "Credit",
-      date: item.entryDate,
-      interest:
-        (item.totalAmountReceived * rate * 1) / 1200,
-      transactionId: item.transactionId,
-    }));
+const creditTransactions = entries.map((item) => ({
+  _id: item._id,
+  amount: item.totalAmountReceived,
+  type: "Credit",
+  date: item.entryDate,
+  interest:
+    (item.totalAmountReceived * rate * 1) / 1200,
+  transactionId: item.transactionId,
+  particular: item.particular || "By Installement",
+}));
 
     // Format withdrawals as DEBIT
-    const debitTransactions = withdrawals.map((item) => ({
-      amount: item.withdrawalAmount,
-      type: "Debit",
-      date: item.withdrawalDate,
-      interest: "",
-      transactionId: item.transactionId,
-    }));
+const debitTransactions = withdrawals.map((item) => ({
+  _id: item._id,
+  amount: item.withdrawalAmount,
+  type: "Debit",
+  date: item.withdrawalDate,
+  interest: "",
+  transactionId: item.transactionId,
+  particular: item.particular || "Balance refund to member",
+}));
 
     // Merge + sort by date
     const allTransactions = [
@@ -723,85 +735,186 @@ const printMemberThriftDetails = async (req, res) => {
       });
     }
 
-    // ==========================================
-    // 2. Get ALL Thrift Entries
-    // ==========================================
-    const entries = await ThriftFundEntry.find({
-      memberId: memberId,
-    }).sort({ entryDate: 1 });
+// ==========================================
+// 2. Get ALL Thrift Entries
+// ==========================================
+const entries = await ThriftFundEntry.find({
+  memberId: memberId,
+}).sort({ entryDate: 1 });
 
-    // ==========================================
-    // 3. Get ALL Thrift Withdrawals
-    // ==========================================
-    const withdrawals =
-      await ThriftFundWithdrawal.find({
-        memberId: memberId,
-      }).sort({ withdrawalDate: 1 });
+// ==========================================
+// 3. Get ALL Thrift Withdrawals
+// ==========================================
+const withdrawals = await ThriftFundWithdrawal.find({
+  memberId: memberId,
+}).sort({ withdrawalDate: 1 });
 
-    // ==========================================
-    // 4. Format Entries
-    // ==========================================
-    const entryTransactions =
-      entries.map((item) => ({
-        transactionDate:
-          item.entryDate,
+// ==========================================
+// 4. Format Thrift Entries
+// ==========================================
+const entryTransactions = entries.map((item) => ({
+  _id: item._id,
 
-        amount: Number(
-          item.totalAmountReceived || 0
-        ),
+  transactionDate: item.entryDate,
 
-        interest: Number(
-          item.yearlyInterestAmount || 0
-        ),
+  amount: Number(
+    item.totalAmountReceived || 0
+  ),
 
-        paymentMode:
-          item.paymentMethod || "-",
+  interest: Number(
+    item.yearlyInterestAmount || 0
+  ),
+
+  paymentMode:
+    item.paymentMethod || "-",
+
+  transactionId:
+    item.transactionId || "-",
+
+  transactionType: "Credit",
+
+  type: "Credit",
+
+  // Particular
+  particular: "By Installement",
+
+  isLoanAdjustment: false,
+}));
+
+// ==========================================
+// 5. Format Thrift Withdrawals
+// ==========================================
+const withdrawalTransactions = withdrawals.map((item) => ({
+  _id: item._id,
+
+  transactionDate: item.withdrawalDate,
+
+  amount: Number(
+    item.withdrawalAmount || 0
+  ),
+
+  interest: "-",
+
+  paymentMode:
+    item.paymentMethod || "-",
+
+  transactionId:
+    item.transactionId || "-",
+
+  transactionType: "Debit",
+
+  type: "Debit",
+
+  // Particular
+  particular: "Balance refund to member",
+
+  isLoanAdjustment: false,
+}));
+
+// ==========================================
+// 6. Get ALL Loan Adjustments
+// ONLY:
+// Amount given from thrift A/C
+// Both
+// ==========================================
+const loanAdjustments =
+  await loanAdjustmentModel.find({
+    memberId: memberId,
+  }).sort({
+    createdAt: 1,
+  });
+
+// ==========================================
+// 7. Format Loan Adjustment Transactions
+// ==========================================
+// Amount given from thrift A/C
+// → adjustmentAmount
+//
+// Both
+// → thriftAdjustmentAmount
+// ==========================================
+const loanAdjustmentTransactions =
+  loanAdjustments
+    .filter(
+      (item) =>
+        item.paymentMode ===
+          "Amount given from thrift A/C" ||
+        item.paymentMode === "Both"
+    )
+    .map((item) => {
+
+      const adjustmentAmount =
+        item.paymentMode === "Both"
+          ? Number(
+              item.thriftAdjustmentAmount || 0
+            )
+          : Number(
+              item.adjustmentAmount || 0
+            );
+
+      return {
+        _id: item._id,
+
+        // Thrift amount transferred to loan
+        amount: adjustmentAmount,
+
+        type: "Debit",
+
+        transactionType: "Debit",
+
+        // Same as Share controller
+        transactionDate: item.createdAt,
+
+        createdAt: item.createdAt,
+
+        interest: 0,
 
         transactionId:
           item.transactionId || "-",
 
-        transactionType: "Entry",
-      }));
-
-    // ==========================================
-    // 5. Format Withdrawals
-    // ==========================================
-    const withdrawalTransactions =
-      withdrawals.map((item) => ({
-        transactionDate:
-          item.withdrawalDate,
-
-        amount: Number(
-          item.withdrawalAmount || 0
-        ),
-
-        interest: "-",
-
         paymentMode:
-          item.paymentMethod || "-",
+          item.paymentMode || "-",
 
-        transactionId:
-          item.transactionId || "-",
+        particular:
+          "Balance Transfer to loan Account",
 
-        transactionType: "Withdrawal",
-      }));
-
-    // ==========================================
-    // 6. Merge Transactions
-    // ==========================================
-    const transactions = [
-      ...entryTransactions,
-      ...withdrawalTransactions,
-    ];
-
-    // ==========================================
-    // 7. Latest → Earliest
-    // ==========================================
-    transactions.sort(
-      (a, b) =>
-        new Date(b.transactionDate) -
-        new Date(a.transactionDate)
+        isLoanAdjustment: true,
+      };
+    })
+    .filter(
+      (item) =>
+        Number(item.amount || 0) > 0
     );
+
+// ==========================================
+// 8. Merge ALL Transactions
+// ==========================================
+const transactions = [
+  ...entryTransactions,
+  ...withdrawalTransactions,
+  ...loanAdjustmentTransactions,
+];
+
+// ==========================================
+// 8. EARLIEST → LATEST
+// ==========================================
+transactions.sort((a, b) => {
+  const dateA = new Date(
+    a.transactionDate ||
+      a.entryDate ||
+      a.withdrawalDate ||
+      a.createdAt
+  ).getTime();
+
+  const dateB = new Date(
+    b.transactionDate ||
+      b.entryDate ||
+      b.withdrawalDate ||
+      b.createdAt
+  ).getTime();
+
+  return dateA - dateB;
+});
 
     // ==========================================
     // 8. Calculate Totals
@@ -874,63 +987,203 @@ const printMemberThriftDetails = async (req, res) => {
         .replace(/\//g, "-");
     };
 
-    // ==========================================
-    // 11. Transaction Rows
-    // ==========================================
-    const transactionRows =
-      transactions
-        .map(
-          (transaction, index) => `
-            <tr>
+// ==========================================
+// 11. Transaction Rows
+// ==========================================
 
-              <td>
-                ${index + 1}
-              </td>
+// Running balance starts from zero
+let runningBalance = 0;
 
-              <td>
-                ${formatDate(
-                  transaction.transactionDate
-                )}
-              </td>
+const transactionRows =
+  transactions
+    .map((transaction, index) => {
 
-              <td>
-                ₹${Number(
-                  transaction.amount || 0
-                ).toLocaleString("en-IN")}
-              </td>
+      // ==========================================
+      // Transaction Type
+      // ==========================================
+      let transactionType =
+        transaction.transactionType ||
+        transaction.type ||
+        "";
 
-              <td>
-                ${
-                  transaction.interest === "-"
-                    ? "-"
-                    : `₹${Number(
-                        transaction.interest || 0
-                      ).toLocaleString("en-IN")}`
-                }
-              </td>
+      // Normalize Entry/Credit
+      if (
+        transactionType === "Entry" ||
+        transactionType === "Credit"
+      ) {
+        transactionType = "Credit";
+      }
 
-              <td>
-                ${valueOrDash(
-                  transaction.paymentMode
-                )}
-              </td>
+      // Normalize Withdrawal/Debit
+      else if (
+        transactionType === "Withdrawal" ||
+        transactionType === "Debit"
+      ) {
+        transactionType = "Debit";
+      }
 
-              <td>
-                ${valueOrDash(
-                  transaction.transactionId
-                )}
-              </td>
+      // ==========================================
+      // Amount
+      // ==========================================
+      let amount = 0;
 
-              <td>
-                ${valueOrDash(
-                  transaction.transactionType
-                )}
-              </td>
+      if (transactionType === "Credit") {
 
-            </tr>
-          `
-        )
-        .join("");
+        amount = Number(
+          transaction.amount ??
+            transaction.totalAmountReceived ??
+            0
+        );
+
+      } else if (
+        transactionType === "Debit"
+      ) {
+
+        amount = Number(
+          transaction.amount ??
+            transaction.withdrawalAmount ??
+            0
+        );
+      }
+
+      // ==========================================
+      // Running Balance
+      // ==========================================
+      if (transactionType === "Credit") {
+
+        runningBalance += amount;
+
+      } else if (
+        transactionType === "Debit"
+      ) {
+
+        runningBalance -= amount;
+      }
+
+      // ==========================================
+      // Particular
+      // ==========================================
+      let particular =
+        transaction.particular;
+
+      if (!particular) {
+
+        if (
+          transactionType === "Credit"
+        ) {
+
+          particular =
+            "By Installement";
+
+        } else if (
+          transactionType === "Debit"
+        ) {
+
+          particular =
+            "Balance refund to member";
+
+        } else {
+
+          particular = "-";
+        }
+      }
+
+      // ==========================================
+      // Debit Amount
+      // ==========================================
+      const debitAmount =
+        transactionType === "Debit"
+          ? `₹${amount.toLocaleString(
+              "en-IN",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}`
+          : "";
+
+      // ==========================================
+      // Credit Amount
+      // ==========================================
+      const creditAmount =
+        transactionType === "Credit"
+          ? `₹${amount.toLocaleString(
+              "en-IN",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}`
+          : "";
+
+      // ==========================================
+      // Balance
+      // ==========================================
+      const balanceAmount =
+        `₹${runningBalance.toLocaleString(
+          "en-IN",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }
+        )}`;
+
+      // ==========================================
+      // Transaction Date
+      // ==========================================
+      const transactionDate =
+        transaction.transactionDate ||
+        transaction.entryDate ||
+        transaction.withdrawalDate ||
+        transaction.createdAt;
+
+      // ==========================================
+      // Return Row
+      // ==========================================
+      return `
+        <tr>
+
+          <!-- Sl No -->
+          <td>
+            ${index + 1}
+          </td>
+
+          <!-- Date -->
+          <td>
+            ${formatDate(transactionDate)}
+          </td>
+
+          <!-- Particulars -->
+          <td class="particular">
+            ${valueOrDash(particular)}
+          </td>
+
+          <!-- Debit -->
+          <td class="amount">
+            ${debitAmount}
+          </td>
+
+          <!-- Credit -->
+          <td class="amount">
+            ${creditAmount}
+          </td>
+
+          <!-- Balance -->
+          <td class="balance">
+            ${balanceAmount}
+          </td>
+
+          <!-- Transaction ID -->
+          <td class="transaction-id">
+            ${valueOrDash(
+              transaction.transactionId
+            )}
+          </td>
+
+        </tr>
+      `;
+    })
+    .join("");
 
     // ==========================================
     // 12. HTML FOR PDF
@@ -1439,41 +1692,41 @@ const printMemberThriftDetails = async (req, res) => {
 
             <table>
 
-              <thead>
+<thead>
 
-                <tr>
+  <tr>
 
-                  <th>
-                    Sl.
-                  </th>
+    <th>
+      Sl No
+    </th>
 
-                  <th>
-                    Transaction Date
-                  </th>
+    <th>
+      Date
+    </th>
 
-                  <th>
-                    Amount
-                  </th>
+    <th>
+      Particulars
+    </th>
 
-                  <th>
-                    Interest
-                  </th>
+    <th>
+      Debit Rs
+    </th>
 
-                  <th>
-                    Payment Mode
-                  </th>
+    <th>
+      Credit Rs
+    </th>
 
-                  <th>
-                    Transaction ID
-                  </th>
+    <th>
+      Balance Rs
+    </th>
 
-                  <th>
-                    Type
-                  </th>
+    <th>
+      Transaction ID
+    </th>
 
-                </tr>
+  </tr>
 
-              </thead>
+</thead>
 
               <tbody>
 
@@ -2106,6 +2359,96 @@ const getTotalThriftInterest = async (req, res) => {
   }
 };
 
+const updateThriftEntryParticular = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { particular } = req.body;
+
+    if (!particular || !particular.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Particular is required",
+      });
+    }
+
+    const entry = await ThriftFundEntry.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          particular: particular.trim(),
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: "Thrift fund entry not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Particular updated successfully",
+      data: entry,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateThriftWithdrawalParticular = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { particular } = req.body;
+
+    if (!particular || !particular.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Particular is required",
+      });
+    }
+
+    const withdrawal = await ThriftFundWithdrawal.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          particular: particular.trim(),
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: "Thrift fund withdrawal not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Particular updated successfully",
+      data: withdrawal,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getThriftPaymentMethods,
   createThriftEntry,
@@ -2117,5 +2460,7 @@ module.exports = {
   memberThriftDetailsById,
   printMemberThriftDetails,
   printThriftFundReport,
-  getTotalThriftInterest
+  getTotalThriftInterest,
+  updateThriftEntryParticular,
+  updateThriftWithdrawalParticular
 };

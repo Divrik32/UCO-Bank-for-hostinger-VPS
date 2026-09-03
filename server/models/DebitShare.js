@@ -45,6 +45,15 @@ const debitShareSchema = new mongoose.Schema(
       trim: true,
       required: true,
     },
+        bookNo: {
+      type: String,
+      trim: true,
+    },
+
+    certificateNo: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

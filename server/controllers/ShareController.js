@@ -97,7 +97,7 @@ const getShareCurrentBalance = async (memberId) => {
     0
   );
 
-  const totalLoanAdjustment = loanAdjustments.reduce(
+  const totalLoanAdjustment = loanAdjustmentModel.reduce(
     (sum, item) => {
       if (item.paymentMode === "Both") {
         return sum + Number(item.shareAdjustmentAmount || 0);
@@ -284,7 +284,43 @@ exports.getAllCreditShare = async(req,res)=>{
 
 };
 
+exports.updateCreditShareDocuments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bookNo, certificateNo } = req.body;
 
+    const creditShare = await CreditShare.findById(id);
+
+    if (!creditShare) {
+      return res.status(404).json({
+        success: false,
+        message: "Credit share transaction not found",
+      });
+    }
+
+    // শুধুমাত্র যেটা পাঠানো হয়েছে সেটাই update হবে
+    if (bookNo !== undefined) {
+      creditShare.bookNo = bookNo;
+    }
+
+    if (certificateNo !== undefined) {
+      creditShare.certificateNo = certificateNo;
+    }
+
+    await creditShare.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Credit share document details updated successfully",
+      data: creditShare,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 /* ================= DEBIT SHARE ================= */
 
@@ -389,7 +425,43 @@ exports.getAllDebitShare = async(req,res)=>{
 
 };
 
+exports.updateDebitShareDocuments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bookNo, certificateNo } = req.body;
 
+    const debitShare = await DebitShare.findById(id);
+
+    if (!debitShare) {
+      return res.status(404).json({
+        success: false,
+        message: "Debit share transaction not found",
+      });
+    }
+
+    // শুধুমাত্র যেটা পাঠানো হয়েছে সেটাই update হবে
+    if (bookNo !== undefined) {
+      debitShare.bookNo = bookNo;
+    }
+
+    if (certificateNo !== undefined) {
+      debitShare.certificateNo = certificateNo;
+    }
+
+    await debitShare.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Debit share document details updated successfully",
+      data: debitShare,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 /* ================= SHARE AVAILABLE BALANCE ================= */
 
@@ -838,7 +910,21 @@ exports.getMemberShareTransactions = async (req, res) => {
     });
 
     // ==========================================
-    // 5. Create member lookup
+    // 5. Get ALL Loan Adjustments
+    //    Only Share A/C related adjustments
+    // ==========================================
+    const loanAdjustments = await loanAdjustmentModel.find({
+      memberId: { $in: memberIds },
+      paymentMode: {
+        $in: [
+          "Amount given from Share A/C",
+          "Both",
+        ],
+      },
+    });
+
+    // ==========================================
+    // 6. Create member lookup
     // ==========================================
     const memberMap = new Map();
 
@@ -855,7 +941,7 @@ exports.getMemberShareTransactions = async (req, res) => {
     });
 
     // ==========================================
-    // 6. Format Credit Transactions
+    // 7. Format Credit Transactions
     // ==========================================
     const creditTransactions = credits.map(
       (item) => {
@@ -892,7 +978,7 @@ exports.getMemberShareTransactions = async (req, res) => {
     );
 
     // ==========================================
-    // 7. Format Debit Transactions
+    // 8. Format Debit Share Transactions
     // ==========================================
     const debitTransactions = debits.map(
       (item) => {
@@ -929,24 +1015,73 @@ exports.getMemberShareTransactions = async (req, res) => {
     );
 
     // ==========================================
-    // 8. Merge Credit + Debit
+    // 9. Format Loan Adjustment Transactions
+    // ==========================================
+    const loanAdjustmentTransactions =
+      loanAdjustments.map((item) => {
+        const member =
+          memberMap.get(item.memberId);
+
+        // "Both" হলে shareAdjustmentAmount
+        // আর Share A/C হলে adjustmentAmount
+        const shareAmount =
+          item.paymentMode === "Both"
+            ? Number(
+                item.shareAdjustmentAmount || 0
+              )
+            : Number(
+                item.adjustmentAmount || 0
+              );
+
+        return {
+          memberId: item.memberId,
+
+          membershipNumber: member
+            ? member.membershipNumber
+            : "-",
+
+          memberName: member
+            ? member.memberName
+            : "-",
+
+          transactionDate:
+            item.createdAt,
+
+          shareAmount,
+
+          paymentMode:
+            item.paymentMode || "-",
+
+          transactionId:
+            item.transactionId || "-",
+
+          // Loan Adjustment-ও Share Balance-এর
+          // জন্য Debit হিসেবে ধরা হবে
+          transactionType:
+            "Debit",
+        };
+      });
+
+    // ==========================================
+    // 10. Merge all transactions
     // ==========================================
     const allTransactions = [
       ...creditTransactions,
       ...debitTransactions,
+      ...loanAdjustmentTransactions,
     ];
 
-    // ==========================================
-    // 9. Latest → Earliest
-    // ==========================================
-    allTransactions.sort(
-      (a, b) =>
-        new Date(b.transactionDate) -
-        new Date(a.transactionDate)
-    );
+// ==========================================
+// 11. Earliest → Latest
+// ==========================================
+allTransactions.sort(
+  (a, b) =>
+    new Date(a.transactionDate) -
+    new Date(b.transactionDate)
+);
 
     // ==========================================
-    // 10. Add Serial Number
+    // 12. Add Serial Number
     // ==========================================
     const formattedData =
       allTransactions.map(
@@ -957,7 +1092,7 @@ exports.getMemberShareTransactions = async (req, res) => {
       );
 
     // ==========================================
-    // 11. Response
+    // 13. Response
     // ==========================================
     return res.status(200).json({
       success: true,
@@ -1284,151 +1419,163 @@ exports.printMemberShareDetails = async (req, res) => {
 
       });
 
-    // ==========================================
-    // 4. Format Credit Transactions
-    // ==========================================
-    const creditTransactions =
-      credits.map((item) => ({
+// ==========================================
+// 4. Get ALL Loan Adjustments
+// ==========================================
+const loanAdjustments =
+  await loanAdjustmentModel.find({
+    memberId: memberId,
+  }).sort({
+    createdAt: 1,
+  });
 
-        transactionDate:
-          item.createdAt,
+// ==========================================
+// 5. Format Credit Transactions
+// ==========================================
+const creditTransactions =
+  credits.map((item) => ({
+    id: item._id,
+    amount: Number(
+      item.investmentAmount || 0
+    ),
+    paymentMode:
+      item.paymentMode || "-",
+    transactionId:
+      item.transactionId || "-",
+    type: "Credit",
+    createdAt: item.createdAt,
+    bookNo: item.bookNo || "",
+    certificateNo:
+      item.certificateNo || "",
+  }));
 
-        amount:
-          Number(
-            item.investmentAmount || 0
-          ),
+// ==========================================
+// 6. Format Debit Transactions
+// ==========================================
+const debitTransactions =
+  debits.map((item) => ({
+    id: item._id,
+    amount: Number(
+      item.amount || 0
+    ),
+    paymentMode:
+      item.paymentMode || "-",
+    transactionId:
+      item.transactionId || "-",
+    type: "Debit",
+    createdAt: item.createdAt,
+    bookNo: item.bookNo || "",
+    certificateNo:
+      item.certificateNo || "",
+  }));
 
+// ==========================================
+// 7. Format Loan Adjustments
+// ONLY:
+// Amount given from Share A/C
+// Both
+// ==========================================
+const loanAdjustmentTransactions =
+  loanAdjustments
+    .filter(
+      (item) =>
+        item.paymentMode ===
+          "Amount given from Share A/C" ||
+        item.paymentMode === "Both"
+    )
+    .map((item) => {
+      const adjustmentAmount =
+        item.paymentMode === "Both"
+          ? Number(
+              item.shareAdjustmentAmount || 0
+            )
+          : Number(
+              item.adjustmentAmount || 0
+            );
+
+      return {
+        id: item._id,
+        amount: adjustmentAmount,
         paymentMode:
           item.paymentMode || "-",
-
         transactionId:
           item.transactionId || "-",
+        type: "Debit",
+        createdAt: item.createdAt,
+        bookNo: "",
+        certificateNo: "",
+        isLoanAdjustment: true,
+      };
+    });
 
-        transactionType:
-          "Credit",
+// ==========================================
+// 8. Merge ALL Transactions
+// ==========================================
+const transactions = [
+  ...creditTransactions,
+  ...debitTransactions,
+  ...loanAdjustmentTransactions,
+];
 
-      }));
+// ==========================================
+// 9. Earliest → Latest
+// ==========================================
+transactions.sort((a, b) => {
+  const dateA =
+    new Date(a.createdAt).getTime();
 
-    // ==========================================
-    // 5. Format Debit Transactions
-    // ==========================================
-    const debitTransactions =
-      debits.map((item) => ({
+  const dateB =
+    new Date(b.createdAt).getTime();
 
-        transactionDate:
-          item.createdAt,
-
-        amount:
-          Number(
-            item.amount || 0
-          ),
-
-        paymentMode:
-          item.paymentMode || "-",
-
-        transactionId:
-          item.transactionId || "-",
-
-        transactionType:
-          "Debit",
-
-      }));
-
-    // ==========================================
-    // 6. Merge Transactions
-    // ==========================================
-    const transactions = [
-
-      ...creditTransactions,
-
-      ...debitTransactions,
-
-    ];
-
-    // ==========================================
-    // 7. Latest → Earliest
-    // ==========================================
-    transactions.sort(
-
-      (a, b) =>
-
-        new Date(b.transactionDate) -
-
-        new Date(a.transactionDate)
-
-    );
+  return dateA - dateB;
+});
 
     // ==========================================
     // 8. Calculate Totals
     // ==========================================
 
-    const totalCreditAmount =
-      creditTransactions.reduce(
+const totalCreditAmount =
+  transactions
+    .filter(
+      (item) => item.type === "Credit"
+    )
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
 
-        (sum, item) =>
+const totalDebitAmount =
+  transactions
+    .filter(
+      (item) => item.type === "Debit"
+    )
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
 
-          sum + Number(item.amount || 0),
-
-        0
-
-      );
-
-    const totalDebitAmount =
-      debitTransactions.reduce(
-
-        (sum, item) =>
-
-          sum + Number(item.amount || 0),
-
-        0
-
-      );
-
-    const netShareAmount =
-      totalCreditAmount -
-      totalDebitAmount;
+const netShareAmount =
+  totalCreditAmount -
+  totalDebitAmount;
 
     // ==========================================
     // 9. First Transaction Date
     // ==========================================
 
-    let firstTransactionDate = "-";
+let firstTransactionDate = "-";
 
-    if (transactions.length > 0) {
-
-      const sortedTransactions = [
-
-        ...transactions,
-
-      ].sort(
-
-        (a, b) =>
-
-          new Date(a.transactionDate) -
-
-          new Date(b.transactionDate)
-
-      );
-
-      firstTransactionDate =
-
-        sortedTransactions[0]
-          .transactionDate
-
-          ? new Date(
-
-              sortedTransactions[0]
-                .transactionDate
-
-            )
-
-              .toLocaleDateString("en-GB")
-
-              .replace(/\//g, "-")
-
-          : "-";
-
-    }
+if (transactions.length > 0) {
+  firstTransactionDate =
+    transactions[0].createdAt
+      ? new Date(
+          transactions[0].createdAt
+        )
+          .toLocaleDateString("en-GB")
+          .replace(/\//g, "-")
+      : "-";
+}
 
     // ==========================================
     // 10. Helpers
@@ -1468,79 +1615,134 @@ exports.printMemberShareDetails = async (req, res) => {
     // 11. Transaction Rows
     // ==========================================
 
-    const transactionRows =
+// ==========================================
+// 11. Transaction Rows
+// SAME LOGIC AS SharePurchase
+// ==========================================
 
-      transactions
+const PRICE_PER_SHARE = 20;
 
-        .map(
+let runningBalance = 0;
 
-          (transaction, index) => `
+const transactionRows =
+  transactions
+    .map((transaction, index) => {
 
-            <tr>
+      const amount =
+        Number(transaction.amount || 0);
 
-              <td>
+      // ==========================================
+      // Credit = ADD
+      // Debit = MINUS
+      // ==========================================
+      if (transaction.type === "Credit") {
+        runningBalance += amount;
+      } else if (
+        transaction.type === "Debit"
+      ) {
+        runningBalance -= amount;
+      }
 
-                ${index + 1}
+      const remainingShares =
+        runningBalance / PRICE_PER_SHARE;
 
-              </td>
+      return `
+        <tr>
 
-              <td>
+          <!-- Sl No -->
+          <td>
+            ${index + 1}
+          </td>
 
-                ${formatDate(
+          <!-- Date -->
+          <td style="white-space: nowrap;">
+            ${formatDate(
+              transaction.createdAt
+            )}
+          </td>
 
-                  transaction.transactionDate
+          <!-- Particulars -->
+          <td style="white-space: nowrap;">
+            By ${
+              amount / PRICE_PER_SHARE
+            } shares
+          </td>
 
-                )}
+          <!-- Amount -->
+          <td
+            style="
+              text-align: right;
+              font-weight: 600;
+              white-space: nowrap;
+            "
+          >
+            ₹${amount.toLocaleString(
+              "en-IN"
+            )}
+          </td>
 
-              </td>
+          <!-- Credit / Debit -->
+          <td>
+            ${
+              transaction.isLoanAdjustment
+                ? "Paid to Loan Account"
+                : transaction.type || "Debit"
+            }
+          </td>
 
-              <td>
+          <!-- Balance Amount -->
+          <td
+            style="
+              text-align: right;
+              font-weight: 700;
+              white-space: nowrap;
+            "
+          >
+            ₹${runningBalance.toLocaleString(
+              "en-IN",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}
+          </td>
 
-                ₹${Number(
+          <!-- Remaining Shares -->
+          <td
+            style="
+              font-weight: 700;
+              white-space: nowrap;
+            "
+          >
+            ${
+              remainingShares % 1 === 0
+                ? remainingShares
+                : remainingShares.toFixed(2)
+            }
+          </td>
 
-                  transaction.amount || 0
+          <!-- Book No -->
+          <td>
+            ${
+              transaction.isLoanAdjustment
+                ? "-"
+                : transaction.bookNo || "-"
+            }
+          </td>
 
-                ).toLocaleString("en-IN")}
+          <!-- Certificate No -->
+          <td>
+            ${
+              transaction.isLoanAdjustment
+                ? "-"
+                : transaction.certificateNo || "-"
+            }
+          </td>
 
-              </td>
-
-              <td>
-
-                ${valueOrDash(
-
-                  transaction.paymentMode
-
-                )}
-
-              </td>
-
-              <td>
-
-                ${valueOrDash(
-
-                  transaction.transactionId
-
-                )}
-
-              </td>
-
-              <td>
-
-                ${valueOrDash(
-
-                  transaction.transactionType
-
-                )}
-
-              </td>
-
-            </tr>
-
-          `
-
-        )
-
-        .join("");
+        </tr>
+      `;
+    })
+    .join("");
 
     // ==========================================
     // 12. HTML FOR PDF
@@ -2234,49 +2436,49 @@ exports.printMemberShareDetails = async (req, res) => {
 
             <table>
 
-              <thead>
+             <thead>
 
-                <tr>
+  <tr>
 
-                  <th>
+    <th>
+      Sl No
+    </th>
 
-                    Sl.
+    <th>
+      Date
+    </th>
 
-                  </th>
+    <th>
+      Particulars
+    </th>
 
-                  <th>
+    <th>
+      Amount
+    </th>
 
-                    Transaction Date
+    <th>
+      Credit/Debit
+    </th>
 
-                  </th>
+    <th>
+      Balance Amount
+    </th>
 
-                  <th>
+    <th>
+      No. (s) of Share Remained
+    </th>
 
-                    Amount
+    <th>
+      Book No.
+    </th>
 
-                  </th>
+    <th>
+      Certificate No.
+    </th>
 
-                  <th>
+  </tr>
 
-                    Payment Mode
-
-                  </th>
-
-                  <th>
-
-                    Transaction ID
-
-                  </th>
-
-                  <th>
-
-                    Type
-
-                  </th>
-
-                </tr>
-
-              </thead>
+</thead>
 
               <tbody>
 
@@ -2288,7 +2490,7 @@ exports.printMemberShareDetails = async (req, res) => {
 
                     <tr>
 
-                      <td colspan="6">
+                      <td colspan="9">
 
                         No transactions found.
 

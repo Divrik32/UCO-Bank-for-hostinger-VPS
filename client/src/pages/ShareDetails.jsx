@@ -27,27 +27,127 @@ export default function ShareDetails() {
     fetchMemberShareDetails();
   }, [memberId]);
 
-  const fetchMemberShareDetails = async () => {
-    try {
-      setLoading(true);
-      setError("");
+const fetchMemberShareDetails = async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-      const res = await api.get(
-        `/share/member-share-details/${memberId}`
-      );
+    // ==========================================
+    // MEMBER DETAILS
+    // ==========================================
+    const res = await api.get(
+      `/share/member-share-details/${memberId}`
+    );
 
-      setMember(res.data.data);
-    } catch (err) {
-      console.error(err);
+    const memberData = res.data.data;
 
-      setError(
-        err.response?.data?.message ||
-          "Failed to load member share details."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    // ==========================================
+    // FETCH SHARE TRANSACTIONS
+    // SAME LOGIC AS SharePurchase
+    // ==========================================
+    const creditRes = await api.get(
+      `/share/credit-share/${memberId}`
+    );
+
+    const debitRes = await api.get(
+      `/share/debit-share/${memberId}`
+    );
+
+    const loanAdjustmentRes = await api.get(
+      `/loan/loan-adjustment/${memberId}`
+    );
+
+    // ==========================================
+    // CREDIT TRANSACTIONS
+    // ==========================================
+    const credits = creditRes.data.data.map((item) => ({
+      id: item._id,
+      amount: Number(item.investmentAmount || 0),
+      transactionType: "Credit",
+      createdAt: item.createdAt,
+      bookNo: item.bookNo || "",
+      certificateNo: item.certificateNo || "",
+    }));
+
+    // ==========================================
+    // DEBIT TRANSACTIONS
+    // ==========================================
+    const debits = debitRes.data.data.map((item) => ({
+      id: item._id,
+      amount: Number(item.amount || 0),
+      transactionType: "Debit",
+      createdAt: item.createdAt,
+      bookNo: item.bookNo || "",
+      certificateNo: item.certificateNo || "",
+    }));
+
+    // ==========================================
+    // LOAN ADJUSTMENTS
+    // ONLY:
+    // Amount given from Share A/C
+    // Both
+    // ==========================================
+    const loanAdjustments = loanAdjustmentRes.data.data
+      .filter(
+        (item) =>
+          item.paymentMode === "Amount given from Share A/C" ||
+          item.paymentMode === "Both"
+      )
+      .map((item) => {
+        const adjustmentAmount =
+          item.paymentMode === "Both"
+            ? Number(item.shareAdjustmentAmount || 0)
+            : Number(item.adjustmentAmount || 0);
+
+        return {
+          id: item._id,
+          amount: adjustmentAmount,
+          transactionType: "Debit",
+          createdAt: item.createdAt,
+          bookNo: "",
+          certificateNo: "",
+          isLoanAdjustment: true,
+        };
+      });
+
+    // ==========================================
+    // COMBINE ALL TRANSACTIONS
+    // ==========================================
+    const allTransactions = [
+      ...credits,
+      ...debits,
+      ...loanAdjustments,
+    ];
+
+    // ==========================================
+    // EARLIEST → LATEST
+    // ==========================================
+    allTransactions.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+
+      return dateA - dateB;
+    });
+
+    // ==========================================
+    // SET MEMBER WITH FINAL TRANSACTIONS
+    // ==========================================
+    setMember({
+      ...memberData,
+      transactions: allTransactions,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    setError(
+      err.response?.data?.message ||
+        "Failed to load member share details."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ==========================================
   // FORMAT DATE
@@ -132,6 +232,13 @@ const totalWithdrawalAmount = (member.transactions || [])
   );
 
 const netShareAmount = totalEntryAmount - totalWithdrawalAmount;
+const sortedTransactions = [...(member.transactions || [])].sort(
+  (a, b) =>
+    new Date(a.transactionDate || a.createdAt).getTime() -
+    new Date(b.transactionDate || b.createdAt).getTime()
+);
+
+let runningBalance = 0;
 
   const role = localStorage.getItem("role");
 
@@ -552,146 +659,227 @@ const netShareAmount = totalEntryAmount - totalWithdrawalAmount;
           TRANSACTION INFORMATION
       ========================================== */}
 
-      <div
-        className="print-card"
-        style={styles.card}
-      >
+<div
+  className="print-card"
+  style={styles.card}
+>
+  <h5 style={styles.cardTitle}>
+    Total Transaction Details
+  </h5>
 
-        <h5 style={styles.cardTitle}>
-          Transaction Information
-        </h5>
+  <div style={styles.tableWrapper}>
+    <table
+      style={{
+        ...styles.table,
+        minWidth: "1050px",
+      }}
+    >
+      <thead>
+        <tr style={styles.theadRow}>
+          <th style={styles.th}>
+            Sl No
+          </th>
 
+          <th style={styles.th}>
+            Date
+          </th>
 
-        <div style={styles.tableWrapper}>
+          <th style={styles.th}>
+            Particulars
+          </th>
 
-          <table style={styles.table}>
+          <th style={styles.th}>
+            Amount
+          </th>
 
-            <thead>
+          <th style={styles.th}>
+            Credit/Debit
+          </th>
 
-              <tr style={styles.theadRow}>
+          <th style={styles.th}>
+            Balance Amount
+          </th>
 
-                <th style={styles.th}>
-                  Sl.
-                </th>
+          <th style={styles.th}>
+            No. (s) of Share Remained
+          </th>
 
-                <th style={styles.th}>
-                  Transaction Date
-                </th>
+          <th style={styles.th}>
+            Book No.
+          </th>
 
-                <th style={styles.th}>
-                  Amount
-                </th>
+          <th style={styles.th}>
+            Certificate No.
+          </th>
+        </tr>
+      </thead>
 
-                <th style={styles.th}>
-                  Interest
-                </th>
+      <tbody>
+        {sortedTransactions.length === 0 ? (
+          <tr>
+            <td
+              colSpan={9}
+              style={{
+                ...styles.td,
+                padding: "28px",
+                color: "#aaa",
+              }}
+            >
+              No transactions found.
+            </td>
+          </tr>
+        ) : (
+          sortedTransactions.map((transaction, index) => {
+            const amount = Number(transaction.amount || 0);
 
-                <th style={styles.th}>
-                  Payment Mode
-                </th>
+            /* --------------------------------
+               Credit = ADD
+               Debit  = MINUS
+            -------------------------------- */
+            if (transaction.transactionType === "Credit") {
+              runningBalance += amount;
+            } else if (
+              transaction.transactionType === "Debit"
+            ) {
+              runningBalance -= amount;
+            }
 
-                <th style={styles.th}>
-                  Transaction ID
-                </th>
+            const remainingShares =
+              runningBalance / 20;
 
-                <th style={styles.th}>
-                  Type
-                </th>
+            return (
+              <tr key={`${transaction.transactionId || transaction._id}-${index}`}>
+                {/* Sl No */}
+                <td style={styles.td}>
+                  {index + 1}
+                </td>
 
-              </tr>
+                {/* Date */}
+                <td
+                  style={{
+                    ...styles.td,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatDate(
+                    transaction.transactionDate ||
+                      transaction.createdAt
+                  )}
+                </td>
 
-            </thead>
+                {/* Particulars */}
+                <td
+                  style={{
+                    ...styles.td,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {`By ${amount / 20} shares`}
+                </td>
 
+                {/* Amount */}
+                <td
+                  style={{
+                    ...styles.td,
+                    textAlign: "right",
+                    fontWeight: "600",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ₹
+                  {amount.toLocaleString(
+                    "en-IN"
+                  )}
+                </td>
 
-            <tbody>
-
-              {!member.transactions ||
-              member.transactions.length === 0 ? (
-
-                <tr>
-
-                  <td
-                    colSpan={7}
-                    style={styles.td}
+                {/* Credit / Debit */}
+                <td style={styles.td}>
+                  <span
+                    style={
+                      transaction.transactionType ===
+                      "Credit"
+                        ? {
+                            display: "inline-block",
+                            padding: "3px 10px",
+                            borderRadius: "20px",
+                            backgroundColor:
+                              "#d4f8e8",
+                            color: "#1a7a4a",
+                            fontWeight: "600",
+                            fontSize: "12px",
+                          }
+                        : {
+                            display: "inline-block",
+                            padding: "3px 10px",
+                            borderRadius: "20px",
+                            backgroundColor:
+                              "#fde8e8",
+                            color: "#c0392b",
+                            fontWeight: "600",
+                            fontSize: "12px",
+                          }
+                    }
                   >
-                    No transactions found.
-                  </td>
+                    {transaction.isLoanAdjustment
+                      ? "Paid to Loan Account"
+                      : transaction.transactionType ||
+                        "Debit"}
+                  </span>
+                </td>
 
-                </tr>
+                {/* Balance Amount */}
+                <td
+                  style={{
+                    ...styles.td,
+                    textAlign: "right",
+                    fontWeight: "700",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ₹
+                  {runningBalance.toLocaleString(
+                    "en-IN",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}
+                </td>
 
-              ) : (
+                {/* Remaining Shares */}
+                <td
+                  style={{
+                    ...styles.td,
+                    fontWeight: "700",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {remainingShares % 1 === 0
+                    ? remainingShares
+                    : remainingShares.toFixed(2)}
+                </td>
 
-                member.transactions.map(
-                  (transaction, index) => (
+                {/* Book No */}
+                <td style={styles.td}>
+                  {transaction.isLoanAdjustment
+                    ? "-"
+                    : transaction.bookNo || "-"}
+                </td>
 
-                    <tr
-                      key={`${transaction.transactionId}-${index}`}
-                    >
-
-                      <td style={styles.td}>
-                        {index + 1}
-                      </td>
-
-
-                      <td style={styles.td}>
-                        {formatDate(
-                          transaction.transactionDate
-                        )}
-                      </td>
-
-
-                      <td style={styles.td}>
-                        ₹
-                        {Number(
-                          transaction.amount || 0
-                        ).toLocaleString("en-IN")}
-                      </td>
-
-
-                      <td style={styles.td}>
-
-                        {transaction.interest === "-"
-                          ? "-"
-                          : `₹${Number(
-                              transaction.interest || 0
-                            ).toLocaleString(
-                              "en-IN"
-                            )}`}
-
-                      </td>
-
-
-                      <td style={styles.td}>
-                        {transaction.paymentMode ||
-                          "-"}
-                      </td>
-
-
-                      <td style={styles.td}>
-                        {transaction.transactionId ||
-                          "-"}
-                      </td>
-
-
-                      <td style={styles.td}>
-                        {transaction.transactionType ||
-                          "-"}
-                      </td>
-
-                    </tr>
-
-                  )
-                )
-
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
+                {/* Certificate No */}
+                <td style={styles.td}>
+                  {transaction.isLoanAdjustment
+                    ? "-"
+                    : transaction.certificateNo || "-"}
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
 
     </div>
   );

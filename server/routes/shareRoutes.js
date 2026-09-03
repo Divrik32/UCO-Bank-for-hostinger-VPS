@@ -19,7 +19,9 @@ const {
   printShareReport,
   getDividendPayments,
   createDividendPayment,
-  getDividendAvailableBalance
+  getDividendAvailableBalance,
+  updateDebitShareDocuments,
+  updateCreditShareDocuments
 } = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
@@ -29,11 +31,12 @@ router.put("/share-interest", updateShareInterest);
 /* ================= CREDIT SHARE ================= */
 router.post("/credit-share", createCreditShare);
 router.get("/credit-share/:memberId", getAllCreditShare);
+router.put("/credit-share/:id/documents", updateCreditShareDocuments);
 
 /* ================= DEBIT SHARE ================= */
 router.post("/debit-share", createDebitShare);
 router.get("/debit-share/:memberId", getAllDebitShare);
-
+router.put("/debit-share/:id/documents", updateDebitShareDocuments);
 
 router.get("/share-balance/:memberId", getShareAvailableBalance);
 router.post("/official-details", saveOfficialDetails);

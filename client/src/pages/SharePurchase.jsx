@@ -64,6 +64,8 @@ export default function SharePurchase() {
   const [activeTab, setActiveTab] = useState("official");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [editingDocument, setEditingDocument] = useState(null);
+const [documentValue, setDocumentValue] = useState("");
   const [dividendRate, setDividendRate] = useState(0);
   const [creditPaymentMethods, setCreditPaymentMethods] = useState([]);
   const [debitPaymentMethods, setDebitPaymentMethods] = useState([]);
@@ -90,13 +92,11 @@ const [dividendAccountNumber, setDividendAccountNumber] = useState("");
 
   const API = "/share";
   const txScrollRef = useRef(null);
-
-  useLayoutEffect(() => {
-    if (activeTab === "transaction" && txScrollRef.current) {
-      const el = txScrollRef.current;
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [activeTab, transactions]);
+useLayoutEffect(() => {
+  if (activeTab === "transaction" && txScrollRef.current) {
+    txScrollRef.current.scrollTop = 0;
+  }
+}, [activeTab, transactions]);
 
   useEffect(() => { fetchInterestRate(); fetchSharePaymentMethods(); }, []);
 
@@ -187,17 +187,114 @@ const [dividendAccountNumber, setDividendAccountNumber] = useState("");
       setDividendBalance(
         dividendBalanceRes.data.availableDividendBalance || 0
       );
-      const creditRes = await api.get(`${API}/credit-share/${memberCode.trim()}`);
-      const debitRes = await api.get(`${API}/debit-share/${memberCode.trim()}`);
-      const credits = creditRes.data.data.map((item) => ({ amount: item.investmentAmount, type: "Credit", createdAt: item.createdAt, }));
-      const debits = debitRes.data.data.map((item) => ({ amount: item.amount, type: "Debit", createdAt: item.createdAt, }));
-      setTransactions([...credits, ...debits]);
+const creditRes = await api.get(`${API}/credit-share/${memberCode.trim()}`);
+const debitRes = await api.get(`${API}/debit-share/${memberCode.trim()}`);
+const loanAdjustmentRes = await api.get(
+  `loan/loan-adjustment/${memberCode.trim()}`
+);
+
+const credits = creditRes.data.data.map((item) => ({
+  id: item._id,
+  amount: Number(item.investmentAmount || 0),
+  type: "Credit",
+  createdAt: item.createdAt,
+  bookNo: item.bookNo || "",
+  certificateNo: item.certificateNo || "",
+}));
+
+const debits = debitRes.data.data.map((item) => ({
+  id: item._id,
+  amount: Number(item.amount || 0),
+  type: "Debit",
+  createdAt: item.createdAt,
+  bookNo: item.bookNo || "",
+  certificateNo: item.certificateNo || "",
+}));
+
+const loanAdjustments = loanAdjustmentRes.data.data
+  .filter(
+    (item) =>
+      item.paymentMode === "Amount given from Share A/C" ||
+      item.paymentMode === "Both"
+  )
+  .map((item) => {
+    const adjustmentAmount =
+      item.paymentMode === "Both"
+        ? Number(item.shareAdjustmentAmount || 0)
+        : Number(item.adjustmentAmount || 0);
+
+    return {
+      id: item._id,
+      amount: adjustmentAmount,
+      type: "Debit",
+      createdAt: item.createdAt,
+      bookNo: "",
+      certificateNo: "",
+      isLoanAdjustment: true,
+    };
+  });
+
+const allTransactions = [
+  ...credits,
+  ...debits,
+  ...loanAdjustments,
+];
+
+allTransactions.sort((a, b) => {
+  const dateA = new Date(a.createdAt).getTime();
+  const dateB = new Date(b.createdAt).getTime();
+
+  return dateA - dateB;
+});
+
+setTransactions(allTransactions);
     } catch (error) {
       if (error.response?.status === 404) toast.error("Member not found");
       else toast.error(error.response?.data?.message || "Search failed");
       setMember(null); setTransactions([]);
     } finally { setLoading(false); }
   };
+
+  const updateShareDocument = async (
+  item,
+  field
+) => {
+  try {
+    const value = documentValue.trim();
+
+    const endpoint =
+      item.type === "Credit"
+        ? `${API}/credit-share/${item.id}/documents`
+        : `${API}/debit-share/${item.id}/documents`;
+
+    await api.put(endpoint, {
+      [field]: value,
+    });
+
+    setTransactions((prev) =>
+      prev.map((transaction) =>
+        transaction.id === item.id
+          ? {
+              ...transaction,
+              [field]: value,
+            }
+          : transaction
+      )
+    );
+
+    setEditingDocument(null);
+    setDocumentValue("");
+
+    toast.success(
+      `${field === "bookNo" ? "Book No." : "Certificate No."} updated successfully`
+    );
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to update"
+    );
+  }
+};
 
   const submitOfficial = async () => {
     try {
@@ -790,32 +887,404 @@ const [dividendAccountNumber, setDividendAccountNumber] = useState("");
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                     <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
                       <tr>
-                        {["#", "Amount", "Credit/Debit", "Date"].map((h) => (
-                          <th key={h} style={th}>{h}</th>
-                        ))}
+{[
+  "Sl No",
+  "Date",
+  "Particulars",
+  "Amount",
+  "Credit/Debit",
+  "Balance Amount",
+  "No. (s) of Share Remained",
+  "Book No.",
+  "Certificate No.",
+].map((h) => (
+  <th key={h} style={th}>
+    {h}
+  </th>
+))}
                       </tr>
                     </thead>
-                    <tbody>
-                      {transactions.length === 0 ? (
-                        <tr><td colSpan={3} style={{ textAlign: "center", padding: "28px", color: "#aaa" }}>No transactions found</td></tr>
-                      ) : (
-                        transactions.map((item, i) => (
-                          <tr key={i} style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#fdfdfd" }}>
-                            <td style={td}>{i + 1}</td>
-                            <td style={{ ...td, fontWeight: "600" }}>{item.amount != null ? item.amount.toLocaleString() : "None"}</td>
-                            <td style={td}>
-                              <span style={item.type === "Credit"
-                                ? { display: "inline-block", padding: "2px 10px", borderRadius: "20px", backgroundColor: "#d4f8e8", color: "#1a7a4a", fontWeight: "600", fontSize: "12px" }
-                                : { display: "inline-block", padding: "2px 10px", borderRadius: "20px", backgroundColor: "#fde8e8", color: "#c0392b", fontWeight: "600", fontSize: "12px" }
-                              }>
-                                {item.type || "Debit"}
-                              </span>
-                            </td>
-                            <td style={td}>{formatDateTime(item.createdAt)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
+<tbody>
+  {transactions.length === 0 ? (
+    <tr>
+      <td
+        colSpan={9}
+        style={{
+          textAlign: "center",
+          padding: "28px",
+          color: "#aaa",
+        }}
+      >
+        No transactions found
+      </td>
+    </tr>
+  ) : (
+    (() => {
+      let runningBalance = 0;
+
+      return transactions.map((item, i) => {
+        // ─────────────────────────────────────
+        // Running Balance
+        // Credit = Add
+        // Debit  = Minus
+        // ─────────────────────────────────────
+        if (item.type === "Credit") {
+          runningBalance += Number(item.amount || 0);
+        } else if (item.type === "Debit") {
+          runningBalance -= Number(item.amount || 0);
+        }
+
+        const remainingShares =
+          runningBalance / PRICE_PER_SHARE;
+
+        return (
+          <tr
+            key={`${item.id}-${i}`}
+            style={{
+              backgroundColor:
+                i % 2 === 0 ? "#ffffff" : "#fdfdfd",
+            }}
+          >
+            {/* ─────────────────────────────
+                Sl No
+            ───────────────────────────── */}
+            <td style={td}>
+              {i + 1}
+            </td>
+
+            {/* ─────────────────────────────
+                Date
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatDateTime(item.createdAt)}
+            </td>
+
+            {/* ─────────────────────────────
+                Particulars
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                textAlign: "center",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.amount != null
+                ? `By ${
+                    Number(item.amount) / PRICE_PER_SHARE
+                  } shares`
+                : "-"}
+            </td>
+
+            {/* ─────────────────────────────
+                Amount
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                fontWeight: "600",
+                textAlign: "right",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.amount != null
+                ? Number(item.amount).toLocaleString("en-IN")
+                : "None"}
+            </td>
+
+            {/* ─────────────────────────────
+                Credit / Debit
+            ───────────────────────────── */}
+            <td style={td}>
+              <span
+                style={
+                  item.type === "Credit"
+                    ? {
+                        display: "inline-block",
+                        padding: "2px 10px",
+                        borderRadius: "20px",
+                        backgroundColor: "#d4f8e8",
+                        color: "#1a7a4a",
+                        fontWeight: "600",
+                        fontSize: "12px",
+                      }
+                    : {
+                        display: "inline-block",
+                        padding: "2px 10px",
+                        borderRadius: "20px",
+                        backgroundColor: "#fde8e8",
+                        color: "#c0392b",
+                        fontWeight: "600",
+                        fontSize: "12px",
+                      }
+                }
+              >
+                {item.isLoanAdjustment
+                  ? "Paid to Loan Account"
+                  : item.type || "Debit"}
+              </span>
+            </td>
+
+            {/* ─────────────────────────────
+                Balance Amount
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                textAlign: "right",
+                fontWeight: "700",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ₹
+              {runningBalance.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </td>
+
+            {/* ─────────────────────────────
+                No. (s) of Share Remained
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                textAlign: "center",
+                fontWeight: "700",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {remainingShares % 1 === 0
+                ? remainingShares
+                : remainingShares.toFixed(2)}
+            </td>
+
+            {/* ─────────────────────────────
+                Book No.
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                cursor: item.isLoanAdjustment
+                  ? "default"
+                  : "pointer",
+                minWidth: "130px",
+                textAlign: "center",
+              }}
+              onClick={() => {
+                if (item.isLoanAdjustment) return;
+
+                if (
+                  editingDocument?.id === item.id &&
+                  editingDocument?.field === "bookNo"
+                ) {
+                  return;
+                }
+
+                setEditingDocument({
+                  id: item.id,
+                  field: "bookNo",
+                });
+
+                setDocumentValue(item.bookNo || "");
+              }}
+            >
+              {item.isLoanAdjustment ? (
+                "-"
+              ) : editingDocument?.id === item.id &&
+                editingDocument?.field === "bookNo" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  <input
+                    autoFocus
+                    type="text"
+                    value={documentValue}
+                    onChange={(e) =>
+                      setDocumentValue(e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        updateShareDocument(
+                          item,
+                          "bookNo"
+                        );
+                      }
+
+                      if (e.key === "Escape") {
+                        setEditingDocument(null);
+                        setDocumentValue("");
+                      }
+                    }}
+                    style={{
+                      width: "100px",
+                      padding: "5px 7px",
+                      border: "1px solid #ced4da",
+                      borderRadius: "4px",
+                      outline: "none",
+                      fontSize: "13px",
+                    }}
+                  />
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateShareDocument(
+                        item,
+                        "bookNo"
+                      );
+                    }}
+                    style={{
+                      border: "none",
+                      backgroundColor: "#16a34a",
+                      color: "#fff",
+                      borderRadius: "4px",
+                      padding: "4px 7px",
+                      cursor: "pointer",
+                      fontWeight: "700",
+                    }}
+                  >
+                    ✓
+                  </button>
+                </div>
+              ) : (
+                <span
+                  style={{
+                    color: item.bookNo
+                      ? "#333"
+                      : "#aaa",
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.bookNo || "Click to add"}
+                </span>
+              )}
+            </td>
+
+            {/* ─────────────────────────────
+                Certificate No.
+            ───────────────────────────── */}
+            <td
+              style={{
+                ...td,
+                cursor: item.isLoanAdjustment
+                  ? "default"
+                  : "pointer",
+                minWidth: "150px",
+                textAlign: "center",
+              }}
+              onClick={() => {
+                if (item.isLoanAdjustment) return;
+
+                if (
+                  editingDocument?.id === item.id &&
+                  editingDocument?.field === "certificateNo"
+                ) {
+                  return;
+                }
+
+                setEditingDocument({
+                  id: item.id,
+                  field: "certificateNo",
+                });
+
+                setDocumentValue(
+                  item.certificateNo || ""
+                );
+              }}
+            >
+              {item.isLoanAdjustment ? (
+                "-"
+              ) : editingDocument?.id === item.id &&
+                editingDocument?.field ===
+                  "certificateNo" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  <input
+                    autoFocus
+                    type="text"
+                    value={documentValue}
+                    onChange={(e) =>
+                      setDocumentValue(e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        updateShareDocument(
+                          item,
+                          "certificateNo"
+                        );
+                      }
+
+                      if (e.key === "Escape") {
+                        setEditingDocument(null);
+                        setDocumentValue("");
+                      }
+                    }}
+                    style={{
+                      width: "120px",
+                      padding: "5px 7px",
+                      border: "1px solid #ced4da",
+                      borderRadius: "4px",
+                      outline: "none",
+                      fontSize: "13px",
+                    }}
+                  />
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateShareDocument(
+                        item,
+                        "certificateNo"
+                      );
+                    }}
+                    style={{
+                      border: "none",
+                      backgroundColor: "#16a34a",
+                      color: "#fff",
+                      borderRadius: "4px",
+                      padding: "4px 7px",
+                      cursor: "pointer",
+                      fontWeight: "700",
+                    }}
+                  >
+                    ✓
+                  </button>
+                </div>
+              ) : (
+                <span
+                  style={{
+                    color: item.certificateNo
+                      ? "#333"
+                      : "#aaa",
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.certificateNo ||
+                    "Click to add"}
+                </span>
+              )}
+            </td>
+          </tr>
+        );
+      });
+    })()
+  )}
+</tbody>
                   </table>
                 </div>
               </div>

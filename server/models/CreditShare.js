@@ -34,6 +34,15 @@ const creditShareSchema = new mongoose.Schema(
       sparse: true,
       unique: true,
     },
+        bookNo: {
+      type: String,
+      trim: true,
+    },
+
+    certificateNo: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

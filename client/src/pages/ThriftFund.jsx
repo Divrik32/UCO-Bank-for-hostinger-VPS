@@ -81,9 +81,14 @@ export default function ThriftFund() {
 
   const API = "/thrift-fund";
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [availableBalance, setAvailableBalance] = useState(0);
-  const txScrollRef = useRef(null);
+const [loading, setLoading] = useState(false);
+const [availableBalance, setAvailableBalance] = useState(0);
+const txScrollRef = useRef(null);
+
+// Particular editing state
+const [editingParticularIndex, setEditingParticularIndex] = useState(null);
+const [editingParticularValue, setEditingParticularValue] = useState("");
+const [savingParticular, setSavingParticular] = useState(false);
 
   useLayoutEffect(() => {
     if (activeTab === "transaction" && txScrollRef.current) {
@@ -168,17 +173,229 @@ export default function ThriftFund() {
         profileImage: data.profileImage,
         signatureImage: data.signatureImage,
       });
-      const txRes = await api.get(`${API}/transaction/${memberCode}`);
-      setTransactions(txRes.data.data || []);
-      await fetchAvailableBalance(memberCode);
-      await fetchTotalThriftInterest(memberCode);
-      setActiveTab("entry");
+// ==========================================
+// Fetch Thrift Entry + Withdrawal Transactions
+// Entry  -> entryDate
+// Withdrawal -> withdrawalDate
+// ==========================================
+const txRes = await api.get(
+  `${API}/transaction/${memberCode}`
+);
+
+const thriftTransactions = (txRes.data.data || []).map((item) => ({
+  ...item,
+
+  // MongoDB document ID
+  mongoId: item._id || item.id,
+
+  // frontend transaction id
+  id: item._id || item.id,
+
+  particular:
+    item.particular ||
+    (item.type === "Credit"
+      ? "By Installement"
+      : "Balance refund to member"),
+
+  isLoanAdjustment: false,
+}));
+
+
+// ==========================================
+// Fetch Loan Adjustment Transactions
+// Only:
+// 1. Amount given from thrift A/C
+// 2. Both
+//
+// Date for Loan Adjustment -> createdAt
+// ==========================================
+let loanAdjustments = [];
+
+try {
+  const loanAdjustmentRes = await api.get(
+    `/loan/loan-adjustment/${memberCode}`
+  );
+
+  loanAdjustments = (loanAdjustmentRes.data.data || [])
+    .filter(
+      (item) =>
+        item.paymentMode ===
+          "Amount given from thrift A/C" ||
+        item.paymentMode === "Both"
+    )
+    .map((item) => {
+      const adjustmentAmount =
+        item.paymentMode === "Both"
+          ? Number(item.thriftAdjustmentAmount || 0)
+          : Number(item.adjustmentAmount || 0);
+
+return {
+  id: item._id,
+  amount: adjustmentAmount,
+  type: "Debit",
+
+  // Loan Adjustment-এর কোনো transaction date নেই,
+  // তাই createdAt ব্যবহার হবে
+  date: item.createdAt,
+
+  interest: 0,
+  transactionId: item.transactionId || "-",
+
+  // Loan Adjustment particular
+  particular: "Balance Transfer to loan Account",
+
+  // Important: this transaction cannot edit particular
+  isLoanAdjustment: true,
+};
+    })
+    .filter((item) => item.amount > 0);
+} catch (error) {
+  // যদি member-এর কোনো loan adjustment না থাকে,
+  // তাহলে শুধু thrift entry + withdrawal দেখাবে
+  loanAdjustments = [];
+}
+
+
+// ==========================================
+// Combine all 3 types of transactions
+// ==========================================
+const allTransactions = [
+  ...thriftTransactions,
+  ...loanAdjustments,
+];
+
+
+// ==========================================
+// Earliest -> Latest
+//
+// Entry       -> entryDate
+// Withdrawal  -> withdrawalDate
+// Adjustment  -> createdAt
+// ==========================================
+allTransactions.sort(
+  (a, b) =>
+    new Date(a.date).getTime() -
+    new Date(b.date).getTime()
+);
+
+
+setTransactions(allTransactions);
+
+await fetchAvailableBalance(memberCode);
+await fetchTotalThriftInterest(memberCode);
+setActiveTab("entry");
     } catch (error) {
       toast.error(error.response?.data?.message || "Member not found");
     } finally {
       setLoading(false);
     }
   };
+
+const handleParticularEdit = (item, index) => {
+  // Loan Adjustment edit করা যাবে না
+  if (item.isLoanAdjustment) return;
+
+    console.log("========== PARTICULAR EDIT CLICK ==========");
+  console.log("FULL ITEM:", item);
+  console.log("item._id:", item._id);
+  console.log("item.id:", item.id);
+  console.log("item.mongoId:", item.mongoId);
+  console.log(
+    "FINAL TRANSACTION ID:",
+    item.mongoId || item._id || item.id
+  );
+  console.log("TYPE:", item.type);
+  console.log("PARTICULAR:", item.particular);
+  console.log("===========================================");
+
+  console.log("EDIT CLICKED:", item);
+  console.log("TRANSACTION ID:", item.mongoId || item._id || item.id);
+
+  setEditingParticularIndex(index);
+  setEditingParticularValue(item.particular || "");
+};
+
+const handleParticularSave = async (item, index) => {
+  // Loan Adjustment editable নয়
+  if (item.isLoanAdjustment) return;
+
+  const particular = editingParticularValue.trim();
+
+  if (!particular) {
+    toast.error("Particular cannot be empty");
+    return;
+  }
+
+  // MongoDB ID
+  const transactionId = item.mongoId || item._id || item.id;
+
+  console.log("EDIT TRANSACTION:", item);
+  console.log("MONGO TRANSACTION ID:", transactionId);
+
+  if (!transactionId) {
+    toast.error("Transaction ID not found");
+    console.error("Transaction ID missing:", item);
+    return;
+  }
+
+  try {
+    setSavingParticular(true);
+
+    let response;
+
+    // ==========================================
+    // Thrift Fund Entry
+    // ==========================================
+    if (item.type === "Credit") {
+      response = await api.patch(
+        `${API}/entry-particular/${transactionId}`,
+        {
+          particular,
+        }
+      );
+    }
+
+    // ==========================================
+    // Thrift Fund Withdrawal
+    // ==========================================
+    else if (item.type === "Debit") {
+      response = await api.patch(
+        `${API}/withdrawal-particular/${transactionId}`,
+        {
+          particular,
+        }
+      );
+    }
+
+    if (response?.data?.success) {
+      toast.success("Particular updated successfully");
+
+      setTransactions((prev) =>
+        prev.map((transaction, transactionIndex) =>
+          transactionIndex === index
+            ? {
+                ...transaction,
+                particular:
+                  response.data.data?.particular || particular,
+              }
+            : transaction
+        )
+      );
+
+      setEditingParticularIndex(null);
+      setEditingParticularValue("");
+    }
+  } catch (error) {
+    console.error("Particular update error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to update particular"
+    );
+  } finally {
+    setSavingParticular(false);
+  }
+};
 
   const submitEntry = async () => {
     try {
@@ -624,36 +841,232 @@ export default function ThriftFund() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                     <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
                       <tr>
-                        {["#", "Amount", "Credit / Debit", "Date", "Interest", "Transaction ID"].map((h) => (
-                          <th key={h} style={th}>{h}</th>
-                        ))}
+{["Sl No", "Date", "Particulars", "Debit Rs", "Credit Rs", "Balance Rs", "Transaction ID"].map((h) => (
+  <th
+    key={h}
+    style={{
+      ...th,
+      ...(h === "Date" && {
+        paddingLeft: isMobile ? "18px" : "70px",
+      }),
+      ...(h === "Particulars" && {
+        paddingLeft: isMobile ? "22px" : "84px",
+      }),
+    }}
+  >
+    {h}
+  </th>
+))}
                       </tr>
                     </thead>
-                    <tbody>
-                      {transactions.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: "center", padding: "28px", color: "#aaa" }}>No transactions found</td>
-                        </tr>
-                      ) : (
-                        transactions.map((item, i) => (
-                          <tr key={i} style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#fdfdfd" }}>
-                            <td style={td}>{i + 1}</td>
-                            <td style={{ ...td, fontWeight: "600" }}>₹{item.amount.toLocaleString()}</td>
-                            <td style={td}>
-                              <span style={item.type === "Credit"
-                                ? { display: "inline-block", padding: "2px 10px", borderRadius: "20px", backgroundColor: "#d4f8e8", color: "#1a7a4a", fontWeight: "600", fontSize: "12px" }
-                                : { display: "inline-block", padding: "2px 10px", borderRadius: "20px", backgroundColor: "#fde8e8", color: "#c0392b", fontWeight: "600", fontSize: "12px" }
-                              }>
-                                {item.type}
-                              </span>
-                            </td>
-                            <td style={td}>{formatDateTime(item.date)}</td>
-                            <td style={td}>{item.interest ? Number(item.interest).toFixed(2) : "-"}</td>
-                            <td style={{ ...td, fontFamily: "monospace", fontSize: "12px" }}>{item.transactionId || "-"}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
+<tbody>
+  {(() => {
+    let runningBalance = 0;
+
+    const transactionsWithBalance = transactions.map((item) => {
+      const amount = Number(item.amount || 0);
+
+      // Credit হলে Balance-এ যোগ হবে
+      if (item.type === "Credit") {
+        runningBalance += amount;
+      }
+
+      // Debit হলে Balance থেকে বিয়োগ হবে
+      else if (item.type === "Debit") {
+        runningBalance -= amount;
+      }
+
+      return {
+        ...item,
+        balance: runningBalance,
+      };
+    });
+
+    return (
+      <>
+        {transactionsWithBalance.length === 0 ? (
+          <tr>
+            <td
+              colSpan={7}
+              style={{
+                textAlign: "center",
+                padding: "28px",
+                color: "#aaa",
+              }}
+            >
+              No transactions found
+            </td>
+          </tr>
+        ) : (
+          transactionsWithBalance.map((item, i) => (
+            <tr
+              key={i}
+              style={{
+                backgroundColor:
+                  i % 2 === 0 ? "#ffffff" : "#fdfdfd",
+              }}
+            >
+{/* Sl No */}
+<td style={td}>
+  {i + 1}
+</td>
+
+{/* Date */}
+<td style={td}>
+  {formatDateTime(item.date)}
+</td>
+
+{/* Particulars */}
+<td
+  style={{
+    ...td,
+    minWidth: isMobile ? "170px" : "250px",
+  }}
+>
+  {editingParticularIndex === i ? (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+      }}
+    >
+      <input
+        type="text"
+        value={editingParticularValue}
+        onChange={(e) =>
+          setEditingParticularValue(e.target.value)
+        }
+        autoFocus
+        disabled={savingParticular}
+        style={{
+          width: "100%",
+          minWidth: isMobile ? "130px" : "200px",
+          padding: "6px 8px",
+          fontSize: isMobile ? "12px" : "13px",
+          border: "1.5px solid #1e40af",
+          borderRadius: "4px",
+          outline: "none",
+          fontFamily: "'Inter', sans-serif",
+          boxSizing: "border-box",
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleParticularSave(item, i);
+          }
+
+          if (e.key === "Escape") {
+            setEditingParticularIndex(null);
+            setEditingParticularValue("");
+          }
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => handleParticularSave(item, i)}
+        disabled={savingParticular}
+        style={{
+          border: "none",
+          backgroundColor: "#10b981",
+          color: "#fff",
+          width: "36px",
+          height: "36px",
+          minWidth: "36px",
+          borderRadius: "5px",
+          cursor: savingParticular
+            ? "not-allowed"
+            : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "21px",
+          fontWeight: "700",
+          padding: 0,
+        }}
+        title="Save"
+      >
+        ✓
+      </button>
+    </div>
+  ) : (
+    <div
+      onClick={() => handleParticularEdit(item, i)}
+      style={{
+        cursor: item.isLoanAdjustment
+          ? "default"
+          : "pointer",
+        fontWeight: "600",
+        color: "#333",
+        padding: "4px 2px",
+        borderRadius: "4px",
+      }}
+      title={
+        item.isLoanAdjustment
+          ? "Loan adjustment particular cannot be edited"
+          : "Click to edit particular"
+      }
+    >
+      {item.particular || "-"}
+    </div>
+  )}
+</td>
+
+{/* Debit Rs */}
+<td
+  style={{
+    ...td,
+    fontWeight: "600",
+  }}
+>
+  {item.type === "Debit"
+    ? `₹${Number(item.amount || 0).toLocaleString("en-IN")}`
+    : ""}
+</td>
+
+{/* Credit Rs */}
+<td
+  style={{
+    ...td,
+    fontWeight: "600",
+  }}
+>
+  {item.type === "Credit"
+    ? `₹${Number(item.amount || 0).toLocaleString("en-IN")}`
+    : ""}
+</td>
+
+{/* Balance Rs */}
+<td
+  style={{
+    ...td,
+    fontWeight: "700",
+  }}
+>
+  ₹
+  {Number(item.balance || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
+</td>
+
+{/* Transaction ID */}
+<td
+  style={{
+    ...td,
+    fontFamily: "monospace",
+    fontSize: "12px",
+  }}
+>
+  {item.transactionId || "-"}
+</td>
+            </tr>
+          ))
+        )}
+      </>
+    );
+  })()}
+</tbody>
                   </table>
                 </div>
                 <div style={{ display: "flex", alignItems: "stretch", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px rgba(30,64,175,0.10)", border: "1.5px solid #dbeafe", width: "fit-content", marginLeft: "auto", marginTop: "12px" }}>

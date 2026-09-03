@@ -32,11 +32,112 @@ export default function ThriftFundDetails() {
       setLoading(true);
       setError("");
 
-      const res = await api.get(
-        `/thrift-fund/member-thrift-details/${memberId}`
-      );
+const res = await api.get(
+  `/thrift-fund/member-thrift-details/${memberId}`
+);
 
-      setMember(res.data.data);
+const memberData = res.data.data;
+
+// ==========================================
+// Existing Thrift Transactions
+// ==========================================
+let thriftTransactions = memberData.transactions || [];
+
+// ==========================================
+// Fetch Loan Adjustment Transactions
+// Only:
+// 1. Amount given from thrift A/C
+// 2. Both
+// ==========================================
+let loanAdjustments = [];
+
+try {
+  const loanAdjustmentRes = await api.get(
+    `/loan/loan-adjustment/${memberId}`
+  );
+
+  loanAdjustments = (loanAdjustmentRes.data.data || [])
+    .filter(
+      (item) =>
+        item.paymentMode === "Amount given from thrift A/C" ||
+        item.paymentMode === "Both"
+    )
+    .map((item) => {
+      const adjustmentAmount =
+        item.paymentMode === "Both"
+          ? Number(item.thriftAdjustmentAmount || 0)
+          : Number(item.adjustmentAmount || 0);
+
+      return {
+        _id: item._id,
+
+        // Important
+        amount: adjustmentAmount,
+
+        // This will reduce thrift balance
+        transactionType: "Debit",
+        type: "Debit",
+
+        // Loan adjustment date
+        transactionDate: item.createdAt,
+        createdAt: item.createdAt,
+
+        transactionId: item.transactionId || "-",
+
+        // Particular
+        particular: "Balance Transfer to loan Account",
+
+        // Mark it as loan adjustment
+        isLoanAdjustment: true,
+      };
+    })
+    .filter((item) => item.amount > 0);
+
+} catch (error) {
+  console.error(
+    "Failed to fetch loan adjustment transactions:",
+    error
+  );
+
+  loanAdjustments = [];
+}
+
+// ==========================================
+// Combine Thrift + Loan Adjustment
+// ==========================================
+const allTransactions = [
+  ...thriftTransactions,
+  ...loanAdjustments,
+];
+
+// ==========================================
+// Sort Earliest -> Latest
+// ==========================================
+allTransactions.sort((a, b) => {
+  const dateA = new Date(
+    a.transactionDate ||
+    a.entryDate ||
+    a.withdrawalDate ||
+    a.createdAt
+  ).getTime();
+
+  const dateB = new Date(
+    b.transactionDate ||
+    b.entryDate ||
+    b.withdrawalDate ||
+    b.createdAt
+  ).getTime();
+
+  return dateA - dateB;
+});
+
+// ==========================================
+// Set Member with merged transactions
+// ==========================================
+setMember({
+  ...memberData,
+  transactions: allTransactions,
+});
     } catch (err) {
       console.error(err);
 
@@ -527,165 +628,331 @@ export default function ThriftFundDetails() {
 
       </div>
 
+{/* ==========================================
+    TRANSACTION INFORMATION
+========================================== */}
 
-      {/* ==========================================
-          TRANSACTION INFORMATION
-      ========================================== */}
+<div
+  className="print-card"
+  style={styles.card}
+>
+  <h5 style={styles.cardTitle}>
+    Transaction Information
+  </h5>
 
-      <div
-        className="print-card"
-        style={styles.card}
-      >
+  <div style={styles.tableWrapper}>
+    <table style={styles.table}>
 
-        <h5 style={styles.cardTitle}>
-          Transaction Information
-        </h5>
+<thead>
+  <tr style={styles.theadRow}>
+
+    <th style={styles.th}>
+      Sl No
+    </th>
+
+    <th style={styles.th}>
+      Date
+    </th>
+
+    <th style={styles.th}>
+      Particulars
+    </th>
+
+    <th style={styles.th}>
+      Debit Rs
+    </th>
+
+    <th style={styles.th}>
+      Credit Rs
+    </th>
+
+    <th style={styles.th}>
+      Balance Rs
+    </th>
+
+    <th style={styles.th}>
+      Transaction ID
+    </th>
+
+  </tr>
+</thead>
+
+      <tbody>
+
+        {!member.transactions ||
+        member.transactions.length === 0 ? (
+
+          <tr>
+            <td
+              colSpan={7}
+              style={styles.td}
+            >
+              No transactions found.
+            </td>
+          </tr>
+
+        ) : (
+
+          (() => {
+
+            // ==========================================
+            // EARLIEST -> LATEST
+            // ==========================================
+
+            const sortedTransactions = [
+              ...member.transactions,
+            ].sort((a, b) => {
+
+              const dateA = new Date(
+                a.transactionDate ||
+                a.entryDate ||
+                a.withdrawalDate ||
+                a.createdAt
+              ).getTime();
+
+              const dateB = new Date(
+                b.transactionDate ||
+                b.entryDate ||
+                b.withdrawalDate ||
+                b.createdAt
+              ).getTime();
+
+              return dateA - dateB;
+            });
 
 
-        <div style={styles.tableWrapper}>
+            // ==========================================
+            // RUNNING BALANCE
+            // ==========================================
 
-          <table style={styles.table}>
-
-            <thead>
-
-              <tr style={styles.theadRow}>
-
-                <th style={styles.th}>
-                  Sl.
-                </th>
-
-                <th style={styles.th}>
-                  Transaction Date
-                </th>
-
-                <th style={styles.th}>
-                  Amount
-                </th>
-
-                <th style={styles.th}>
-                  Interest
-                </th>
-
-                <th style={styles.th}>
-                  Payment Mode
-                </th>
-
-                <th style={styles.th}>
-                  Transaction ID
-                </th>
-
-                <th style={styles.th}>
-                  Type
-                </th>
-
-              </tr>
-
-            </thead>
+            let runningBalance = 0;
 
 
-            <tbody>
+            return sortedTransactions.map(
+              (transaction, index) => {
 
-              {!member.transactions ||
-              member.transactions.length === 0 ? (
+                // ==========================================
+                // TRANSACTION TYPE
+                // ==========================================
 
-                <tr>
+                let transactionType =
+                  transaction.transactionType ||
+                  transaction.type ||
+                  "";
 
-                  <td
-                    colSpan={7}
-                    style={styles.td}
+
+                // Different possible backend values
+                if (
+                  transactionType === "Entry" ||
+                  transactionType === "Credit"
+                ) {
+                  transactionType = "Credit";
+                }
+
+                else if (
+                  transactionType === "Withdrawal" ||
+                  transactionType === "Debit"
+                ) {
+                  transactionType = "Debit";
+                }
+
+
+                // ==========================================
+                // AMOUNT
+                // ==========================================
+
+                let amount = 0;
+
+                if (transactionType === "Credit") {
+
+                  amount = Number(
+                    transaction.amount ??
+                    transaction.totalAmountReceived ??
+                    0
+                  );
+
+                }
+
+                else if (transactionType === "Debit") {
+
+                  amount = Number(
+                    transaction.amount ??
+                    transaction.withdrawalAmount ??
+                    0
+                  );
+
+                }
+
+
+                // ==========================================
+                // BALANCE
+                // ==========================================
+
+                if (transactionType === "Credit") {
+
+                  runningBalance += amount;
+
+                }
+
+                else if (transactionType === "Debit") {
+
+                  runningBalance -= amount;
+
+                }
+
+
+                // ==========================================
+                // PARTICULAR
+                // ==========================================
+
+                let particular =
+                  transaction.particular;
+
+
+                if (!particular) {
+
+                  if (transactionType === "Credit") {
+
+                    particular = "By Installement";
+
+                  }
+
+                  else if (transactionType === "Debit") {
+
+                    particular = "Balance refund to member";
+
+                  }
+
+                  else {
+
+                    particular = "-";
+
+                  }
+
+                }
+
+
+                // ==========================================
+                // DATE
+                // ==========================================
+
+                const transactionDate =
+                  transaction.transactionDate ||
+                  transaction.entryDate ||
+                  transaction.withdrawalDate ||
+                  transaction.createdAt;
+
+
+                return (
+                  <tr
+                    key={
+                      `${
+                        transaction.transactionId ||
+                        transaction._id ||
+                        "transaction"
+                      }-${index}`
+                    }
                   >
-                    No transactions found.
-                  </td>
 
-                </tr>
-
-              ) : (
-
-                member.transactions.map(
-                  (transaction, index) => (
-
-                    <tr
-                      key={`${transaction.transactionId}-${index}`}
-                    >
-
-                      {/* Sl. */}
-
-                      <td style={styles.td}>
-                        {index + 1}
-                      </td>
+{/* Sl No */}
+<td style={styles.td}>
+  {index + 1}
+</td>
 
 
-                      {/* Transaction Date */}
-
-                      <td style={styles.td}>
-                        {formatDate(
-                          transaction.transactionDate
-                        )}
-                      </td>
+{/* Date */}
+<td style={styles.td}>
+  {formatDate(transactionDate)}
+</td>
 
 
-                      {/* Amount */}
-
-                      <td style={styles.td}>
-                        ₹
-                        {Number(
-                          transaction.amount || 0
-                        ).toLocaleString("en-IN")}
-                      </td>
-
-
-                      {/* Interest */}
-
-                      <td style={styles.td}>
-
-                        {transaction.interest === "-"
-                          ? "-"
-                          : `₹${Number(
-                              transaction.interest || 0
-                            ).toLocaleString(
-                              "en-IN"
-                            )}`}
-
-                      </td>
+{/* Particulars */}
+<td
+  style={{
+    ...styles.td,
+    textAlign: "left",
+    fontWeight: "600",
+    minWidth: "220px",
+  }}
+>
+  {particular}
+</td>
 
 
-                      {/* Payment Mode */}
+{/* Debit Rs */}
+<td
+  style={{
+    ...styles.td,
+    fontWeight: "600",
+  }}
+>
+  {transactionType === "Debit"
+    ? `₹${amount.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : ""}
+</td>
 
-                      <td style={styles.td}>
-                        {transaction.paymentMode ||
-                          "-"}
-                      </td>
+
+{/* Credit Rs */}
+<td
+  style={{
+    ...styles.td,
+    fontWeight: "600",
+  }}
+>
+  {transactionType === "Credit"
+    ? `₹${amount.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : ""}
+</td>
 
 
-                      {/* Transaction ID */}
+{/* Balance Rs */}
+<td
+  style={{
+    ...styles.td,
+    fontWeight: "700",
+  }}
+>
+  ₹
+  {runningBalance.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
+</td>
 
-                      <td style={styles.td}>
-                        {transaction.transactionId ||
-                          "-"}
-                      </td>
 
+{/* Transaction ID */}
+<td
+  style={{
+    ...styles.td,
+    fontFamily: "monospace",
+    fontSize: "12px",
+  }}
+>
+  {transaction.transactionId || "-"}
+</td>
 
-                      {/* Type */}
+                  </tr>
+                );
 
-                      <td style={styles.td}>
-                        {transaction.transactionType ||
-                          "-"}
-                      </td>
+              }
+            );
 
-                    </tr>
+          })()
 
-                  )
-                )
+        )}
 
-              )}
+      </tbody>
 
-            </tbody>
+    </table>
+  </div>
 
-          </table>
-
-        </div>
-
-      </div>
+</div>
 
     </div>
   );

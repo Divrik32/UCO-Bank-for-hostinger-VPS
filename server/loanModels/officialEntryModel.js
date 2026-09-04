@@ -77,6 +77,13 @@ const officialEntrySchema = new mongoose.Schema(
     //   min: 0
     // },
 
+    // ✅ Transaction Date
+transactionDate: {
+  type: Date,
+  required: true,
+  default: Date.now
+},
+
     // ✅ Payment Mode
     paymentMode: {
       type: String,

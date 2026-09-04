@@ -16,7 +16,8 @@ const {
   getApprovedMembers,
   printMemberDetails,
   memberApprovalPDF,
-  getNomineeRelations
+  getNomineeRelations,
+  getMemberByMembershipNumber
 } = require("../controllers/UserController.js");
 
 const router = express.Router();
@@ -67,6 +68,8 @@ router.post(
 router.get("/approval-pending-members", getApprovalPendingMembers);
 router.get("/approved-members", getApprovedMembers);
 router.get("/members/:id", getMemberById);
+// ✅ SEARCH MEMBER BY MEMBERSHIP NUMBER
+router.get("/membership/:membershipNumber", getMemberByMembershipNumber);
 router.patch("/members/:id/approve", authMiddleware, approveMember);
 router.post("/forgot-password", sendForgotOtp);
 router.post("/reset-password", resetPassword);

@@ -34,17 +34,18 @@ const debitShareSchema = new mongoose.Schema(
       unique: true,
     },
 
-    transferShareTo: {
-      type: String,
-      trim: true,
-      required: true,
-    },
+transferShareTo: {
+  type: String,
+  enum: ["Members Loan Account", "Members Account"],
+  trim: true,
+  required: true,
+},
 
-    shareCertificateNumber: {
-      type: String,
-      trim: true,
-      required: true,
-    },
+    // shareCertificateNumber: {
+    //   type: String,
+    //   trim: true,
+    //   required: true,
+    // },
         bookNo: {
       type: String,
       trim: true,

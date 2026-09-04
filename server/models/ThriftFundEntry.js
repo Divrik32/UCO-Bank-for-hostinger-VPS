@@ -62,11 +62,6 @@ const thriftFundEntrySchema = new mongoose.Schema(
       default: Date.now,
     },
 
-    receivedBy: {
-      type: String,
-      trim: true,
-    },
-
   },
   {
     timestamps: true,

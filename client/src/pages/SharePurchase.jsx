@@ -60,6 +60,7 @@ export default function SharePurchase() {
   const [currentBalance, setCurrentBalance] = useState(null);
   const [dividendBalance, setDividendBalance] = useState(null);
   const [memberCode, setMemberCode] = useState("");
+  const [membershipNumber, setMembershipNumber] = useState("");
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("official");
   const [loading, setLoading] = useState(false);
@@ -87,7 +88,7 @@ const [dividendAccountNumber, setDividendAccountNumber] = useState("");
     paymentMode: debitPaymentMethods[0] || "",
     chequeNumber: "",
     transferShareTo: "Members Loan Account",
-    shareCertificateNumber: "",
+    certificateNo: "", 
   });
 
   const API = "/share";
@@ -150,7 +151,7 @@ useLayoutEffect(() => {
   useEffect(() => {
     if (!creditForm.investmentAmount) { setCreditForm((prev) => ({ ...prev, numberOfShares: "" })); return; }
     const shares = Number(creditForm.investmentAmount) / PRICE_PER_SHARE;
-    setCreditForm((prev) => ({ ...prev, numberOfShares: shares % 1 === 0 ? String(shares) : shares.toFixed(2) }));
+    setCreditForm((prev) => ({ ...prev, numberOfShares: shares % 1 === 0 ? String(shares) : shares.toFixed(0) }));
   }, [creditForm.investmentAmount]);
 
   useEffect(() => {
@@ -162,98 +163,350 @@ useLayoutEffect(() => {
     const remainingSharesCount = remainingBalance / PRICE_PER_SHARE;
     setDebitForm((prev) => ({
       ...prev,
-      remainingShares: remainingBalance >= 0 ? remainingBalance.toFixed(2) : "0.00",
-      remainingCount: remainingBalance >= 0 ? (remainingSharesCount % 1 === 0 ? String(remainingSharesCount) : remainingSharesCount.toFixed(2)) : "0",
+      remainingShares: remainingBalance >= 0 ? remainingBalance.toFixed(0) : "0.00",
+      remainingCount:
+  remainingBalance >= 0
+    ? remainingSharesCount
+    : 0,
     }));
   }, [debitForm.amount, transactions]);
 
   const dividendAmount = (((currentBalance || 0) * dividendRate) / 100).toFixed(2);
 
-  const handleSearch = async () => {
-    if (!memberCode.trim()) { toast.error("Enter member code"); return; }
-    try {
-      setLoading(true);
-      const res = await api.get(`${API}/member/${memberCode.trim()}`);
-      if (!res.data.success) { toast.error("Member not found"); return; }
-      const data = res.data.data;
-      setMember({ memberId: data.memberId, firstname: data.name?.split(" ")[0] || "", lastname: data.name?.split(" ").slice(1).join(" ") || "", phoneNumber: data.phoneNumber, email: data.email, profileImage: data.profileImage, signatureImage: data.signatureImage });
-      setActiveTab("official");
-      const balanceRes = await api.get(`${API}/share-balance/${memberCode.trim()}`);
-      setCurrentBalance(balanceRes.data.availableBalance);
-      const dividendBalanceRes = await api.get(
-        `${API}/dividend-balance/${memberCode.trim()}`
+  const handleSearch = async (searchType = "memberCode") => {
+  try {
+    // ==========================================
+    // 1. Get Search Value
+    // ==========================================
+
+    const searchValue =
+      searchType === "membershipNumber"
+        ? membershipNumber.trim()
+        : memberCode.trim();
+
+    // ==========================================
+    // 2. Validate Search Input
+    // ==========================================
+
+    if (!searchValue) {
+      toast.error(
+        searchType === "membershipNumber"
+          ? "Enter membership number"
+          : "Enter member code"
       );
-      
-      setDividendBalance(
-        dividendBalanceRes.data.availableDividendBalance || 0
+      return;
+    }
+
+    setLoading(true);
+
+    let data;
+
+    // ==========================================
+    // 3. Search By Membership Number
+    // SAME AS THRIFT FUND
+    // ==========================================
+
+    if (searchType === "membershipNumber") {
+      const res = await api.get(
+        `/users/membership/${encodeURIComponent(searchValue)}`
       );
-const creditRes = await api.get(`${API}/credit-share/${memberCode.trim()}`);
-const debitRes = await api.get(`${API}/debit-share/${memberCode.trim()}`);
-const loanAdjustmentRes = await api.get(
-  `loan/loan-adjustment/${memberCode.trim()}`
-);
 
-const credits = creditRes.data.data.map((item) => ({
-  id: item._id,
-  amount: Number(item.investmentAmount || 0),
-  type: "Credit",
-  createdAt: item.createdAt,
-  bookNo: item.bookNo || "",
-  certificateNo: item.certificateNo || "",
-}));
+      if (!res.data.success) {
+        toast.error("Member not found");
+        return;
+      }
 
-const debits = debitRes.data.data.map((item) => ({
-  id: item._id,
-  amount: Number(item.amount || 0),
-  type: "Debit",
-  createdAt: item.createdAt,
-  bookNo: item.bookNo || "",
-  certificateNo: item.certificateNo || "",
-}));
+      data = res.data.data;
 
-const loanAdjustments = loanAdjustmentRes.data.data
-  .filter(
-    (item) =>
-      item.paymentMode === "Amount given from Share A/C" ||
-      item.paymentMode === "Both"
-  )
-  .map((item) => {
-    const adjustmentAmount =
-      item.paymentMode === "Both"
-        ? Number(item.shareAdjustmentAmount || 0)
-        : Number(item.adjustmentAmount || 0);
+      // Membership Number search করলে
+      // actual Member Code automatically set হবে
+      setMemberCode(data.memberId);
 
-    return {
+      // Actual Membership Number রাখবো
+      setMembershipNumber(
+        data.membershipNumber || searchValue
+      );
+    }
+
+    // ==========================================
+    // 4. Search By Member Code
+    // SAME AS EXISTING SHARE SEARCH
+    // ==========================================
+
+    else {
+      const res = await api.get(
+        `${API}/member/${encodeURIComponent(searchValue)}`
+      );
+
+      if (!res.data.success) {
+        toast.error("Member not found");
+        return;
+      }
+
+      data = res.data.data;
+
+      // Member Code search করলে
+      // membership number থাকলে সেটাও show করবে
+      setMemberCode(data.memberId);
+
+      if (data.membershipNumber) {
+        setMembershipNumber(data.membershipNumber);
+      }
+    }
+
+    // ==========================================
+    // 5. Set Member Information
+    // ==========================================
+
+    const fullName = data.name || "";
+
+    setMember({
+      memberId: data.memberId,
+
+      firstname:
+        data.firstname ||
+        fullName.split(" ")[0] ||
+        "",
+
+      lastname:
+        data.lastname ||
+        fullName.split(" ").slice(1).join(" ") ||
+        "",
+
+      phoneNumber:
+        data.phoneNumber ||
+        data.phoneno ||
+        "",
+
+      email:
+        data.email || "",
+
+      profileImage:
+        data.profileImage ||
+        data.profile_image ||
+        "",
+
+      signatureImage:
+        data.signatureImage ||
+        data.signature_image ||
+        "",
+
+      membershipNumber:
+        data.membershipNumber ||
+        membershipNumber ||
+        "",
+    });
+
+    // ==========================================
+    // IMPORTANT
+    // সব financial API-তে actual Member ID যাবে
+    // ==========================================
+
+    const searchMemberId = data.memberId;
+
+    // ==========================================
+    // 6. Share Balance
+    // ==========================================
+
+    const balanceRes = await api.get(
+      `${API}/share-balance/${encodeURIComponent(searchMemberId)}`
+    );
+
+    setCurrentBalance(
+      balanceRes.data.availableBalance || 0
+    );
+
+    // ==========================================
+    // 7. Dividend Balance
+    // ==========================================
+
+    const dividendBalanceRes = await api.get(
+      `${API}/dividend-balance/${encodeURIComponent(searchMemberId)}`
+    );
+
+    setDividendBalance(
+      dividendBalanceRes.data.availableDividendBalance || 0
+    );
+
+    // ==========================================
+    // 8. Credit Shares
+    // ==========================================
+
+    const creditRes = await api.get(
+      `${API}/credit-share/${encodeURIComponent(searchMemberId)}`
+    );
+
+    // ==========================================
+    // 9. Debit Shares
+    // ==========================================
+
+    const debitRes = await api.get(
+      `${API}/debit-share/${encodeURIComponent(searchMemberId)}`
+    );
+
+    // ==========================================
+    // 10. Loan Adjustment
+    // ==========================================
+
+    const loanAdjustmentRes = await api.get(
+      `/loan/loan-adjustment/${encodeURIComponent(searchMemberId)}`
+    );
+
+    // ==========================================
+    // 11. Credit Transactions
+    // ==========================================
+
+    const credits = (
+      creditRes.data.data || []
+    ).map((item) => ({
       id: item._id,
-      amount: adjustmentAmount,
-      type: "Debit",
+
+      amount: Number(
+        item.investmentAmount || 0
+      ),
+
+      type: "Credit",
+
       createdAt: item.createdAt,
-      bookNo: "",
-      certificateNo: "",
-      isLoanAdjustment: true,
-    };
-  });
 
-const allTransactions = [
-  ...credits,
-  ...debits,
-  ...loanAdjustments,
-];
+      bookNo:
+        item.bookNo || "",
 
-allTransactions.sort((a, b) => {
-  const dateA = new Date(a.createdAt).getTime();
-  const dateB = new Date(b.createdAt).getTime();
+      certificateNo:
+        item.certificateNo || "",
 
-  return dateA - dateB;
-});
+      isLoanAdjustment: false,
+    }));
 
-setTransactions(allTransactions);
-    } catch (error) {
-      if (error.response?.status === 404) toast.error("Member not found");
-      else toast.error(error.response?.data?.message || "Search failed");
-      setMember(null); setTransactions([]);
-    } finally { setLoading(false); }
-  };
+    // ==========================================
+    // 12. Debit Transactions
+    // ==========================================
+
+    const debits = (
+      debitRes.data.data || []
+    ).map((item) => ({
+      id: item._id,
+
+      amount: Number(
+        item.amount || 0
+      ),
+
+      type: "Debit",
+
+      createdAt: item.createdAt,
+
+      bookNo:
+        item.bookNo || "",
+
+      certificateNo:
+        item.certificateNo || "",
+
+      isLoanAdjustment: false,
+    }));
+
+    // ==========================================
+    // 13. Loan Adjustment Transactions
+    // ==========================================
+
+    const loanAdjustments = (
+      loanAdjustmentRes.data.data || []
+    )
+      .filter(
+        (item) =>
+          item.paymentMode ===
+            "Amount given from Share A/C" ||
+          item.paymentMode === "Both"
+      )
+      .map((item) => {
+        const adjustmentAmount =
+          item.paymentMode === "Both"
+            ? Number(
+                item.shareAdjustmentAmount || 0
+              )
+            : Number(
+                item.adjustmentAmount || 0
+              );
+
+        return {
+          id: item._id,
+
+          amount: adjustmentAmount,
+
+          type: "Debit",
+
+          createdAt: item.createdAt,
+
+          bookNo: "",
+
+          certificateNo: "",
+
+          isLoanAdjustment: true,
+        };
+      })
+      .filter(
+        (item) => item.amount > 0
+      );
+
+    // ==========================================
+    // 14. Combine Transactions
+    // ==========================================
+
+    const allTransactions = [
+      ...credits,
+      ...debits,
+      ...loanAdjustments,
+    ];
+
+    // ==========================================
+    // 15. Sort Earliest -> Latest
+    // ==========================================
+
+    allTransactions.sort((a, b) => {
+      const dateA = new Date(
+        a.createdAt
+      ).getTime();
+
+      const dateB = new Date(
+        b.createdAt
+      ).getTime();
+
+      return dateA - dateB;
+    });
+
+    setTransactions(allTransactions);
+
+    // ==========================================
+    // 16. Open Official Tab
+    // ==========================================
+
+    setActiveTab("official");
+
+  } catch (error) {
+    console.error(
+      "Share member search error:",
+      error
+    );
+
+    if (
+      error.response?.status === 404
+    ) {
+      toast.error("Member not found");
+    } else {
+      toast.error(
+        error.response?.data?.message ||
+          "Search failed"
+      );
+    }
+
+    setMember(null);
+    setTransactions([]);
+    setCurrentBalance(null);
+    setDividendBalance(null);
+
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateShareDocument = async (
   item,
@@ -327,14 +580,36 @@ setTransactions(allTransactions);
     }
   };
 
-  const submitDebit = async () => {
-    try {
-      await api.post(`${API}/debit-share`, { memberId: member.memberId, amount: Number(debitForm.amount), paymentMode: debitForm.paymentMode, chequeNumber: debitForm.chequeNumber, transferShareTo: debitForm.transferShareTo, shareCertificateNumber: debitForm.shareCertificateNumber });
-      toast.success("Debit shares updated successfully");
-      setDebitForm({ amount: "", remainingShares: "", remainingCount: "", paymentMode: debitPaymentMethods[0] || "", chequeNumber: "", transferShareTo: "Members Loan Account", shareCertificateNumber: "" });
-      handleSearch();
-    } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
-  };
+const submitDebit = async () => {
+  try {
+    await api.post(`${API}/debit-share`, {
+      memberId: member.memberId,
+      amount: Number(debitForm.amount),
+      paymentMode: debitForm.paymentMode,
+      chequeNumber: debitForm.chequeNumber,
+      transferShareTo: debitForm.transferShareTo,
+      certificateNo: debitForm.certificateNo,
+    });
+
+    toast.success("Debit shares updated successfully");
+
+    setDebitForm({
+      amount: "",
+      remainingShares: "",
+      remainingCount: "",
+      paymentMode: debitPaymentMethods[0] || "",
+      chequeNumber: "",
+      transferShareTo: "Members Loan Account",
+      certificateNo: "",
+    });
+
+    handleSearch();
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message || "Failed to update"
+    );
+  }
+};
 
   const tabs = [
     { key: "official",    label: "Official Details" },
@@ -547,7 +822,7 @@ setTransactions(allTransactions);
             color: "#065f46",
           }}
         >
-          ₹{Number(currentBalance || 0).toLocaleString("en-IN")}
+          ₹{Number(currentBalance || 0).toFixed(0)}
         </span>
       </div>
     )}
@@ -579,31 +854,264 @@ setTransactions(allTransactions);
             color: "#6d28d9",
           }}
         >
-          ₹{Number(dividendBalance || 0).toLocaleString("en-IN")}
+          ₹{Number(dividendBalance || 0).toFixed(0)}
         </span>
       </div>
     )}
   </div>
 </div>
 
-      {/* ── Search Bar ── */}
-      <div style={{ display: "flex", justifyContent: isMobile ? "stretch" : "flex-end", marginBottom: "14px", marginTop: "14px" }}>
-        <div style={{ width: isMobile ? "100%" : "auto" }}>
-          <label style={{ fontSize: "14px", fontWeight: "600", color: "#444", fontFamily: "'Inter', sans-serif", display: "block", marginBottom: "4px" }}>Member Code:</label>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <input
-              type="text" value={memberCode}
-              onChange={(e) => setMemberCode(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              style={{ padding: "9px 14px", fontSize: "14px", border: "1.5px solid #ced4da", borderRadius: "5px", fontFamily: "'Inter', sans-serif", outline: "none", backgroundColor: "#fff", flex: isMobile ? 1 : "none", width: isMobile ? "auto" : "200px" }}
-              placeholder="Enter member code"
-            />
-            <button onClick={handleSearch} style={{ backgroundColor: "#10b981", color: "white", border: "none", borderRadius: "5px", padding: "9px 20px", fontSize: "14px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>
-              {loading ? "..." : "Search"}
-            </button>
-          </div>
-        </div>
+{/* ── Search Bar ── */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: isMobile
+      ? "stretch"
+      : "flex-end",
+    marginBottom: "14px",
+    marginTop: "14px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: isMobile
+        ? "column"
+        : "row",
+      gap: "14px",
+      width: isMobile
+        ? "100%"
+        : "auto",
+    }}
+  >
+
+    {/* ==========================================
+        Membership Number Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile
+          ? "100%"
+          : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Membership Number:
+      </label>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={membershipNumber}
+          onChange={(e) => {
+            const value = e.target.value;
+
+            setMembershipNumber(value);
+
+            // Membership Number type করলে
+            // Member Code clear হবে
+            if (value) {
+              setMemberCode("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch("membershipNumber");
+            }
+          }}
+          style={{
+            padding: "0 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+
+            width: isMobile
+              ? "100%"
+              : "200px",
+
+            height: "45px",
+
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter membership number"
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            handleSearch("membershipNumber")
+          }
+          disabled={loading}
+          style={{
+            backgroundColor: "#10b981",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+
+            padding: "0 20px",
+
+            fontSize: "14px",
+            fontWeight: "600",
+            fontFamily: "'Inter', sans-serif",
+
+            cursor: loading
+              ? "not-allowed"
+              : "pointer",
+
+            whiteSpace: "nowrap",
+
+            height: "44px",
+
+            minHeight: "38px",
+
+            boxSizing: "border-box",
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
       </div>
+    </div>
+
+
+    {/* ==========================================
+        Member Code Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile
+          ? "100%"
+          : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Member Code:
+      </label>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={memberCode}
+          onChange={(e) => {
+            const value = e.target.value;
+
+            setMemberCode(value);
+
+            // Member Code type করলে
+            // Membership Number clear হবে
+            if (value) {
+              setMembershipNumber("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch("memberCode");
+            }
+          }}
+          style={{
+            padding: "0 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+
+            width: isMobile
+              ? "100%"
+              : "200px",
+
+            height: "45px",
+
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter member code"
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            handleSearch("memberCode")
+          }
+          disabled={loading}
+          style={{
+            backgroundColor: "#10b981",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+
+            padding: "0 20px",
+
+            fontSize: "14px",
+            fontWeight: "600",
+            fontFamily: "'Inter', sans-serif",
+
+            cursor: loading
+              ? "not-allowed"
+              : "pointer",
+
+            whiteSpace: "nowrap",
+
+            height: "44px",
+
+            minHeight: "38px",
+
+            boxSizing: "border-box",
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
 
       {/* ── Main Layout ── */}
       <div style={{ display: "flex", flexDirection: isMobile || isTablet ? "column" : "row", gap: "18px", alignItems: "flex-start" }}>
@@ -668,9 +1176,12 @@ setTransactions(allTransactions);
                 <hr style={{ border: "none", borderTop: "1.5px solid #e2e8f0", margin: "18px 0" }} />
                 <h5 style={sectionTitle}>Share Information</h5>
                 <Field label="Price per Share" isMobile={isMobile}><input style={inputDisabled} disabled value={`₹${PRICE_PER_SHARE.toFixed(2)}`} /></Field>
-                <Field label="Investment Amount" isMobile={isMobile}><input style={inputDisabled} disabled value={transactions.filter((t) => t.type === "Credit").reduce((sum, t) => sum + Number(t.amount || 0), 0).toLocaleString()} /></Field>
+                <Field label="Investment Amount" isMobile={isMobile}><input style={inputDisabled} disabled value={transactions
+  .filter((t) => t.type === "Credit")
+  .reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  .toFixed(0)} /></Field>
                 <Field label="Number of Shares" isMobile={isMobile}>
-                  <input style={inputDisabled} disabled value={(() => { const total = transactions.filter((t) => t.type === "Credit").reduce((sum, t) => sum + Number(t.amount || 0), 0); const n = total / PRICE_PER_SHARE; return n % 1 === 0 ? String(n) : n.toFixed(2); })()} />
+                  <input style={inputDisabled} disabled value={(() => { const total = transactions.filter((t) => t.type === "Credit").reduce((sum, t) => sum + Number(t.amount || 0), 0); const n = total / PRICE_PER_SHARE; return n % 1 === 0 ? String(n) : n.toFixed(0); })()} />
                 </Field>
                 <div style={{ textAlign: "center", marginTop: "20px" }}><button style={btnPrimary} onClick={submitOfficial}>Update</button></div>
               </div>
@@ -720,7 +1231,11 @@ setTransactions(allTransactions);
       <input
         style={inputDisabled}
         disabled
-        value={creditForm.numberOfShares}
+        value={
+  creditForm.numberOfShares !== ""
+    ? Number(creditForm.numberOfShares).toFixed(0)
+    : ""
+}
       />
     </Field>
 
@@ -770,8 +1285,16 @@ setTransactions(allTransactions);
               <div style={{ maxWidth: "680px" }}>
                 <h5 style={sectionTitle}>Debit Shares</h5>
                 <Field label="Amount" isMobile={isMobile}><input type="number" style={inputStyle} value={debitForm.amount} onChange={(e) => setDebitForm({ ...debitForm, amount: e.target.value })} placeholder="Enter amount" /></Field>
-                <Field label="Remaining Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={debitForm.remainingShares} /></Field>
-                <Field label="Remaining Shares" isMobile={isMobile}><input style={inputDisabled} disabled value={debitForm.remainingCount} /></Field>
+                <Field label="Remaining Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={
+  debitForm.remainingShares !== ""
+    ? Number(debitForm.remainingShares).toFixed(0)
+    : ""
+} /></Field>
+                <Field label="Remaining Shares" isMobile={isMobile}><input style={inputDisabled} disabled value={
+  debitForm.remainingCount !== ""
+    ? Number(debitForm.remainingCount).toFixed(0)
+    : ""
+} /></Field>
                 <Field label="Payment Mode" isMobile={isMobile}>
                   <select
                     style={inputStyle}
@@ -798,7 +1321,19 @@ setTransactions(allTransactions);
                     <option value="Members Account">Members Account</option>
                   </select>
                 </Field>
-                <Field label="Share Certificate No." isMobile={isMobile}><input style={inputStyle} value={debitForm.shareCertificateNumber} onChange={(e) => setDebitForm({ ...debitForm, shareCertificateNumber: e.target.value })} placeholder="Enter certificate number" /></Field>
+                <Field label="Certificate No." isMobile={isMobile}>
+  <input
+    style={inputStyle}
+    value={debitForm.certificateNo}
+    onChange={(e) =>
+      setDebitForm({
+        ...debitForm,
+        certificateNo: e.target.value
+      })
+    }
+    placeholder="Enter certificate number"
+  />
+</Field>
                 <div style={{ textAlign: "center", marginTop: "20px" }}><button style={btnPrimary} onClick={submitDebit}>Update</button></div>
               </div>
             )}
@@ -808,14 +1343,14 @@ setTransactions(allTransactions);
               <>
                 <div style={{ maxWidth: "680px" }}>
                   <h5 style={sectionTitle}>Dividend Details</h5>
-                  <Field label="Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={Number(currentBalance || 0).toLocaleString()} /></Field>
+                  <Field label="Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={Number(currentBalance || 0).toFixed(0)} /></Field>
                   <Field label="Dividend Rate" isMobile={isMobile}><input style={inputDisabled} disabled value={`${dividendRate}%`} /></Field>
 
 <Field label="Dividend Amount" isMobile={isMobile}>
   <input
     style={inputDisabled}
     disabled
-    value={Number(dividendAmount).toLocaleString()}
+    value={Number(dividendAmount).toFixed(0)}
   />
 </Field>
 
@@ -993,8 +1528,8 @@ setTransactions(allTransactions);
               }}
             >
               {item.amount != null
-                ? Number(item.amount).toLocaleString("en-IN")
-                : "None"}
+  ? Number(item.amount).toFixed(0)
+  : "None"}
             </td>
 
             {/* ─────────────────────────────
@@ -1041,11 +1576,7 @@ setTransactions(allTransactions);
                 whiteSpace: "nowrap",
               }}
             >
-              ₹
-              {runningBalance.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              ₹{Number(runningBalance).toFixed(0)}
             </td>
 
             {/* ─────────────────────────────
@@ -1059,9 +1590,7 @@ setTransactions(allTransactions);
                 whiteSpace: "nowrap",
               }}
             >
-              {remainingShares % 1 === 0
-                ? remainingShares
-                : remainingShares.toFixed(2)}
+              {Number(remainingShares).toFixed(0)}
             </td>
 
             {/* ─────────────────────────────

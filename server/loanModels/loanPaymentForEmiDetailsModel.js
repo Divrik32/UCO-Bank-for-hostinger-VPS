@@ -27,6 +27,14 @@ const loanPaymentForEmiDetailsSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+
+    // ✅ Transaction Date
+    transactionDate: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+
     transactionId: {
       type: String,
       trim: true,

@@ -111,7 +111,6 @@ const createThriftEntry = async (req, res) => {
       totalAmountReceived,
       paymentMethod,
       chequeNumber,
-      receivedBy,
     } = req.body;
 
     const transactionId = await generateTransactionId();
@@ -120,7 +119,7 @@ const createThriftEntry = async (req, res) => {
     const rate = interestData ? interestData.rate : 7;
 
     const yearlyInterestAmount =
-      (totalAmountReceived * rate) / 100;
+      (Number(totalAmountReceived) * rate) / 100;
 
     const currentBalance =
       await getCurrentBalance(memberId);
@@ -138,7 +137,6 @@ const createThriftEntry = async (req, res) => {
       // Particular
       particular: "By Installement",
 
-      receivedBy,
       yearlyInterestAmount,
       availableBalance: currentBalance,
       remainingBalance: newBalance,

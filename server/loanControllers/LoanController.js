@@ -6,6 +6,7 @@ const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 const LoanInterest = require("../loanModels/loanInterest.js");
 const puppeteer = require("puppeteer");
 const loanInterest = require("../loanModels/loanInterest.js");
+const DebitShare = require("../models/DebitShare.js");
 
 
 const generateTransactionId = async () => {
@@ -119,6 +120,7 @@ exports.createOfficialEntry = async (req, res) => {
       interestDays,
       interestAmount,
       paymentMode,
+      transactionDate, // ✅ Added
     } = req.body;
 
     // EMI factors by tenure
@@ -187,6 +189,9 @@ exports.createOfficialEntry = async (req, res) => {
       interestAmount,
       paymentMode,
       transactionId,
+
+      // ✅ Transaction Date
+      transactionDate: transactionDate || Date.now(),
     });
 
     res.status(201).json({
@@ -238,12 +243,14 @@ exports.createGuaranteerMemberDetails = async (req, res) => {
 exports.createLoanPaymentForEmiDetails = async (req, res) => {
   try {
     const { memberId } = req.params;
+
     const {
       paymentMode,
-      amount
+      amount,
+      transactionDate, // ✅ Added
     } = req.body;
 
-    // latest loan code for this member
+    // Latest loan code for this member
     const latestLoan = await officialEntryModel
       .findOne({ memberId })
       .sort({ createdAt: -1 });
@@ -251,27 +258,31 @@ exports.createLoanPaymentForEmiDetails = async (req, res) => {
     if (!latestLoan) {
       return res.status(404).json({
         success: false,
-        message: "Official loan entry not found"
+        message: "Official loan entry not found",
       });
     }
 
     const transactionId = await generateTransactionId();
+
     const data = await loanPaymentForEmiDetailsModel.create({
       memberId,
       loanCode: latestLoan.loanCode,
       paymentMode,
       amount,
-      transactionId
+      transactionId,
+
+      // ✅ Transaction Date
+      transactionDate: transactionDate || Date.now(),
     });
 
     res.status(201).json({
       success: true,
-      data
+      data,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -588,7 +599,7 @@ exports.getTotalTransactionDetails = async (req, res) => {
     const officialData = officialEntries.map((item) => ({
       amount: Number(item.loanAmount || 0),
       paymentMode: "-",
-      transactionDate: item.createdAt,
+      transactionDate: item.transactionDate,
       interest: "Included in EMI",
       interestRate: getInterestRateAtDate(item.createdAt),
       type: "DEBIT",
@@ -600,7 +611,7 @@ exports.getTotalTransactionDetails = async (req, res) => {
     const emiData = emiPayments.map((item) => ({
       amount: Number(item.amount || 0),
       paymentMode: item.paymentMode,
-      transactionDate: item.createdAt,
+      transactionDate: item.transactionDate,
       interest: "Included in EMI",
       interestRate: getInterestRateAtDate(item.createdAt),
       type: "CREDIT",
@@ -702,43 +713,83 @@ exports.getAvailableBalance = async (req, res) => {
     const payments = await loanPaymentForEmiDetailsModel.find({ memberId });
     const adjustments = await loanAdjustmentModel.find({ memberId });
 
+    // ==========================================
+    // Share -> Loan Account Transfers
+    // ==========================================
+    const shareDebits = await DebitShare.find({
+      memberId,
+      transferShareTo: "Members Loan Account",
+    });
+
+    // ==========================================
+    // Total Loan Amount
+    // ==========================================
     const totalLoanAmount = loans.reduce(
-      (sum, item) => sum + Number(item.loanAmount || 0),
+      (sum, item) =>
+        sum + Number(item.loanAmount || 0),
       0
     );
 
+    // ==========================================
+    // Total EMI Paid
+    // ==========================================
     const totalPaid = payments.reduce(
-      (sum, item) => sum + Number(item.amount || 0),
+      (sum, item) =>
+        sum + Number(item.amount || 0),
       0
     );
 
-    const totalAdjustment = adjustments.reduce((sum, item) => {
-      if (item.paymentMode === "Both") {
-        return (
-          sum +
-          Number(item.thriftAdjustmentAmount || 0) +
-          Number(item.shareAdjustmentAmount || 0)
-        );
-      }
+    // ==========================================
+    // Total Loan Adjustment
+    // ==========================================
+    const totalAdjustment = adjustments.reduce(
+      (sum, item) => {
+        if (item.paymentMode === "Both") {
+          return (
+            sum +
+            Number(item.thriftAdjustmentAmount || 0) +
+            Number(item.shareAdjustmentAmount || 0)
+          );
+        }
 
-      return sum + Number(item.adjustmentAmount || 0);
-    }, 0);
+        return sum + Number(item.adjustmentAmount || 0);
+      },
+      0
+    );
 
+    // ==========================================
+    // Share Amount Transferred To Loan Account
+    // ==========================================
+    const totalShareToLoan = shareDebits.reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
+
+    // ==========================================
+    // Final Available Loan Balance
+    // ==========================================
     const availableBalance =
-      totalLoanAmount - totalPaid - totalAdjustment;
+      totalLoanAmount -
+      totalPaid -
+      totalAdjustment -
+      totalShareToLoan;
 
     return res.status(200).json({
       success: true,
       memberId,
+
       totalLoanAmount,
       totalPaid,
       totalAdjustment,
-      availableBalance
+      totalShareToLoan,
+
+      availableBalance,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };

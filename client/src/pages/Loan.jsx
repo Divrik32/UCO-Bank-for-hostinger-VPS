@@ -51,6 +51,7 @@ export default function Loan() {
   const { isMobile, isTablet, isDesktop, width } = useBreakpoint();
 
   const [memberCode, setMemberCode] = useState("");
+  const [membershipNumber, setMembershipNumber] = useState("");
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("official");
   const [interestRate, setInterestRate] = useState("");
@@ -84,6 +85,7 @@ const [officialForm, setOfficialForm] = useState({
     emiAmount: "",
     paymentMode: "Amount given by Member",
     amount: "",
+    transactionDate: new Date().toISOString().split("T")[0],
   });
 
   const [adjustmentForm, setAdjustmentForm] = useState({
@@ -229,143 +231,144 @@ useEffect(() => {
     });
   };
 
-  const handleSearch = async () => {
-    try {
-      if (!memberCode.trim()) return;
-      setLoading(true);
-      const res = await api.get(`${API}/member/${memberCode}`);
-      const data = res.data.data;
-      setMember({
-        memberId: data.memberId,
-        firstname: data.name.split(" ")[0],
-        lastname: data.name.split(" ").slice(1).join(" "),
-        phoneno: data.phoneNumber,
-        email: data.email,
-        profileImage: data.profileImage,
-        signatureImage: data.signatureImage,
-        loanCode: data.loanCode || data.memberId,
-        currentBalance: data.currentBalance || 0,
-      });
-      console.log("Profile Image:", data.profileImage);
-      console.log("Signature Image:", data.signatureImage);
+const handleSearch = async () => {
+  try {
+    // ==========================================
+    // Validate Search Input
+    // ==========================================
 
-      // if (data.loanData) {
-      //   setOfficialForm({
-      //     loanCode: data.loanCode || data.memberId,
-      //     officeName: data.loanData.officeName || "",
-      //     loanDate: data.loanData.loanDate || "",
-      //     loanType: data.loanData.loanType || "Housing",
-      //     loanAmount: data.loanData.loanAmount || "",
-      //     tenureMonths: data.loanData.tenureMonths || "",
-      //     emiAmount: data.loanData.emiAmount || "",
-      //     processingFees: data.loanData.processingFees || "",
-      //   });
-      //   setEmiForm((prev) => ({ ...prev, emiAmount: data.loanData.emiAmount || "" }));
-      // }
-
-// latest official entry
-const officialRes = await api.get(
-  `${API}/official-entry/${memberCode}`
-);
-
-const officialData = officialRes.data.data;
-
-
-// ✅ 1. Official form = ALWAYS EMPTY
-setOfficialForm({ 
-  loanCode: "", 
-  officeName: "BSUCBO", 
-  loanDate: new Date().toISOString().split("T")[0], 
-  loanType: "Housing", 
-  loanAmount: "", 
-  tenureMonths: "", 
-  emiAmount: "", 
-  monthlyInterest: "", 
-  interestDays: "", 
-  interestAmount: "", 
-  paymentMode: "", 
-});
-
-// ✅ 2. Guarantee form = ALWAYS EMPTY
-setGuaranteerForm({
-  employeeName: "",
-  employeeCode: "",
-  employeePhoneNo: "",
-  memberName: "",
-  memberCode: "",
-  memberPhoneNo: "",
-});
-
-// ✅ 3. EMI TAB AUTOFILL (FROM BACKEND)
-setEmiForm({
-  emiAmount: officialData?.emiAmount || "",
-  paymentMode: "Amount given by Member",
-  amount: officialData?.emiAmount || "",
-});
-
-// ✅ 4. ADJUSTMENT TAB AUTOFILL
-setAdjustmentForm({
-  noOfEmi: officialData?.tenureMonths || "",
-  amountPaid: 0,
-  totalAmount: officialData?.loanAmount || "",
-  paymentMode: "Amount given by Member",
-  adjustmentAmount: "",
-  thriftAdjustmentAmount: "",
-  shareAdjustmentAmount: "",
-  chequeNumber: "",
-});
-
-// ✅ EMI form autofill (FINAL FIX)
-setEmiForm((prev) => ({
-  ...prev,
-  emiAmount: officialData?.emiAmount || 0,
-  amount: officialData?.emiAmount || 0,
-}));
-
-// EMI paid total
-const emiRes = await api.get(
-  `${API}/emi-payment/${memberCode}`
-);
-
-const emiPayments = emiRes.data.data || [];
-
-const totalPaid = emiPayments.reduce(
-  (sum, item) => sum + Number(item.amount || 0),
-  0
-);
-
-// loan adjustment autofill
-setAdjustmentForm((prev) => ({
-       ...prev,
-       totalAmount: officialData?.loanAmount || 0,
-       noOfEmi: officialData?.tenureMonths || "",  
-     }));
-
-      await fetchAvailableBalance(memberCode);
-      await fetchTotalLoanInterest(memberCode);
-      setActiveTab("official");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Member not found");
-    } finally {
-      setLoading(false);
+    if (!memberCode.trim() && !membershipNumber.trim()) {
+      toast.error("Enter Member Code or Membership Number");
+      return;
     }
-  };
+
+    setLoading(true);
+
+    let data;
+
+    // ==========================================
+    // 1. Search By Membership Number
+    // ==========================================
+
+    if (membershipNumber.trim()) {
+      const res = await api.get(
+        `/users/membership/${encodeURIComponent(
+          membershipNumber.trim()
+        )}`
+      );
+
+      data = res.data.data;
+
+      // Membership Number থেকে Member Code automatically set
+      setMemberCode(data.memberId);
+    }
+
+    // ==========================================
+    // 2. Search By Member Code
+    // ==========================================
+
+    else {
+      const res = await api.get(
+        `${API}/member/${encodeURIComponent(memberCode.trim())}`
+      );
+
+      data = res.data.data;
+    }
+
+    // ==========================================
+    // 3. Set Member Information
+    // ==========================================
+
+    const fullName = data.name || "";
+
+    setMember({
+      memberId: data.memberId,
+      firstname:
+        data.firstname ||
+        fullName.split(" ")[0] ||
+        "",
+      lastname:
+        data.lastname ||
+        fullName.split(" ").slice(1).join(" ") ||
+        "",
+      phoneno:
+        data.phoneNumber ||
+        data.phoneno ||
+        "",
+      email: data.email || "",
+      profileImage:
+        data.profileImage ||
+        data.profile_image ||
+        "",
+      signatureImage:
+        data.signatureImage ||
+        data.signature_image ||
+        "",
+      membershipNumber:
+        data.membershipNumber || "",
+    });
+
+    // ==========================================
+    // IMPORTANT
+    // All financial APIs use MEMBER ID
+    // ==========================================
+
+    const searchMemberId = data.memberId;
+
+    // ==========================================
+    // 4. Fetch Loan Transactions
+    // ==========================================
+
+    const txRes = await api.get(
+      `${API}/transactions/${searchMemberId}`
+    );
+
+    setTransactions(txRes.data.data || []);
+
+    // ==========================================
+    // 5. Fetch Available Balance
+    // ==========================================
+
+    await fetchAvailableBalance(searchMemberId);
+
+    // ==========================================
+    // 6. Fetch Total Loan Interest
+    // ==========================================
+
+    await fetchTotalLoanInterest(searchMemberId);
+
+    setActiveTab("official");
+
+  } catch (error) {
+    console.error("Member search error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Member not found"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
 const submitOfficialEntry = async () => {
   try {
-await api.post( 
-  `${API}/official-entry/${member.memberId}`, 
-  { 
-    officeName: "BSUCBO", 
-    loanType: officialForm.loanType, 
-    loanAmount: Number(officialForm.loanAmount), 
-    tenureMonths: Number(officialForm.tenureMonths), 
-    monthlyInterest: Number(officialForm.monthlyInterest || 0), 
-    interestDays: Number(officialForm.interestDays || 0), 
-    interestAmount: Number(officialForm.interestAmount || 0), 
-    paymentMode: officialForm.paymentMode, 
-  } 
-);
+    await api.post(
+      `${API}/official-entry/${member.memberId}`,
+      {
+        officeName: "BSUCBO",
+        loanType: officialForm.loanType,
+        loanAmount: Number(officialForm.loanAmount),
+        tenureMonths: Number(officialForm.tenureMonths),
+        monthlyInterest: Number(officialForm.monthlyInterest || 0),
+        interestDays: Number(officialForm.interestDays || 0),
+        interestAmount: Number(officialForm.interestAmount || 0),
+        paymentMode: officialForm.paymentMode,
+
+        // ✅ Loan Date → Transaction Date
+        transactionDate: officialForm.loanDate,
+      }
+    );
 
     toast.success("Official entry updated successfully");
 
@@ -377,12 +380,17 @@ await api.post(
       loanAmount: "",
       tenureMonths: "",
       emiAmount: "",
+      monthlyInterest: "",
+      interestDays: "",
+      interestAmount: "",
       processingFees: "",
+      paymentMode: "",
     });
 
-    // handleSearch();
   } catch (error) {
-    toast.error(error.response?.data?.message || "Failed to update");
+    toast.error(
+      error.response?.data?.message || "Failed to update"
+    );
   }
 };
 
@@ -470,6 +478,9 @@ const submitEmiPayment = async () => {
       emiAmount: Number(emiForm.emiAmount),
       paymentMode: emiForm.paymentMode,
       amount: Number(emiForm.amount),
+    
+      // ✅ Transaction Date
+      transactionDate: emiForm.transactionDate,
     });
 
     toast.success("EMI payment submitted successfully");
@@ -480,6 +491,7 @@ const submitEmiPayment = async () => {
       emiAmount: officialForm.emiAmount,
       paymentMode: "Amount given by Member",
       amount: officialForm.emiAmount,
+      transactionDate: new Date().toISOString().split("T")[0],
     });
 
     // handleSearch();
@@ -818,75 +830,185 @@ const submitAdjustment = async () => {
         textAlign: "center",
       }}
     >
-₹{Number(totalLoanInterest.toFixed(2)).toLocaleString("en-IN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}
+₹{Math.round(Number(totalLoanInterest)).toLocaleString("en-IN")}
     </div>
   </div>
 )}
       </div>
 
-      {/* ── Search Bar ── */}
+{/* ── Search Bar ── */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: isMobile ? "stretch" : "flex-end",
+    marginBottom: "14px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: isMobile ? "column" : "row",
+      gap: "14px",
+      width: isMobile ? "100%" : "auto",
+    }}
+  >
+    {/* ==========================================
+        Membership Number Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile ? "100%" : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Membership Number:
+      </label>
+
       <div
         style={{
           display: "flex",
-          justifyContent: isMobile ? "stretch" : "flex-end",
-          marginBottom: "14px",
+          alignItems: "center",
+          gap: "8px",
         }}
       >
-        <div style={{ width: isMobile ? "100%" : "auto" }}>
-          <label
-            style={{
-              fontSize: "14px",
-              fontWeight: "600",
-              color: "#444",
-              fontFamily: "'Inter', sans-serif",
-              display: "block",
-              marginBottom: "4px",
-            }}
-          >
-            Member Code:
-          </label>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <input
-              type="text"
-              value={memberCode}
-              onChange={(e) => setMemberCode(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              style={{
-                padding: "9px 14px",
-                fontSize: "14px",
-                border: "1.5px solid #ced4da",
-                borderRadius: "5px",
-                fontFamily: "'Inter', sans-serif",
-                outline: "none",
-                backgroundColor: "#fff",
-                flex: isMobile ? 1 : "none",
-                width: isMobile ? "auto" : "200px",
-                boxSizing: "border-box",
-              }}
-              placeholder="Enter member code"
-            />
-            <button
-              onClick={handleSearch}
-              style={{
-                backgroundColor: "#10b981",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                padding: "9px 20px",
-                fontSize: "14px",
-                fontWeight: "600",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {loading ? "..." : "Search"}
-            </button>
-          </div>
-        </div>
+        <input
+          type="text"
+          value={membershipNumber}
+          onChange={(e) => {
+            setMembershipNumber(e.target.value);
+
+            // Membership Number দিলে Member Code clear হবে
+            if (e.target.value) {
+              setMemberCode("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
+          style={{
+            padding: "9px 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+            width: isMobile ? "100%" : "200px",
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter membership number"
+        />
+
+        <button
+          onClick={handleSearch}
+          style={{
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "9px 20px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
       </div>
+    </div>
+
+    {/* ==========================================
+        Member Code Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile ? "100%" : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Member Code:
+      </label>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={memberCode}
+          onChange={(e) => {
+            setMemberCode(e.target.value);
+
+            // Member Code দিলে Membership Number clear হবে
+            if (e.target.value) {
+              setMembershipNumber("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
+          style={{
+            padding: "9px 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+            width: isMobile ? "100%" : "200px",
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter member code"
+        />
+
+        <button
+          onClick={handleSearch}
+          style={{
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "9px 20px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* ── Main Layout ── */}
       <div
@@ -1430,6 +1552,21 @@ const submitAdjustment = async () => {
                   />
                 </Field>
 
+                {/* ✅ Transaction Date */}
+<Field label="Transaction Date" isMobile={isMobile}>
+  <input
+    type="date"
+    style={inputStyle}
+    value={emiForm.transactionDate}
+    onChange={(e) =>
+      setEmiForm({
+        ...emiForm,
+        transactionDate: e.target.value,
+      })
+    }
+  />
+</Field>
+
                 {/* <Field label="Transaction ID" isMobile={isMobile}>
                   <input
                     style={inputStyle}
@@ -1810,21 +1947,17 @@ const submitAdjustment = async () => {
 
             {/* Debit */}
             <td style={td}>
-              {transactionType === "DEBIT"
-                ? amount.toFixed(2)
-                : "-"}
+              {transactionType === "DEBIT" ? Math.round(amount) : "-"}
             </td>
 
             {/* Credit */}
             <td style={td}>
-              {transactionType === "CREDIT"
-                ? amount.toFixed(2)
-                : "-"}
+              {transactionType === "CREDIT" ? Math.round(amount) : "-"}
             </td>
 
             {/* Balance */}
             <td style={td}>
-              {runningBalance.toFixed(2)}
+              {Math.round(runningBalance)}
             </td>
 
             {/* No of Days */}
@@ -1841,21 +1974,17 @@ const submitAdjustment = async () => {
 
             {/* Product */}
             <td style={td}>
-              {product !== "-"
-                ? product.toFixed(2)
-                : "-"}
+              {product !== "-" ? Math.round(product) : "-"}
             </td>
 
             {/* Interest Charge */}
             <td style={td}>
-              {noOfDays !== "-"
-                ? interestCharge.toFixed(2)
-                : "-"}
+              {noOfDays !== "-" ? Math.round(interestCharge) : "-"}
             </td>
 
             {/* Interest Balance */}
             <td style={td}>
-              {runningInterestBalance.toFixed(2)}
+              {Math.round(runningInterestBalance)}
             </td>
           </tr>
         );
@@ -1904,7 +2033,7 @@ const submitAdjustment = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    ₹{Number(availableBalance).toLocaleString()}
+                    ₹{Math.round(Number(availableBalance)).toLocaleString("en-IN")}
                   </div>
                 </div>
               </div>

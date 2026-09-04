@@ -341,6 +341,45 @@ const getMemberById = async (req, res) => {
   }
 };
 
+// ================= GET MEMBER BY MEMBERSHIP NUMBER =================
+
+const getMemberByMembershipNumber = async (req, res) => {
+  try {
+    const { membershipNumber } = req.params;
+
+    if (!membershipNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Membership number is required",
+      });
+    }
+
+    const member = await PersonalInformation.findOne({
+      membershipNumber: membershipNumber.trim(),
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found with this membership number",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Member found successfully",
+      data: member,
+    });
+  } catch (error) {
+    console.error("Get member by membership number error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const approveMember = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1861,6 +1900,7 @@ module.exports = {
   getApprovalPendingMembers,
   getApprovedMembers,
   getMemberById,
+  getMemberByMembershipNumber,
   approveMember,
   logoutUser,
   sendForgotOtp,

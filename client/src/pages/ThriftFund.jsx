@@ -56,6 +56,7 @@ const Field = ({ label, children, isMobile }) => (
 export default function ThriftFund() {
   const { isMobile, isTablet, isDesktop, width } = useBreakpoint();
   const [memberCode, setMemberCode] = useState("");
+  const [membershipNumber, setMembershipNumber] = useState("");
   const [member, setMember] = useState(null);
   const [activeTab, setActiveTab] = useState("entry");
   const [interestRate, setInterestRate] = useState("");
@@ -68,7 +69,6 @@ export default function ThriftFund() {
     chequeNumber: "",
     yearlyInterestAmount: "",
     entryDate: "",
-    receivedBy: "",
   });
 
   const [withdrawalForm, setWithdrawalForm] = useState({
@@ -158,138 +158,215 @@ const [savingParticular, setSavingParticular] = useState(false);
     });
   };
 
-  const handleSearch = async () => {
-    try {
-      if (!memberCode.trim()) return;
-      setLoading(true);
-      const res = await api.get(`${API}/member/${memberCode}`);
-      const data = res.data.data;
-      setMember({
-        memberId: data.memberId,
-        firstname: data.name.split(" ")[0],
-        lastname: data.name.split(" ").slice(1).join(" "),
-        phoneno: data.phoneNumber,
-        email: data.email,
-        profileImage: data.profileImage,
-        signatureImage: data.signatureImage,
-      });
-// ==========================================
-// Fetch Thrift Entry + Withdrawal Transactions
-// Entry  -> entryDate
-// Withdrawal -> withdrawalDate
-// ==========================================
-const txRes = await api.get(
-  `${API}/transaction/${memberCode}`
-);
+const handleSearch = async () => {
+  try {
+    // ==========================================
+    // Validate Search Input
+    // ==========================================
 
-const thriftTransactions = (txRes.data.data || []).map((item) => ({
-  ...item,
-
-  // MongoDB document ID
-  mongoId: item._id || item.id,
-
-  // frontend transaction id
-  id: item._id || item.id,
-
-  particular:
-    item.particular ||
-    (item.type === "Credit"
-      ? "By Installement"
-      : "Balance refund to member"),
-
-  isLoanAdjustment: false,
-}));
-
-
-// ==========================================
-// Fetch Loan Adjustment Transactions
-// Only:
-// 1. Amount given from thrift A/C
-// 2. Both
-//
-// Date for Loan Adjustment -> createdAt
-// ==========================================
-let loanAdjustments = [];
-
-try {
-  const loanAdjustmentRes = await api.get(
-    `/loan/loan-adjustment/${memberCode}`
-  );
-
-  loanAdjustments = (loanAdjustmentRes.data.data || [])
-    .filter(
-      (item) =>
-        item.paymentMode ===
-          "Amount given from thrift A/C" ||
-        item.paymentMode === "Both"
-    )
-    .map((item) => {
-      const adjustmentAmount =
-        item.paymentMode === "Both"
-          ? Number(item.thriftAdjustmentAmount || 0)
-          : Number(item.adjustmentAmount || 0);
-
-return {
-  id: item._id,
-  amount: adjustmentAmount,
-  type: "Debit",
-
-  // Loan Adjustment-এর কোনো transaction date নেই,
-  // তাই createdAt ব্যবহার হবে
-  date: item.createdAt,
-
-  interest: 0,
-  transactionId: item.transactionId || "-",
-
-  // Loan Adjustment particular
-  particular: "Balance Transfer to loan Account",
-
-  // Important: this transaction cannot edit particular
-  isLoanAdjustment: true,
-};
-    })
-    .filter((item) => item.amount > 0);
-} catch (error) {
-  // যদি member-এর কোনো loan adjustment না থাকে,
-  // তাহলে শুধু thrift entry + withdrawal দেখাবে
-  loanAdjustments = [];
-}
-
-
-// ==========================================
-// Combine all 3 types of transactions
-// ==========================================
-const allTransactions = [
-  ...thriftTransactions,
-  ...loanAdjustments,
-];
-
-
-// ==========================================
-// Earliest -> Latest
-//
-// Entry       -> entryDate
-// Withdrawal  -> withdrawalDate
-// Adjustment  -> createdAt
-// ==========================================
-allTransactions.sort(
-  (a, b) =>
-    new Date(a.date).getTime() -
-    new Date(b.date).getTime()
-);
-
-
-setTransactions(allTransactions);
-
-await fetchAvailableBalance(memberCode);
-await fetchTotalThriftInterest(memberCode);
-setActiveTab("entry");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Member not found");
-    } finally {
-      setLoading(false);
+    if (!memberCode.trim() && !membershipNumber.trim()) {
+      toast.error("Enter Member Code or Membership Number");
+      return;
     }
-  };
+
+    setLoading(true);
+
+    let data;
+
+    // ==========================================
+    // 1. Search By Membership Number
+    // ==========================================
+
+    if (membershipNumber.trim()) {
+      const res = await api.get(
+        `/users/membership/${encodeURIComponent(
+          membershipNumber.trim()
+        )}`
+      );
+
+      data = res.data.data;
+
+      // Member Code automatically set
+      setMemberCode(data.memberId);
+    }
+
+    // ==========================================
+    // 2. Search By Member Code
+    // ==========================================
+
+    else {
+      const res = await api.get(
+        `${API}/member/${encodeURIComponent(memberCode.trim())}`
+      );
+
+      data = res.data.data;
+    }
+
+    // ==========================================
+    // 3. Set Member Information
+    // ==========================================
+
+    const fullName = data.name || "";
+
+    setMember({
+      memberId: data.memberId,
+      firstname:
+        data.firstname ||
+        fullName.split(" ")[0] ||
+        "",
+      lastname:
+        data.lastname ||
+        fullName.split(" ").slice(1).join(" ") ||
+        "",
+      phoneno: data.phoneNumber || data.phoneno || "",
+      email: data.email || "",
+      profileImage:
+        data.profileImage || data.profile_image || "",
+      signatureImage:
+        data.signatureImage || data.signature_image || "",
+      membershipNumber:
+        data.membershipNumber || "",
+    });
+
+    // ==========================================
+    // IMPORTANT
+    // All financial APIs should use MEMBER ID
+    // ==========================================
+
+    const searchMemberId = data.memberId;
+
+    // ==========================================
+    // 4. Fetch Thrift Transactions
+    // ==========================================
+
+    const txRes = await api.get(
+      `${API}/transaction/${searchMemberId}`
+    );
+
+    const thriftTransactions = (
+      txRes.data.data || []
+    ).map((item) => ({
+      ...item,
+
+      // MongoDB document ID
+      mongoId: item._id || item.id,
+
+      // Frontend transaction ID
+      id: item._id || item.id,
+
+      particular:
+        item.particular ||
+        (item.type === "Credit"
+          ? "By Installement"
+          : "Balance refund to member"),
+
+      isLoanAdjustment: false,
+    }));
+
+    // ==========================================
+    // 5. Fetch Loan Adjustment Transactions
+    // ==========================================
+
+    let loanAdjustments = [];
+
+    try {
+      const loanAdjustmentRes = await api.get(
+        `/loan/loan-adjustment/${searchMemberId}`
+      );
+
+      loanAdjustments = (
+        loanAdjustmentRes.data.data || []
+      )
+        .filter(
+          (item) =>
+            item.paymentMode ===
+              "Amount given from thrift A/C" ||
+            item.paymentMode === "Both"
+        )
+        .map((item) => {
+          const adjustmentAmount =
+            item.paymentMode === "Both"
+              ? Number(
+                  item.thriftAdjustmentAmount || 0
+                )
+              : Number(
+                  item.adjustmentAmount || 0
+                );
+
+          return {
+            id: item._id,
+            amount: adjustmentAmount,
+            type: "Debit",
+
+            // Loan adjustment date
+            date: item.createdAt,
+
+            interest: 0,
+
+            transactionId:
+              item.transactionId || "-",
+
+            particular:
+              "Balance Transfer to loan Account",
+
+            // Cannot edit
+            isLoanAdjustment: true,
+          };
+        })
+        .filter(
+          (item) => item.amount > 0
+        );
+    } catch (error) {
+      loanAdjustments = [];
+    }
+
+    // ==========================================
+    // 6. Combine All Transactions
+    // ==========================================
+
+    const allTransactions = [
+      ...thriftTransactions,
+      ...loanAdjustments,
+    ];
+
+    // ==========================================
+    // 7. Sort Earliest -> Latest
+    // ==========================================
+
+    allTransactions.sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    );
+
+    setTransactions(allTransactions);
+
+    // ==========================================
+    // 8. Fetch Financial Details
+    // ==========================================
+
+    await fetchAvailableBalance(searchMemberId);
+
+    await fetchTotalThriftInterest(
+      searchMemberId
+    );
+
+    setActiveTab("entry");
+
+  } catch (error) {
+    console.error(
+      "Member search error:",
+      error
+    );
+
+    toast.error(
+      error.response?.data?.message ||
+        "Member not found"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleParticularEdit = (item, index) => {
   // Loan Adjustment edit করা যাবে না
@@ -397,20 +474,37 @@ const handleParticularSave = async (item, index) => {
   }
 };
 
-  const submitEntry = async () => {
-    try {
-      await api.post(`${API}/thrift-entry`, {
-        memberId: member.memberId,
-        ...entryForm,
-        totalAmountReceived: Number(entryForm.totalAmountReceived),
-      });
-      toast.success("Entry created successfully");
-      await fetchAvailableBalance(member.memberId);
-      await fetchTotalThriftInterest(member.memberId);
-      setEntryForm({ totalAmountReceived: "", paymentMethod: entryPaymentMethods[0] || "", chequeNumber: "", yearlyInterestAmount: "", entryDate: "", receivedBy: "" });
-      handleSearch();
-    } catch (error) { toast.error(error.response?.data?.message); }
-  };
+const submitEntry = async () => {
+  try {
+    await api.post(`${API}/thrift-entry`, {
+      memberId: member.memberId,
+      ...entryForm,
+      totalAmountReceived: Number(
+        entryForm.totalAmountReceived
+      ),
+    });
+
+    toast.success("Entry created successfully");
+
+    await fetchAvailableBalance(member.memberId);
+    await fetchTotalThriftInterest(member.memberId);
+
+    setEntryForm({
+      totalAmountReceived: "",
+      paymentMethod: entryPaymentMethods[0] || "",
+      chequeNumber: "",
+      yearlyInterestAmount: "",
+      entryDate: "",
+    });
+
+    handleSearch();
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to create entry"
+    );
+  }
+};
 
   const submitWithdrawal = async () => {
     try {
@@ -553,7 +647,7 @@ const handleParticularSave = async (item, index) => {
               Available Balance
             </div>
             <div style={{ backgroundColor: "#ecfdf5", color: "#065f46", fontWeight: "800", fontSize: "14px", fontFamily: "'Inter', sans-serif", padding: "8px 14px", whiteSpace: "nowrap", minWidth: "70px", textAlign: "center" }}>
-              ₹{Number(availableBalance).toLocaleString()}
+              ₹{Number(availableBalance).toFixed(0)}
             </div>
           </div>
         )}
@@ -596,46 +690,204 @@ const handleParticularSave = async (item, index) => {
       }}
     >
 
-      ₹{Number(totalThriftInterest.toFixed(2)).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}
+      ₹{Number(totalThriftInterest).toFixed(0)}
     </div>
   </div>
 )}
       </div>
 
-      {/* ── Search Bar ── */}
-      <div style={{ display: "flex", justifyContent: isMobile ? "stretch" : "flex-end", marginBottom: "14px" }}>
-        <div style={{ width: isMobile ? "100%" : "auto" }}>
-          <label style={{ fontSize: "14px", fontWeight: "600", color: "#444", fontFamily: "'Inter', sans-serif", display: "block", marginBottom: "4px" }}>
-            Member Code:
-          </label>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <input
-              type="text"
-              value={memberCode}
-              onChange={(e) => setMemberCode(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              style={{
-                padding: "9px 14px", fontSize: "14px",
-                border: "1.5px solid #ced4da", borderRadius: "5px",
-                fontFamily: "'Inter', sans-serif", outline: "none",
-                backgroundColor: "#fff",
-                flex: isMobile ? 1 : "none",
-                width: isMobile ? "auto" : "200px",
-              }}
-              placeholder="Enter member code"
-            />
-            <button
-              onClick={handleSearch}
-              style={{ backgroundColor: "#10b981", color: "white", border: "none", borderRadius: "5px", padding: "9px 20px", fontSize: "14px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              {loading ? "..." : "Search"}
-            </button>
-          </div>
-        </div>
+{/* ── Search Bar ── */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: isMobile
+      ? "stretch"
+      : "flex-end",
+    marginBottom: "14px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: isMobile
+        ? "column"
+        : "row",
+      gap: "14px",
+      width: isMobile
+        ? "100%"
+        : "auto",
+    }}
+  >
+
+    {/* ==========================================
+        Membership Number Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile
+          ? "100%"
+          : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Membership Number:
+      </label>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={membershipNumber}
+          onChange={(e) => {
+            setMembershipNumber(e.target.value);
+
+            // Membership Number দিলে
+            // Member Code clear হবে
+            if (e.target.value) {
+              setMemberCode("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
+          style={{
+            padding: "9px 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+            width: isMobile
+              ? "100%"
+              : "200px",
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter membership number"
+        />
+
+        <button
+          onClick={handleSearch}
+          style={{
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "9px 20px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
       </div>
+    </div>
+
+
+    {/* ==========================================
+        Member Code Search
+    ========================================== */}
+
+    <div
+      style={{
+        width: isMobile
+          ? "100%"
+          : "auto",
+      }}
+    >
+      <label
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#444",
+          fontFamily: "'Inter', sans-serif",
+          display: "block",
+          marginBottom: "4px",
+        }}
+      >
+        Member Code:
+      </label>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={memberCode}
+          onChange={(e) => {
+            setMemberCode(e.target.value);
+
+            // Member Code দিলে
+            // Membership Number clear হবে
+            if (e.target.value) {
+              setMembershipNumber("");
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
+          style={{
+            padding: "9px 14px",
+            fontSize: "14px",
+            border: "1.5px solid #ced4da",
+            borderRadius: "5px",
+            fontFamily: "'Inter', sans-serif",
+            outline: "none",
+            backgroundColor: "#fff",
+            width: isMobile
+              ? "100%"
+              : "200px",
+            boxSizing: "border-box",
+          }}
+          placeholder="Enter member code"
+        />
+
+        <button
+          onClick={handleSearch}
+          style={{
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "9px 20px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {loading ? "..." : "Search"}
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
 
       {/* ── Main Layout ── */}
       <div
@@ -763,17 +1015,24 @@ const handleParticularSave = async (item, index) => {
                   <input style={inputDisabled} disabled value={entryForm.yearlyInterestAmount} />
                 </Field>
                 <Field label="Available Balance" isMobile={isMobile}>
-                  <input style={inputDisabled} disabled value={availableBalance} />
+                  <input style={inputDisabled} disabled value={Number(availableBalance).toFixed(0)} />
                 </Field>
                 <Field label="Balance After Entry" isMobile={isMobile}>
-                  <input style={inputDisabled} disabled value={entryForm.totalAmountReceived ? (Number(availableBalance) + Number(entryForm.totalAmountReceived)).toFixed(2) : availableBalance} />
+                  <input style={inputDisabled} disabled value={
+  entryForm.totalAmountReceived
+    ? (
+        Number(availableBalance) +
+        Number(entryForm.totalAmountReceived)
+      ).toFixed(0)
+    : Number(availableBalance).toFixed(0)
+} />
                 </Field>
                 <Field label="Entry Date" isMobile={isMobile}>
                   <input type="date" style={inputStyle} value={entryForm.entryDate} onChange={(e) => setEntryForm({ ...entryForm, entryDate: e.target.value })} />
                 </Field>
-                <Field label="Received By" isMobile={isMobile}>
+                {/* <Field label="Received By" isMobile={isMobile}>
                   <input style={inputStyle} value={entryForm.receivedBy} onChange={(e) => setEntryForm({ ...entryForm, receivedBy: e.target.value })} placeholder="Name of receiver" />
-                </Field>
+                </Field> */}
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitEntry}>Update</button>
                 </div>
@@ -790,10 +1049,17 @@ const handleParticularSave = async (item, index) => {
                   <input type="number" style={inputStyle} value={withdrawalForm.withdrawalAmount} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, withdrawalAmount: e.target.value })} placeholder="Enter amount" />
                 </Field>
                 <Field label="Available Balance" isMobile={isMobile}>
-                  <input style={inputDisabled} disabled value={availableBalance} />
+                  <input style={inputDisabled} disabled value={Number(availableBalance).toFixed(0)} />
                 </Field>
                 <Field label="Remaining Balance" isMobile={isMobile}>
-                  <input style={inputDisabled} disabled value={withdrawalForm.withdrawalAmount ? (Number(availableBalance) - Number(withdrawalForm.withdrawalAmount)).toFixed(2) : availableBalance} />
+                  <input style={inputDisabled} disabled value={
+  withdrawalForm.withdrawalAmount
+    ? (
+        Number(availableBalance) -
+        Number(withdrawalForm.withdrawalAmount)
+      ).toFixed(0)
+    : Number(availableBalance).toFixed(0)
+} />
                 </Field>
                 <Field label="Payment Method" isMobile={isMobile}>
                   <select
@@ -1020,8 +1286,8 @@ const handleParticularSave = async (item, index) => {
   }}
 >
   {item.type === "Debit"
-    ? `₹${Number(item.amount || 0).toLocaleString("en-IN")}`
-    : ""}
+  ? `₹${Number(item.amount || 0).toFixed(0)}`
+  : ""}
 </td>
 
 {/* Credit Rs */}
@@ -1032,8 +1298,8 @@ const handleParticularSave = async (item, index) => {
   }}
 >
   {item.type === "Credit"
-    ? `₹${Number(item.amount || 0).toLocaleString("en-IN")}`
-    : ""}
+  ? `₹${Number(item.amount || 0).toFixed(0)}`
+  : ""}
 </td>
 
 {/* Balance Rs */}
@@ -1043,11 +1309,7 @@ const handleParticularSave = async (item, index) => {
     fontWeight: "700",
   }}
 >
-  ₹
-  {Number(item.balance || 0).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}
+  ₹{Number(item.balance || 0).toFixed(0)}
 </td>
 
 {/* Transaction ID */}
@@ -1072,7 +1334,7 @@ const handleParticularSave = async (item, index) => {
                 <div style={{ display: "flex", alignItems: "stretch", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px rgba(30,64,175,0.10)", border: "1.5px solid #dbeafe", width: "fit-content", marginLeft: "auto", marginTop: "12px" }}>
                   <div style={{ backgroundColor: "#1e40af", color: "#fff", fontWeight: "700", fontSize: "13px", fontFamily: "'Inter', sans-serif", padding: "10px 18px", whiteSpace: "nowrap" }}>Available Balance</div>
                   <div style={{ backgroundColor: "#eff6ff", color: "#1e40af", fontWeight: "800", fontSize: "14px", fontFamily: "'Inter', sans-serif", padding: "10px 18px", whiteSpace: "nowrap" }}>
-                    ₹{availableBalance.toLocaleString()}
+                    ₹{Number(availableBalance).toFixed(0)}
                   </div>
                 </div>
               </div>

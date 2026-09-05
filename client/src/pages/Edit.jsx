@@ -369,6 +369,7 @@ export default function PreviewEditPage() {
               />
             <Field label="Age"                name="age"                 value={formData.age}                 onChange={handleChange} required />
             <Field label="Membership Number"  name="membershipNumber"    value={formData.membershipNumber}    onChange={handleChange}/>
+            <Field label="Branch"             name="branch"              value={formData.branch}              onChange={handleChange}/>
             <Field label="Phone"              name="phoneno"             value={formData.phoneno}             onChange={handleChange} required />
             <Field label="Email"              name="email"               value={formData.email}               onChange={handleChange} required />
             <Field label="Gender"             name="gender"              value={formData.gender}              onChange={handleChange} required />

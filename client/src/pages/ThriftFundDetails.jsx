@@ -9,6 +9,7 @@ export default function ThriftFundDetails() {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [interestRate, setInterestRate] = useState(0);
 
   // ==========================================
   // PRINT REPORT
@@ -19,12 +20,25 @@ export default function ThriftFundDetails() {
 
     window.open(pdfUrl, "_blank");
   };
+const fetchInterestRate = async () => {
+  try {
+    const res = await api.get("/thrift-fund/interest-rate");
+
+    setInterestRate(
+      Number(res.data.data.rate || 0)
+    );
+  } catch (error) {
+    console.error("Failed to fetch interest rate:", error);
+    setInterestRate(0);
+  }
+};
 
   // ==========================================
   // FETCH MEMBER THRIFT DETAILS
   // ==========================================
   useEffect(() => {
     fetchMemberThriftDetails();
+    fetchInterestRate();
   }, [memberId]);
 
   const fetchMemberThriftDetails = async () => {
@@ -671,7 +685,7 @@ setMember({
     </th>
 
     <th style={styles.th}>
-      Transaction ID
+      Monthly Interest
     </th>
 
   </tr>
@@ -799,6 +813,12 @@ setMember({
                   runningBalance -= amount;
 
                 }
+// ==========================================
+// MONTHLY INTEREST
+// ==========================================
+
+const monthlyInterest =
+  (runningBalance * Number(interestRate || 0) * 30) / 36500;
 
 
                 // ==========================================
@@ -926,15 +946,18 @@ setMember({
 </td>
 
 
-{/* Transaction ID */}
+{/* Monthly Interest */}
 <td
   style={{
     ...styles.td,
-    fontFamily: "monospace",
-    fontSize: "12px",
+    fontWeight: "600",
   }}
 >
-  {transaction.transactionId || "-"}
+  ₹
+  {monthlyInterest.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
 </td>
 
                   </tr>

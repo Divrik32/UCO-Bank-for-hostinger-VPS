@@ -28,7 +28,8 @@ export default function ShareReport() {
       const res = await api.get(
         "/share/member-share-transactions"
       );
-
+     console.log(res.data.data);
+     
       setReports(res.data.data || []);
     } catch (err) {
       console.log(err);

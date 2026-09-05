@@ -60,6 +60,7 @@ const [form, setForm] = useState(() => {
     date_of_retirement: "",
     age: "",
     membershipNumber: "",
+    branch: "", 
     gender: "Male",
     status: "Married",
     guardian_firstname: "",
@@ -237,7 +238,8 @@ const handleSubmit = (e) => {
     type: "date" 
   },
             { label: "Age",              name: "age",                type: "number" },
-            {label: "Membership Number", name: "membershipNumber",   type: "text"},
+            // {label: "Membership Number", name: "membershipNumber",   type: "text"},
+            // { label: "Branch", name: "branch", type: "text" },
             { label: "Guardian Name",    name: "guardian_firstname", type: "text" },
             { label: "Phone",            name: "phoneno",            type: "tel" },
             { label: "Email Id",         name: "email",              type: "email" },
@@ -268,6 +270,75 @@ const handleSubmit = (e) => {
               </div>
             </div>
           ))}
+          {/* Membership Number + Branch */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "24px",
+    marginBottom: "14px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "16px",
+    }}
+  >
+    <div
+      style={{
+        flex: "0 0 160px",
+        fontSize: "14px",
+        color: "#6980aa",
+        textAlign: "right",
+        fontFamily: "Open Sans, sans-serif",
+      }}
+    >
+      Membership Number
+    </div>
+
+    <div style={{ flex: 1 }}>
+      <input
+        type="text"
+        name="membershipNumber"
+        value={form.membershipNumber}
+        onChange={handleChange}
+        style={inputStyle}
+      />
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "16px",
+    }}
+  >
+    <div
+      style={{
+        flex: "0 0 100px",
+        fontSize: "14px",
+        color: "#6980aa",
+        textAlign: "right",
+        fontFamily: "Open Sans, sans-serif",
+      }}
+    >
+      Branch
+    </div>
+
+    <div style={{ flex: 1 }}>
+      <input
+        type="text"
+        name="branch"
+        value={form.branch}
+        onChange={handleChange}
+        style={inputStyle}
+      />
+    </div>
+  </div>
+</div>
 
           {/* Gender */}
           <div style={rowStyle}>

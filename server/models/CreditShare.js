@@ -38,6 +38,10 @@ const creditShareSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+      creditDate: {
+      type: Date,
+      default: Date.now,
+    },
 
     certificateNo: {
       type: String,

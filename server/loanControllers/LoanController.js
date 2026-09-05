@@ -601,7 +601,7 @@ exports.getTotalTransactionDetails = async (req, res) => {
       paymentMode: "-",
       transactionDate: item.transactionDate,
       interest: "Included in EMI",
-      interestRate: getInterestRateAtDate(item.createdAt),
+      interestRate: getInterestRateAtDate(item.transactionDate),
       type: "DEBIT",
     }));
 
@@ -613,7 +613,7 @@ exports.getTotalTransactionDetails = async (req, res) => {
       paymentMode: item.paymentMode,
       transactionDate: item.transactionDate,
       interest: "Included in EMI",
-      interestRate: getInterestRateAtDate(item.createdAt),
+      interestRate: getInterestRateAtDate(item.transactionDate),
       type: "CREDIT",
     }));
 
@@ -1223,9 +1223,9 @@ const officialTransactionData = officialEntries.map((item) => ({
 
   transactionId: item.transactionId || "-",
 
-  transactionDate: item.createdAt,
+  transactionDate: item.transactionDate,
 
-  interestRate: getInterestRateAtDate(item.createdAt),
+  interestRate: getInterestRateAtDate(item.transactionDate),
 
   type: "DEBIT",
 }));
@@ -1241,9 +1241,9 @@ const emiTransactionData = emiPayments.map((item) => ({
 
   transactionId: item.transactionId || "-",
 
-  transactionDate: item.createdAt,
+  transactionDate: item.transactionDate,
 
-  interestRate: getInterestRateAtDate(item.createdAt),
+  interestRate: getInterestRateAtDate(item.transactionDate),
 
   type: "CREDIT",
 }));
@@ -1271,9 +1271,9 @@ const adjustmentTransactionData = allLoanAdjustments.map((item) => {
 
     transactionId: item.transactionId || "-",
 
-    transactionDate: item.createdAt,
+    transactionDate: item.transactionDate,
 
-    interestRate: getInterestRateAtDate(item.createdAt),
+    interestRate: getInterestRateAtDate(item.transactionDate),
 
     type: "CREDIT",
   };
@@ -1331,7 +1331,7 @@ const transactionsWithBalance = allTransactions.map(
       );
 
       noOfDays = Math.max(
-        diffDays - 1,
+        diffDays,
         0
       );
     }
@@ -1392,14 +1392,17 @@ const transactionsWithBalance = allTransactions.map(
       }
     }
 
-    // ========================================
-    // PRODUCT
-    // ========================================
+// ============================
+// BALANCE + PRODUCT
+// ============================
 
-    const product =
-      noOfDays !== "-"
-        ? runningBalance * Number(noOfDays)
-        : 0;
+const displayBalance = Math.round(runningBalance);
+
+const product =
+  noOfDays !== "-"
+    ? displayBalance *
+      Number(noOfDays || 0)
+    : "-";
 
     return {
       ...item,

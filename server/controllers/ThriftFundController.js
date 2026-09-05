@@ -111,6 +111,7 @@ const createThriftEntry = async (req, res) => {
       totalAmountReceived,
       paymentMethod,
       chequeNumber,
+      entryDate,
     } = req.body;
 
     const transactionId = await generateTransactionId();
@@ -140,6 +141,9 @@ const createThriftEntry = async (req, res) => {
       yearlyInterestAmount,
       availableBalance: currentBalance,
       remainingBalance: newBalance,
+
+      // Entry Date
+      entryDate: entryDate ? new Date(entryDate) : new Date(),
     });
 
     return res.status(201).json({
@@ -165,6 +169,7 @@ const createThriftWithdrawal = async (req, res) => {
       paymentMethod,
       chequeNumber,
       approvedBy,
+      withdrawalDate,
     } = req.body;
 
     const transactionId = await generateTransactionId();
@@ -172,7 +177,7 @@ const createThriftWithdrawal = async (req, res) => {
     const currentBalance =
       await getCurrentBalance(memberId);
 
-    if (withdrawalAmount > currentBalance) {
+    if (Number(withdrawalAmount) > currentBalance) {
       return res.status(400).json({
         success: false,
         message: "Insufficient balance",
@@ -196,6 +201,11 @@ const createThriftWithdrawal = async (req, res) => {
         approvedBy,
         availableBalance: currentBalance,
         remainingBalance,
+
+        // Withdrawal Date
+        withdrawalDate: withdrawalDate
+          ? new Date(withdrawalDate)
+          : new Date(),
       });
 
     return res.status(201).json({
@@ -986,7 +996,19 @@ transactions.sort((a, b) => {
     };
 
 // ==========================================
-// 11. Transaction Rows
+// 11. GET CURRENT THRIFT INTEREST RATE
+// ==========================================
+
+const currentInterestRateDoc = await InterestRate.findOne().sort({
+  createdAt: -1,
+});
+
+const currentInterestRate = Number(
+  currentInterestRateDoc?.rate || 0
+);
+
+// ==========================================
+// 12. Transaction Rows
 // ==========================================
 
 // Running balance starts from zero
@@ -1044,23 +1066,31 @@ const transactionRows =
         );
       }
 
-      // ==========================================
-      // Running Balance
-      // ==========================================
-      if (transactionType === "Credit") {
+// ==========================================
+// Running Balance
+// ==========================================
 
-        runningBalance += amount;
+if (transactionType === "Credit") {
 
-      } else if (
-        transactionType === "Debit"
-      ) {
+  runningBalance += amount;
 
-        runningBalance -= amount;
-      }
+} else if (
+  transactionType === "Debit"
+) {
 
-      // ==========================================
-      // Particular
-      // ==========================================
+  runningBalance -= amount;
+}
+
+// ==========================================
+// MONTHLY INTEREST
+// ==========================================
+
+const monthlyInterest =
+  (runningBalance * currentInterestRate * 30) / 36500;
+
+// ==========================================
+// Particular
+// ==========================================
       let particular =
         transaction.particular;
 
@@ -1114,21 +1144,35 @@ const transactionRows =
             )}`
           : "";
 
-      // ==========================================
-      // Balance
-      // ==========================================
-      const balanceAmount =
-        `₹${runningBalance.toLocaleString(
-          "en-IN",
-          {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }
-        )}`;
+// ==========================================
+// Balance
+// ==========================================
 
-      // ==========================================
-      // Transaction Date
-      // ==========================================
+const balanceAmount =
+  `₹${runningBalance.toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  )}`;
+
+// ==========================================
+// Monthly Interest
+// ==========================================
+
+const monthlyInterestAmount =
+  `₹${monthlyInterest.toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  )}`;
+
+// ==========================================
+// Transaction Date
+// ==========================================
       const transactionDate =
         transaction.transactionDate ||
         transaction.entryDate ||
@@ -1171,12 +1215,10 @@ const transactionRows =
             ${balanceAmount}
           </td>
 
-          <!-- Transaction ID -->
-          <td class="transaction-id">
-            ${valueOrDash(
-              transaction.transactionId
-            )}
-          </td>
+<!-- Monthly Interest -->
+<td class="monthly-interest">
+  ${monthlyInterestAmount}
+</td>
 
         </tr>
       `;
@@ -1691,7 +1733,6 @@ const transactionRows =
             <table>
 
 <thead>
-
   <tr>
 
     <th>
@@ -1719,11 +1760,10 @@ const transactionRows =
     </th>
 
     <th>
-      Transaction ID
+      Monthly Interest
     </th>
 
   </tr>
-
 </thead>
 
               <tbody>
@@ -2334,11 +2374,17 @@ const getTotalThriftInterest = async (req, res) => {
     // 2️⃣ Get current thrift balance
     const balance = await getCurrentBalance(memberId);
 
-    // 3️⃣ Calculate total thrift interest
+    // 3️⃣ Calculate Monthly Thrift Interest
     // Formula:
     // (balance * 30 * interestRate) / 36500
+    const monthlyThriftInterest =
+      (Number(balance || 0) * 30 * interestRate) / 36500;
 
-    const totalThriftInterest = (Number(balance || 0) * 30 * interestRate) / 36500;
+    // 4️⃣ Calculate Yearly Thrift Interest
+    // Formula:
+    // (balance * 365 * interestRate) / 36500
+    const yearlyThriftInterest =
+      (Number(balance || 0) * 365 * interestRate) / 36500;
 
     return res.status(200).json({
       success: true,
@@ -2347,7 +2393,8 @@ const getTotalThriftInterest = async (req, res) => {
       balance,
       interestRate,
 
-      totalThriftInterest,
+      monthlyThriftInterest,
+      yearlyThriftInterest,
     });
   } catch (error) {
     return res.status(500).json({

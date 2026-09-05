@@ -94,6 +94,7 @@ export default function ThriftFundReport() {
 
     return (
       matchMemberCode &&
+      matchMembershipNumber &&
       matchMemberName &&
       matchDate
     );

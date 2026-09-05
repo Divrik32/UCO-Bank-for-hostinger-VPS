@@ -1871,7 +1871,7 @@ const submitAdjustment = async () => {
             diffTime / (1000 * 60 * 60 * 24)
           );
 
-          noOfDays = Math.max(diffDays - 1, 0);
+          noOfDays = Math.max(diffDays, 0);
         }
 
         // ─────────────────────────────────────
@@ -1919,10 +1919,12 @@ const submitAdjustment = async () => {
         // ─────────────────────────────────────
         // PRODUCT
         // ─────────────────────────────────────
-        const product =
-          noOfDays !== "-"
-            ? runningBalance * Number(noOfDays || 0)
-            : "-";
+const displayBalance = Math.round(runningBalance);
+
+const product =
+  noOfDays !== "-"
+    ? displayBalance * Number(noOfDays)
+    : "-";
 
         return (
           <tr key={item._id || i}>

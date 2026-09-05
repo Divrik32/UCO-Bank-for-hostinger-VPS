@@ -175,6 +175,7 @@ const submitMemberForm = async (req, res) => {
       lastname: req.body.lastname,
       dob: req.body.dob,
       membershipNumber: req.body.membershipNumber,
+      branch: req.body.branch,
       date_of_joining: req.body.date_of_joining,
       date_of_retirement: req.body.date_of_retirement,
       age: req.body.age,

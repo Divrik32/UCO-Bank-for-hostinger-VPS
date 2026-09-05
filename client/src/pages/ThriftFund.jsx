@@ -62,7 +62,8 @@ export default function ThriftFund() {
   const [interestRate, setInterestRate] = useState("");
   const [entryPaymentMethods, setEntryPaymentMethods] = useState([]);
   const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState([]);
-  const [totalThriftInterest, setTotalThriftInterest] = useState(0);
+  const [monthlyThriftInterest, setMonthlyThriftInterest] = useState(0);
+const [yearlyThriftInterest, setYearlyThriftInterest] = useState(0);
   const [entryForm, setEntryForm] = useState({
     totalAmountReceived: "",
     paymentMethod: entryPaymentMethods[0] || "",
@@ -103,19 +104,27 @@ const [savingParticular, setSavingParticular] = useState(false);
       return;
     }
     const interest = (Number(entryForm.totalAmountReceived) * Number(interestRate) * 1) / 100;
-    setEntryForm((prev) => ({ ...prev, yearlyInterestAmount: interest.toFixed(2) }));
+    setEntryForm((prev) => ({ ...prev, yearlyInterestAmount: interest.toFixed(0) }));
   }, [entryForm.totalAmountReceived, interestRate]);
 
-  const fetchTotalThriftInterest = async (memberId) => {
+const fetchTotalThriftInterest = async (memberId) => {
   try {
-    const res = await api.get(`${API}/total-thrift-interest/${memberId}`);
+    const res = await api.get(
+      `${API}/total-thrift-interest/${memberId}`
+    );
 
-    setTotalThriftInterest(
-      Number(res.data.totalThriftInterest || 0)
+    setMonthlyThriftInterest(
+      Number(res.data.monthlyThriftInterest || 0)
+    );
+
+    setYearlyThriftInterest(
+      Number(res.data.yearlyThriftInterest || 0)
     );
   } catch (error) {
-    console.error("Failed to fetch total thrift interest");
-    setTotalThriftInterest(0);
+    console.error("Failed to fetch thrift interest");
+
+    setMonthlyThriftInterest(0);
+    setYearlyThriftInterest(0);
   }
 };
 
@@ -651,48 +660,92 @@ const submitEntry = async () => {
             </div>
           </div>
         )}
-        {member && (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "stretch",
-      borderRadius: "7px",
-      overflow: "hidden",
-      border: "1.5px solid #fef3c7",
-      boxShadow: "0 1px 4px rgba(245,158,11,0.08)",
-    }}
-  >
+{member && (
+  <>
+    {/* Monthly Thrift Interest */}
     <div
       style={{
-        backgroundColor: "#d97706",
-        color: "#fff",
-        fontWeight: "700",
-        fontSize: "13px",
-        fontFamily: "'Inter', sans-serif",
-        padding: "8px 14px",
-        whiteSpace: "nowrap",
+        display: "flex",
+        alignItems: "stretch",
+        borderRadius: "7px",
+        overflow: "hidden",
+        border: "1.5px solid #dbeafe",
+        boxShadow: "0 1px 4px rgba(30,64,175,0.08)",
       }}
     >
-      Total Thrift Interest
+      <div
+        style={{
+          backgroundColor: "#2563eb",
+          color: "#fff",
+          fontWeight: "700",
+          fontSize: "13px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "8px 14px",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Monthly Thrift Interest
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "#eff6ff",
+          color: "#1e40af",
+          fontWeight: "800",
+          fontSize: "14px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "8px 14px",
+          whiteSpace: "nowrap",
+          minWidth: "80px",
+          textAlign: "center",
+        }}
+      >
+        ₹{Number(monthlyThriftInterest).toFixed(0)}
+      </div>
     </div>
 
+    {/* Yearly Thrift Interest */}
     <div
       style={{
-        backgroundColor: "#fffbeb",
-        color: "#92400e",
-        fontWeight: "800",
-        fontSize: "14px",
-        fontFamily: "'Inter', sans-serif",
-        padding: "8px 14px",
-        whiteSpace: "nowrap",
-        minWidth: "80px",
-        textAlign: "center",
+        display: "flex",
+        alignItems: "stretch",
+        borderRadius: "7px",
+        overflow: "hidden",
+        border: "1.5px solid #fef3c7",
+        boxShadow: "0 1px 4px rgba(245,158,11,0.08)",
       }}
     >
+      <div
+        style={{
+          backgroundColor: "#d97706",
+          color: "#fff",
+          fontWeight: "700",
+          fontSize: "13px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "8px 14px",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Yearly Thrift Interest
+      </div>
 
-      ₹{Number(totalThriftInterest).toFixed(0)}
+      <div
+        style={{
+          backgroundColor: "#fffbeb",
+          color: "#92400e",
+          fontWeight: "800",
+          fontSize: "14px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "8px 14px",
+          whiteSpace: "nowrap",
+          minWidth: "80px",
+          textAlign: "center",
+        }}
+      >
+        ₹{Number(yearlyThriftInterest).toFixed(0)}
+      </div>
     </div>
-  </div>
+  </>
 )}
       </div>
 
@@ -1089,8 +1142,13 @@ const submitEntry = async () => {
                   <input type="date" style={inputStyle} value={withdrawalForm.withdrawalDate} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, withdrawalDate: e.target.value })} />
                 </Field>
                 <Field label="Approved By" isMobile={isMobile}>
-                  <input style={inputStyle} value={withdrawalForm.approvedBy} onChange={(e) => setWithdrawalForm({ ...withdrawalForm, approvedBy: e.target.value })} placeholder="Approver's name" />
-                </Field>
+  <input
+    style={inputDisabled}
+    type="text"
+    value="BSUCBO"
+    disabled
+  />
+</Field>
                 <div style={{ textAlign: "center", marginTop: "20px" }}>
                   <button style={btnPrimary} onClick={submitWithdrawal}>Submit</button>
                 </div>

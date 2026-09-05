@@ -64,7 +64,7 @@ const fetchMemberShareDetails = async () => {
       id: item._id,
       amount: Number(item.investmentAmount || 0),
       transactionType: "Credit",
-      createdAt: item.createdAt,
+      createdAt: item.creditDate || item.createdAt,
       bookNo: item.bookNo || "",
       certificateNo: item.certificateNo || "",
     }));
@@ -76,7 +76,7 @@ const fetchMemberShareDetails = async () => {
       id: item._id,
       amount: Number(item.amount || 0),
       transactionType: "Debit",
-      createdAt: item.createdAt,
+      createdAt: item.debitDate || item.createdAt,
       bookNo: item.bookNo || "",
       certificateNo: item.certificateNo || "",
     }));
@@ -856,7 +856,7 @@ let runningBalance = 0;
                 >
                   {remainingShares % 1 === 0
                     ? remainingShares
-                    : remainingShares.toFixed(2)}
+                    : remainingShares.toFixed(0)}
                 </td>
 
                 {/* Book No */}

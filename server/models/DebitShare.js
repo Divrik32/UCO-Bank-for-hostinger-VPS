@@ -41,6 +41,11 @@ transferShareTo: {
   required: true,
 },
 
+    debitDate: {
+      type: Date,
+      default: Date.now,
+    },
+
     // shareCertificateNumber: {
     //   type: String,
     //   trim: true,

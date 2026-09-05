@@ -198,59 +198,50 @@ exports.updateShareInterest = async(req,res)=>{
 
 /* ================= CREDIT SHARE ================= */
 
-exports.createCreditShare = async(req,res)=>{
+exports.createCreditShare = async (req, res) => {
+  try {
+    const {
+      memberId,
+      creditDate,
+    } = req.body;
 
- try{
+    const transactionId = await generateTransactionId();
 
-   const {
-      memberId
-   } = req.body;
+    const currentBalance =
+      await getShareCurrentBalance(memberId);
 
-  const transactionId = await generateTransactionId();
-
-   const currentBalance =
-      await getShareCurrentBalance(
-        memberId
-      );
-
-   const newBalance =
+    const newBalance =
       currentBalance +
       Number(req.body.investmentAmount);
 
+    const data = await CreditShare.create({
+      ...req.body,
 
-   const data =
-      await CreditShare.create({
+      transactionId,
 
-        ...req.body,
+      availableBalance:
+        currentBalance,
 
-        transactionId,
+      remainingBalance:
+        newBalance,
 
-        availableBalance:
-         currentBalance,
+      creditDate: creditDate
+        ? new Date(creditDate)
+        : new Date(),
+    });
 
-        remainingBalance:
-         newBalance
+    res.status(201).json({
+      success: true,
+      message: "Credit share created successfully",
+      data,
+    });
 
-      });
-
-
-   res.status(201).json({
-      success:true,
-      message:"Credit share created successfully",
-      data
-   });
-
- }
-
- catch(error){
-
-   res.status(500).json({
-      success:false,
-      message:error.message
-   });
-
- }
-
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 
@@ -324,45 +315,34 @@ exports.updateCreditShareDocuments = async (req, res) => {
 
 /* ================= DEBIT SHARE ================= */
 
-exports.createDebitShare = async(req,res)=>{
+exports.createDebitShare = async (req, res) => {
+  try {
+    const {
+      memberId,
+      debitDate,
+    } = req.body;
 
- try{
+    const transactionId =
+      await generateTransactionId();
 
-  const {
-    memberId
-  } = req.body;
+    const currentBalance =
+      await getShareCurrentBalance(memberId);
 
-  const transactionId = await generateTransactionId();
+    if (
+      Number(req.body.amount) >
+      currentBalance
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient share balance",
+      });
+    }
 
-  const currentBalance =
-    await getShareCurrentBalance(
-      memberId
-    );
+    const remainingBalance =
+      currentBalance -
+      Number(req.body.amount);
 
-
-  if(
-    req.body.amount >
-    currentBalance
-  ){
-
-    return res.status(400).json({
-      success:false,
-      message:"Insufficient share balance"
-    });
-
-  }
-
-
-
- const remainingBalance =
-    currentBalance -
-    Number(req.body.amount);
-
-
-
- const data =
-   await DebitShare.create({
-
+    const data = await DebitShare.create({
       ...req.body,
 
       transactionId,
@@ -370,28 +350,25 @@ exports.createDebitShare = async(req,res)=>{
       availableBalance:
         currentBalance,
 
-      remainingBalance
+      remainingBalance,
 
-   });
+      debitDate: debitDate
+        ? new Date(debitDate)
+        : new Date(),
+    });
 
+    res.status(201).json({
+      success: true,
+      message: "Debit share created successfully",
+      data,
+    });
 
- res.status(201).json({
-   success:true,
-   message:"Debit share created successfully",
-   data
- });
-
-}
-
-catch(error){
-
- res.status(500).json({
-   success:false,
-   message:error.message
- });
-
-}
-
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 
@@ -526,7 +503,7 @@ async(req,res)=>{
 
          type:"Credit",
 
-         date:item.createdAt,
+         date:item.creditDate || item.createdAt,
 
          transactionId:
            item.transactionId
@@ -541,7 +518,7 @@ async(req,res)=>{
 
          type:"Debit",
 
-         date:item.createdAt,
+         date:item.debitDate || item.createdAt,
 
          transactionId:
           item.transactionId
@@ -913,15 +890,16 @@ exports.getMemberShareTransactions = async (req, res) => {
     // 5. Get ALL Loan Adjustments
     //    Only Share A/C related adjustments
     // ==========================================
-    const loanAdjustments = await loanAdjustmentModel.find({
-      memberId: { $in: memberIds },
-      paymentMode: {
-        $in: [
-          "Amount given from Share A/C",
-          "Both",
-        ],
-      },
-    });
+    const loanAdjustments =
+      await loanAdjustmentModel.find({
+        memberId: { $in: memberIds },
+        paymentMode: {
+          $in: [
+            "Amount given from Share A/C",
+            "Both",
+          ],
+        },
+      });
 
     // ==========================================
     // 6. Create member lookup
@@ -959,11 +937,15 @@ exports.getMemberShareTransactions = async (req, res) => {
             ? member.memberName
             : "-",
 
+          // IMPORTANT:
+          // Actual Credit Transaction Date
           transactionDate:
-            item.createdAt,
+            item.creditDate || item.createdAt,
 
           shareAmount:
-            Number(item.investmentAmount || 0),
+            Number(
+              item.investmentAmount || 0
+            ),
 
           paymentMode:
             item.paymentMode || "-",
@@ -996,8 +978,10 @@ exports.getMemberShareTransactions = async (req, res) => {
             ? member.memberName
             : "-",
 
+          // IMPORTANT:
+          // Actual Debit Transaction Date
           transactionDate:
-            item.createdAt,
+            item.debitDate || item.createdAt,
 
           shareAmount:
             Number(item.amount || 0),
@@ -1044,6 +1028,8 @@ exports.getMemberShareTransactions = async (req, res) => {
             ? member.memberName
             : "-",
 
+          // Loan Adjustment-এর আলাদা
+          // transaction date নেই
           transactionDate:
             item.createdAt,
 
@@ -1055,7 +1041,7 @@ exports.getMemberShareTransactions = async (req, res) => {
           transactionId:
             item.transactionId || "-",
 
-          // Loan Adjustment-ও Share Balance-এর
+          // Loan Adjustment Share balance-এর
           // জন্য Debit হিসেবে ধরা হবে
           transactionType:
             "Debit",
@@ -1071,14 +1057,14 @@ exports.getMemberShareTransactions = async (req, res) => {
       ...loanAdjustmentTransactions,
     ];
 
-// ==========================================
-// 11. Earliest → Latest
-// ==========================================
-allTransactions.sort(
-  (a, b) =>
-    new Date(a.transactionDate) -
-    new Date(b.transactionDate)
-);
+    // ==========================================
+    // 11. Earliest → Latest
+    // ==========================================
+    allTransactions.sort(
+      (a, b) =>
+        new Date(a.transactionDate).getTime() -
+        new Date(b.transactionDate).getTime()
+    );
 
     // ==========================================
     // 12. Add Serial Number
@@ -1161,8 +1147,7 @@ exports.memberShareDetailsById = async (req, res) => {
     // ==========================================
     const creditTransactions =
       credits.map((item) => ({
-        transactionDate:
-          item.createdAt,
+        transactionDate: item.creditDate || item.createdAt,
 
         amount:
           Number(
@@ -1184,8 +1169,7 @@ exports.memberShareDetailsById = async (req, res) => {
     // ==========================================
     const debitTransactions =
       debits.map((item) => ({
-        transactionDate:
-          item.createdAt,
+        transactionDate: item.debitDate || item.createdAt,
 
         amount:
           Number(
@@ -1443,7 +1427,7 @@ const creditTransactions =
     transactionId:
       item.transactionId || "-",
     type: "Credit",
-    createdAt: item.createdAt,
+    createdAt: item.creditDate || item.createdAt,
     bookNo: item.bookNo || "",
     certificateNo:
       item.certificateNo || "",
@@ -1463,7 +1447,7 @@ const debitTransactions =
     transactionId:
       item.transactionId || "-",
     type: "Debit",
-    createdAt: item.createdAt,
+    createdAt: item.debitDate || item.createdAt,
     bookNo: item.bookNo || "",
     certificateNo:
       item.certificateNo || "",
@@ -1501,7 +1485,7 @@ const loanAdjustmentTransactions =
         transactionId:
           item.transactionId || "-",
         type: "Debit",
-        createdAt: item.createdAt,
+        createdAt: item.debitDate || item.createdAt,
         bookNo: "",
         certificateNo: "",
         isLoanAdjustment: true,
@@ -2684,7 +2668,7 @@ exports.printShareReport = async (req, res) => {
 
           // CreditShare has timestamps: true
           transactionDate:
-            item.createdAt,
+            item.creditDate || item.createdAt,
 
           // CreditShare amount field
           investmentAmount:
@@ -2720,7 +2704,7 @@ exports.printShareReport = async (req, res) => {
 
           // DebitShare has timestamps: true
           transactionDate:
-            item.createdAt,
+            item.debitDate || item.createdAt,
 
           // DebitShare amount field
           investmentAmount:
@@ -3108,6 +3092,7 @@ exports.createDividendPayment = async (req, res) => {
       dividendPaidAmount,
       paymentTransferTo,
       accountNumber,
+      paymentDate,
     } = req.body;
 
     if (!memberId) {
@@ -3117,7 +3102,10 @@ exports.createDividendPayment = async (req, res) => {
       });
     }
 
-    if (!dividendPaidAmount || Number(dividendPaidAmount) <= 0) {
+    if (
+      !dividendPaidAmount ||
+      Number(dividendPaidAmount) <= 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Valid dividend amount is required",
@@ -3132,7 +3120,8 @@ exports.createDividendPayment = async (req, res) => {
     }
 
     if (
-      paymentTransferTo === "Paid to Members Account" &&
+      paymentTransferTo ===
+        "Paid to Members Account" &&
       !accountNumber
     ) {
       return res.status(400).json({
@@ -3141,24 +3130,38 @@ exports.createDividendPayment = async (req, res) => {
       });
     }
 
-    // এখানে Dividend model-এ save করবে
-    const dividend = await dividendPayment.create({
-      memberId,
-      dividendPaidAmount: Number(dividendPaidAmount),
-      paymentDestination: paymentTransferTo,
-      accountNumber:
-        paymentTransferTo === "Paid to Members Account"
-          ? accountNumber
-          : "",
-    });
+    const dividend =
+      await dividendPayment.create({
+        memberId,
+
+        dividendPaidAmount:
+          Number(dividendPaidAmount),
+
+        paymentDestination:
+          paymentTransferTo,
+
+        accountNumber:
+          paymentTransferTo ===
+          "Paid to Members Account"
+            ? accountNumber
+            : "",
+
+        paymentDate: paymentDate
+          ? new Date(paymentDate)
+          : new Date(),
+      });
 
     return res.status(201).json({
       success: true,
       message: "Dividend paid successfully",
       data: dividend,
     });
+
   } catch (error) {
-    console.error("Create Dividend Error:", error);
+    console.error(
+      "Create Dividend Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,

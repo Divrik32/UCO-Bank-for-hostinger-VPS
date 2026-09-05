@@ -73,23 +73,26 @@ const [documentValue, setDocumentValue] = useState("");
 const [dividendPaidAmount, setDividendPaidAmount] = useState("");
 const [dividendPaymentMode, setDividendPaymentMode] = useState("");
 const [dividendAccountNumber, setDividendAccountNumber] = useState("");
+const [dividendPaymentDate, setDividendPaymentDate] = useState("");
 
   const [officialForm, setOfficialForm] = useState({ officeName: "", dateOfJoin: "", dateOfAllotment: "", dateOfRetirement: "" });
   const [creditForm, setCreditForm] = useState({
-    investmentAmount: "",
-    numberOfShares: "",
-    paymentMode: creditPaymentMethods[0] || "",
-  });
+  investmentAmount: "",
+  numberOfShares: "",
+  paymentMode: creditPaymentMethods[0] || "",
+  creditDate: "",
+});
   
   const [debitForm, setDebitForm] = useState({
-    amount: "",
-    remainingShares: "",
-    remainingCount: "",
-    paymentMode: debitPaymentMethods[0] || "",
-    chequeNumber: "",
-    transferShareTo: "Members Loan Account",
-    certificateNo: "", 
-  });
+  amount: "",
+  remainingShares: "",
+  remainingCount: "",
+  paymentMode: debitPaymentMethods[0] || "",
+  chequeNumber: "",
+  transferShareTo: "Members Loan Account",
+  certificateNo: "",
+  debitDate: "",
+});
 
   const API = "/share";
   const txScrollRef = useRef(null);
@@ -119,13 +122,14 @@ useLayoutEffect(() => {
       toast.error("Failed to fetch payment methods");
     }
   };
-  const submitDividend = async () => {
+const submitDividend = async () => {
   try {
     await api.post(`${API}/dividend-payment`, {
       memberId: member.memberId,
       dividendPaidAmount: Number(dividendPaidAmount),
       paymentTransferTo: dividendPaymentMode,
       accountNumber: dividendAccountNumber,
+      paymentDate: dividendPaymentDate,
     });
 
     toast.success("Dividend paid successfully");
@@ -133,9 +137,11 @@ useLayoutEffect(() => {
     setDividendPaidAmount("");
     setDividendPaymentMode("");
     setDividendAccountNumber("");
+    setDividendPaymentDate("");
   } catch (error) {
     toast.error(
-      error.response?.data?.message || "Failed to pay dividend"
+      error.response?.data?.message ||
+        "Failed to pay dividend"
     );
   }
 };
@@ -356,53 +362,55 @@ useLayoutEffect(() => {
     // 11. Credit Transactions
     // ==========================================
 
-    const credits = (
-      creditRes.data.data || []
-    ).map((item) => ({
-      id: item._id,
+const credits = (
+  creditRes.data.data || []
+).map((item) => ({
+  id: item._id,
 
-      amount: Number(
-        item.investmentAmount || 0
-      ),
+  amount: Number(
+    item.investmentAmount || 0
+  ),
 
-      type: "Credit",
+  type: "Credit",
 
-      createdAt: item.createdAt,
+  createdAt:
+    item.creditDate || item.createdAt,
 
-      bookNo:
-        item.bookNo || "",
+  bookNo:
+    item.bookNo || "",
 
-      certificateNo:
-        item.certificateNo || "",
+  certificateNo:
+    item.certificateNo || "",
 
-      isLoanAdjustment: false,
-    }));
+  isLoanAdjustment: false,
+}));
 
     // ==========================================
     // 12. Debit Transactions
     // ==========================================
 
-    const debits = (
-      debitRes.data.data || []
-    ).map((item) => ({
-      id: item._id,
+const debits = (
+  debitRes.data.data || []
+).map((item) => ({
+  id: item._id,
 
-      amount: Number(
-        item.amount || 0
-      ),
+  amount: Number(
+    item.amount || 0
+  ),
 
-      type: "Debit",
+  type: "Debit",
 
-      createdAt: item.createdAt,
+  createdAt:
+    item.debitDate || item.createdAt,
 
-      bookNo:
-        item.bookNo || "",
+  bookNo:
+    item.bookNo || "",
 
-      certificateNo:
-        item.certificateNo || "",
+  certificateNo:
+    item.certificateNo || "",
 
-      isLoanAdjustment: false,
-    }));
+  isLoanAdjustment: false,
+}));
 
     // ==========================================
     // 13. Loan Adjustment Transactions
@@ -556,29 +564,33 @@ useLayoutEffect(() => {
     } catch (error) { toast.error(error.response?.data?.message || "Failed to update"); }
   };
 
-  const submitCredit = async () => {
-    try {
-      await api.post(`${API}/credit-share`, {
-        memberId: member.memberId,
-        pricePerShare: PRICE_PER_SHARE,
-        investmentAmount: Number(creditForm.investmentAmount),
-        numberOfShares: Number(creditForm.numberOfShares),
-        paymentMode: creditForm.paymentMode
-      });
-  
-      toast.success("Credit shares updated successfully");
-  
-      setCreditForm({
-        investmentAmount: "",
-        numberOfShares: "",
-        paymentMode: creditPaymentMethods[0] || ""
-      });
-  
-      handleSearch();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update");
-    }
-  };
+const submitCredit = async () => {
+  try {
+    await api.post(`${API}/credit-share`, {
+      memberId: member.memberId,
+      pricePerShare: PRICE_PER_SHARE,
+      investmentAmount: Number(creditForm.investmentAmount),
+      numberOfShares: Number(creditForm.numberOfShares),
+      paymentMode: creditForm.paymentMode,
+      creditDate: creditForm.creditDate,
+    });
+
+    toast.success("Credit shares updated successfully");
+
+    setCreditForm({
+      investmentAmount: "",
+      numberOfShares: "",
+      paymentMode: creditPaymentMethods[0] || "",
+      creditDate: "",
+    });
+
+    handleSearch();
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message || "Failed to update"
+    );
+  }
+};
 
 const submitDebit = async () => {
   try {
@@ -589,6 +601,7 @@ const submitDebit = async () => {
       chequeNumber: debitForm.chequeNumber,
       transferShareTo: debitForm.transferShareTo,
       certificateNo: debitForm.certificateNo,
+      debitDate: debitForm.debitDate,
     });
 
     toast.success("Debit shares updated successfully");
@@ -601,6 +614,7 @@ const submitDebit = async () => {
       chequeNumber: "",
       transferShareTo: "Members Loan Account",
       certificateNo: "",
+      debitDate: "",
     });
 
     handleSearch();
@@ -1257,6 +1271,19 @@ const submitDebit = async () => {
         ))}
       </select>
     </Field>
+    <Field label="Credit Date" isMobile={isMobile}>
+  <input
+    type="date"
+    style={inputStyle}
+    value={creditForm.creditDate}
+    onChange={(e) =>
+      setCreditForm({
+        ...creditForm,
+        creditDate: e.target.value,
+      })
+    }
+  />
+</Field>
 
     {/* <Field label="Transaction ID" isMobile={isMobile}>
       <input
@@ -1334,6 +1361,19 @@ const submitDebit = async () => {
     placeholder="Enter certificate number"
   />
 </Field>
+<Field label="Debit Date" isMobile={isMobile}>
+  <input
+    type="date"
+    style={inputStyle}
+    value={debitForm.debitDate}
+    onChange={(e) =>
+      setDebitForm({
+        ...debitForm,
+        debitDate: e.target.value,
+      })
+    }
+  />
+</Field>
                 <div style={{ textAlign: "center", marginTop: "20px" }}><button style={btnPrimary} onClick={submitDebit}>Update</button></div>
               </div>
             )}
@@ -1388,6 +1428,17 @@ const submitDebit = async () => {
       Paid to Members Account
     </option>
   </select>
+</Field>
+
+<Field label="Payment Date" isMobile={isMobile}>
+  <input
+    type="date"
+    style={inputStyle}
+    value={dividendPaymentDate}
+    onChange={(e) =>
+      setDividendPaymentDate(e.target.value)
+    }
+  />
 </Field>
 
 {dividendPaymentMode === "Paid to Members Account" && (

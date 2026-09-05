@@ -271,6 +271,11 @@ nominee_name: {   // ❗ fix mapping
       sparse: true,
       trim: true,
     },
+    
+    branch: {
+      type: String,
+      trim: true,
+    },
 
     // ======= member id =======
     memberId: {

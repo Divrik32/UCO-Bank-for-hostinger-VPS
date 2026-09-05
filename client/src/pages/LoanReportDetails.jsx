@@ -529,7 +529,7 @@ const fetchTransactions = async () => {
                       );
 
                       noOfDays = Math.max(
-                        diffDays - 1,
+                        diffDays,
                         0
                       );
                     }
@@ -595,11 +595,17 @@ const fetchTransactions = async () => {
                     // PRODUCT
                     // ============================
 
-                    const product =
-                      noOfDays !== "-"
-                        ? runningBalance *
-                          Number(noOfDays || 0)
-                        : "-";
+// ============================
+// BALANCE + PRODUCT
+// ============================
+
+const displayBalance = Math.round(runningBalance);
+
+const product =
+  noOfDays !== "-"
+    ? displayBalance *
+      Number(noOfDays || 0)
+    : "-";
 
                     return (
                       <tr
@@ -646,7 +652,7 @@ const fetchTransactions = async () => {
                         >
                           {transactionType ===
                           "DEBIT"
-                            ? amount.toFixed(2)
+                            ? amount.toFixed(0)
                             : "-"}
                         </td>
 
@@ -658,7 +664,7 @@ const fetchTransactions = async () => {
                         >
                           {transactionType ===
                           "CREDIT"
-                            ? amount.toFixed(2)
+                            ? amount.toFixed(0)
                             : "-"}
                         </td>
 
@@ -706,7 +712,7 @@ const fetchTransactions = async () => {
                           }
                         >
                           {product !== "-"
-                            ? product.toFixed(2)
+                            ? product.toFixed(0)
                             : "-"}
                         </td>
 

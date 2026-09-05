@@ -23,12 +23,17 @@ const dividendPaymentSchema = new mongoose.Schema(
         "Paid to Members Account",
       ],
     },
-
+    
     accountNumber: {
       type: String,
       trim: true,
       default: "",
     },
+    
+    paymentDate: {
+  type: Date,
+  default: Date.now,
+},
   },
   {
     timestamps: true,

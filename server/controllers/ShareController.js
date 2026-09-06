@@ -6,6 +6,7 @@ const ShareOfficialDetails = require("../models/ShareOfficialDetails.js");
 const { default: puppeteer } = require("puppeteer");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
 const dividendPayment = require("../models/dividendPayment.js");
+const DividendRateModel = require("../models/DividendRateModel.js");
 
 const generateTransactionId = async () => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -3246,6 +3247,66 @@ exports.getDividendAvailableBalance = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// Create Dividend Rate
+exports.createDividendRate = async (req, res) => {
+  try {
+    const { dividendRate } = req.body;
+
+    if (dividendRate === undefined || dividendRate === null || dividendRate === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Dividend rate is required",
+      });
+    }
+
+    const newDividendRate = await DividendRateModel.create({
+      dividendRate: Number(dividendRate),
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Dividend rate created successfully",
+      data: newDividendRate,
+    });
+  } catch (error) {
+    console.error("Create Dividend Rate Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to create dividend rate",
+      error: error.message,
+    });
+  }
+};
+
+// Fetch Dividend Rate
+exports.getDividendRate = async (req, res) => {
+  try {
+    const dividendRate = await DividendRateModel.findOne()
+      .sort({ createdAt: -1 });
+
+    if (!dividendRate) {
+      return res.status(404).json({
+        success: false,
+        message: "Dividend rate not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: dividendRate,
+    });
+  } catch (error) {
+    console.error("Fetch Dividend Rate Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch dividend rate",
+      error: error.message,
     });
   }
 };

@@ -532,6 +532,22 @@ const handleLogout = async () => {
               </ul>
             </div>
           </li>
+          {/* Dividend Rate */}
+<li>
+  <Link
+    to="/admin/dividend-rate"
+    onClick={() => isMobile && setSidebarOpen(false)}
+    style={navLinkStyle(
+      "/admin/dividend-rate",
+      hoveredNav === "/admin/dividend-rate"
+    )}
+    onMouseEnter={() => setHoveredNav("/admin/dividend-rate")}
+    onMouseLeave={() => setHoveredNav(null)}
+  >
+    <i className="bi bi-percent" style={{ fontSize: "16px" }}></i>
+    <span>Dividend Rate</span>
+  </Link>
+</li>
 
         </ul>
 

@@ -39,6 +39,7 @@ import ThriftFundDetails from './pages/ThriftFundDetails'
 import SharePurchase from './pages/SharePurchase'
 import ShareReport from './pages/ShareReport'
 import ShareDetails from './pages/ShareDetails'
+import DividendRate from './pages/DividendRate'
 
 function App() {
   return (<>
@@ -90,6 +91,7 @@ function App() {
           <Route path="/admin/thrift-fund-interest" element={<ThriftFundInterestRate />} />
           <Route path="/admin/share-interest"       element={<ShareInterestRate />} />
           <Route path="/admin/loan-interest"        element={<LoanInterestRate />} />
+          <Route path="/admin/dividend-rate" element={<DividendRate />} />
         </Route>
         </Route>
 

@@ -67,7 +67,8 @@ export default function SharePurchase() {
   const [transactions, setTransactions] = useState([]);
   const [editingDocument, setEditingDocument] = useState(null);
 const [documentValue, setDocumentValue] = useState("");
-  const [dividendRate, setDividendRate] = useState(0);
+  const [interestRate, setInterestRate] = useState(0);
+const [dividendRate, setDividendRate] = useState(0);
   const [creditPaymentMethods, setCreditPaymentMethods] = useState([]);
   const [debitPaymentMethods, setDebitPaymentMethods] = useState([]);
 const [dividendPaidAmount, setDividendPaidAmount] = useState("");
@@ -102,14 +103,21 @@ useLayoutEffect(() => {
   }
 }, [activeTab, transactions]);
 
-  useEffect(() => { fetchInterestRate(); fetchSharePaymentMethods(); }, []);
+useEffect(() => {
+  fetchInterestRate();
+  fetchDividendRate();
+  fetchSharePaymentMethods();
+}, []);
 
-  const fetchInterestRate = async () => {
-    try {
-      const res = await api.get(`${API}/share-interest`);
-      setDividendRate(res.data.data?.rate || 0);
-    } catch { setDividendRate(0); }
-  };
+const fetchInterestRate = async () => {
+  try {
+    const res = await api.get(`${API}/share-interest`);
+    setInterestRate(Number(res.data?.data?.rate || 0));
+  } catch (error) {
+    console.error("Failed to fetch interest rate:", error);
+    setInterestRate(0);
+  }
+};
 
   const fetchSharePaymentMethods = async () => {
     try {
@@ -122,6 +130,19 @@ useLayoutEffect(() => {
       toast.error("Failed to fetch payment methods");
     }
   };
+
+const fetchDividendRate = async () => {
+  try {
+    const res = await api.get(`${API}/dividend-rate`);
+
+    setDividendRate(
+      Number(res.data?.data?.dividendRate || 0)
+    );
+  } catch (error) {
+    console.error("Failed to fetch dividend rate:", error);
+    setDividendRate(0);
+  }
+};
 const submitDividend = async () => {
   try {
     await api.post(`${API}/dividend-payment`, {
@@ -153,7 +174,18 @@ const submitDividend = async () => {
       hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true,
     });
   };
+const getEntryDate = (item) => {
+  if (item.type === "Credit") {
+    return item.creditDate || item.createdAt;
+  }
 
+  if (item.type === "Debit") {
+    return item.debitDate || item.createdAt;
+  }
+
+  // Loan Adjustment
+  return item.createdAt;
+};
   useEffect(() => {
     if (!creditForm.investmentAmount) { setCreditForm((prev) => ({ ...prev, numberOfShares: "" })); return; }
     const shares = Number(creditForm.investmentAmount) / PRICE_PER_SHARE;
@@ -373,8 +405,8 @@ const credits = (
 
   type: "Credit",
 
-  createdAt:
-    item.creditDate || item.createdAt,
+  createdAt: item.createdAt,
+  creditDate: item.creditDate,
 
   bookNo:
     item.bookNo || "",
@@ -400,8 +432,8 @@ const debits = (
 
   type: "Debit",
 
-  createdAt:
-    item.debitDate || item.createdAt,
+  createdAt: item.createdAt,
+  debitDate: item.debitDate,
 
   bookNo:
     item.bookNo || "",
@@ -469,17 +501,25 @@ const debits = (
     // 15. Sort Earliest -> Latest
     // ==========================================
 
-    allTransactions.sort((a, b) => {
-      const dateA = new Date(
-        a.createdAt
-      ).getTime();
+// ==========================================
+// 15. Sort by Entry Date -> CreatedAt
+// ==========================================
 
-      const dateB = new Date(
-        b.createdAt
-      ).getTime();
+allTransactions.sort((a, b) => {
+  const entryDateA = new Date(getEntryDate(a)).getTime();
+  const entryDateB = new Date(getEntryDate(b)).getTime();
 
-      return dateA - dateB;
-    });
+  // First priority: actual Entry Date
+  if (entryDateA !== entryDateB) {
+    return entryDateA - entryDateB;
+  }
+
+  // Same Entry Date হলে actual CreatedAt দিয়ে order
+  const createdAtA = new Date(a.createdAt).getTime();
+  const createdAtB = new Date(b.createdAt).getTime();
+
+  return createdAtA - createdAtB;
+});
 
     setTransactions(allTransactions);
 
@@ -805,7 +845,7 @@ const submitDebit = async () => {
           color: "#1e40af",
         }}
       >
-        {dividendRate}%
+        {interestRate}%
       </span>
     </div>
 
@@ -1547,7 +1587,7 @@ const submitDebit = async () => {
                 whiteSpace: "nowrap",
               }}
             >
-              {formatDateTime(item.createdAt)}
+              {formatDateTime(getEntryDate(item))}
             </td>
 
             {/* ─────────────────────────────

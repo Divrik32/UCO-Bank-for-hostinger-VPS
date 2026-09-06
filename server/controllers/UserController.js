@@ -515,32 +515,35 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const { userType } = storedOtpData;
 
-    let updated = null;
-    
-const { userType } = storedOtpData;
+    if (userType === "user") {
+      // User password → bcrypt
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-if (userType === "user") {
-  await User.findOneAndUpdate(
-    { email },
-    { password: hashedPassword }
-  );
-} else {
-  await AdminLogin.findOneAndUpdate(
-    { email },
-    { password: hashedPassword }
-  );
-}
+      await User.findOneAndUpdate(
+        { email },
+        { password: hashedPassword }
+      );
 
+    } else {
+      // Admin password → plain text
+      await AdminLogin.findOneAndUpdate(
+        { email },
+        { password: newPassword }
+      );
+    }
+
+    // OTP একবার ব্যবহার হওয়ার পর delete
     delete otpStore[email];
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Password updated successfully",
     });
+
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

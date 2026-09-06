@@ -198,18 +198,15 @@ date_of_retirement: {
         "UCO Bank",
         "Union Bank Of India",
       ],
-      required: true,
     },
 
 branch_name: {   // ❗ fix (was branchName)
   type: String,
-  required: true,
   trim: true,
 },
 
 account_number: {  // ❗ fix (was accountno)
   type: String,
-  required: true,
   trim: true,
 },
 
@@ -222,18 +219,15 @@ account_number: {  // ❗ fix (was accountno)
         "Saving Account",
         "Salary Account",
       ],
-      required: true,
     },
 
     ifsc_code: {
       type: String,
-      required: true,
       trim: true,
     },
 
     micr_code: {
       type: String,
-      required: true,
       trim: true,
     },
 

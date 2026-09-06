@@ -422,12 +422,12 @@ export default function PreviewEditPage() {
 
           {/* Banking Info */}
           <Card title="Member Banking Information" onEdit={() => navigate(`/${basePath}/mbi3`)}>
-            <Field label="Bank Name"   name="bank_name"      value={formData.bank_name}      onChange={handleChange} required />
-            <Field label="Branch Name" name="branch_name"    value={formData.branch_name}    onChange={handleChange} required />
-            <Field label="Account No." name="account_number" value={formData.account_number} onChange={handleChange} required />
-            <Field label="Category"    name="category"       value={formData.category}       onChange={handleChange} required />
-            <Field label="IFSC Code"   name="ifsc_code"      value={formData.ifsc_code}      onChange={handleChange} required />
-            <Field label="MICR Code"   name="micr_code"      value={formData.micr_code}      onChange={handleChange} required />
+            <Field label="Bank Name"   name="bank_name"      value={formData.bank_name}      onChange={handleChange} />
+            <Field label="Branch Name" name="branch_name"    value={formData.branch_name}    onChange={handleChange} />
+            <Field label="Account No." name="account_number" value={formData.account_number} onChange={handleChange} />
+            <Field label="Category"    name="category"       value={formData.category}       onChange={handleChange} />
+            <Field label="IFSC Code"   name="ifsc_code"      value={formData.ifsc_code}      onChange={handleChange} />
+            <Field label="MICR Code"   name="micr_code"      value={formData.micr_code}      onChange={handleChange} />
           </Card>
         </div>
       </div>

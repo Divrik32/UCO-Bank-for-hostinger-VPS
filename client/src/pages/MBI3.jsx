@@ -86,13 +86,13 @@ const handleNext = (e) => {
 
 const basePath = location.pathname.split("/")[1];
 
-const isFormValid =
-  form.bank_name &&
-  form.branch_name &&
-  form.account_number &&
-  form.category &&
-  form.ifsc_code &&
-  form.micr_code;
+const isFormValid = true;
+  // form.bank_name &&
+  // form.branch_name &&
+  // form.account_number &&
+  // form.category &&
+  // form.ifsc_code &&
+  // form.micr_code;
 
   // const handleDOBChange = (e) => {
   //   const dob = e.target.value;
@@ -121,18 +121,9 @@ const isFormValid =
 const handleSubmit = (e) => {
   e.preventDefault();
 
-  if (!isFormValid) {
-    Swal.fire({
-      icon: "warning",
-      title: "Incomplete Form",
-      text: "Please fill in all required fields.",
-    });
-    return;
-  }
-
   localStorage.setItem("bankInfo", JSON.stringify(form));
 
-  setIsSaved(true); // 🔥 MUST
+  setIsSaved(true);
 
   Swal.fire({
     icon: "success",
@@ -169,7 +160,7 @@ const handleSubmit = (e) => {
 
 
    <div style={rowStyle}>
-  <div style={labelStyle}>Bank Name <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>Bank Name</div>
   <div style={fieldCol}>
 <select
   name="bank_name"
@@ -194,7 +185,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>Branch Name <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>Branch Name</div>
   <div style={fieldCol}>
     <input
       type="text"
@@ -207,7 +198,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>Account Number <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>Account Number</div>
   <div style={fieldCol}>
     <input
       type="text"
@@ -220,7 +211,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>Category <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>Category</div>
   <div style={fieldCol}>
 <select
   name="category"
@@ -237,7 +228,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>IFSC Code <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>IFSC Code</div>
   <div style={fieldCol}>
     <input
       type="text"
@@ -250,7 +241,7 @@ const handleSubmit = (e) => {
 </div>
 
 <div style={rowStyle}>
-  <div style={labelStyle}>MICR Code <span style={{ color: "red" }}>*</span></div>
+  <div style={labelStyle}>MICR Code</div>
   <div style={fieldCol}>
     <input
       type="text"

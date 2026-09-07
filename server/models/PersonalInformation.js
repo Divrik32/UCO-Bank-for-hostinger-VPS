@@ -186,6 +186,7 @@ date_of_retirement: {
     bank_name: {
       type: String,
       enum: [
+        "",
         "Axis Bank",
         "Bank Of Baroda",
         "Bank Of India",
@@ -215,6 +216,7 @@ account_number: {  // ❗ fix (was accountno)
     category: {
       type: String,
       enum: [
+        "",
         "Current Account",
         "Saving Account",
         "Salary Account",

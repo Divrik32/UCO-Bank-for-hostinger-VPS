@@ -540,7 +540,20 @@ const memberThriftDetailsById = async (req, res) => {
     }).sort({ withdrawalDate: 1 });
 
     // ==========================================
-    // 4. Format Entry Transactions
+    // 4. Get Member's ALL Loan Adjustments
+    // ==========================================
+    const loanAdjustments = await loanAdjustmentModel.find({
+      memberId: memberId,
+      paymentMode: {
+        $in: [
+          "Amount given from thrift A/C",
+          "Both",
+        ],
+      },
+    }).sort({ createdAt: 1 });
+
+    // ==========================================
+    // 5. Format Entry Transactions
     // ==========================================
     const entryTransactions = entries.map((item) => ({
       transactionDate: item.entryDate,
@@ -562,7 +575,7 @@ const memberThriftDetailsById = async (req, res) => {
     }));
 
     // ==========================================
-    // 5. Format Withdrawal Transactions
+    // 6. Format Withdrawal Transactions
     // ==========================================
     const withdrawalTransactions =
       withdrawals.map((item) => ({
@@ -585,15 +598,59 @@ const memberThriftDetailsById = async (req, res) => {
       }));
 
     // ==========================================
-    // 6. Merge Entry + Withdrawal
+    // 7. Format Loan Adjustment Transactions
+    //    ONLY THRIFT A/C PORTION
+    // ==========================================
+    const loanAdjustmentTransactions =
+      loanAdjustments.map((item) => {
+        let thriftAmount = 0;
+
+        // Single Thrift A/C adjustment
+        if (
+          item.paymentMode ===
+          "Amount given from thrift A/C"
+        ) {
+          thriftAmount = Number(
+            item.adjustmentAmount || 0
+          );
+        }
+
+        // Both = Thrift + Share
+        else if (
+          item.paymentMode === "Both"
+        ) {
+          thriftAmount = Number(
+            item.thriftAdjustmentAmount || 0
+          );
+        }
+
+        return {
+          transactionDate: item.createdAt,
+
+          amount: thriftAmount,
+
+          interest: "-",
+
+          paymentMode: item.paymentMode || "-",
+
+          transactionId:
+            item.transactionId || "-",
+
+          transactionType: "Loan Adjustment",
+        };
+      });
+
+    // ==========================================
+    // 8. Merge Entry + Withdrawal + Loan Adjustment
     // ==========================================
     const transactions = [
       ...entryTransactions,
       ...withdrawalTransactions,
+      ...loanAdjustmentTransactions,
     ];
 
     // ==========================================
-    // 7. Latest → Earliest
+    // 9. Latest → Earliest
     // ==========================================
     transactions.sort(
       (a, b) =>
@@ -602,14 +659,18 @@ const memberThriftDetailsById = async (req, res) => {
     );
 
     // ==========================================
-    // 8. Calculate Summary
+    // 10. Calculate Summary
     // ==========================================
-    const totalEntryAmount = entryTransactions.reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
 
+    // Total Thrift Entries
+    const totalEntryAmount =
+      entryTransactions.reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
+        0
+      );
+
+    // Total Normal Thrift Withdrawals
     const totalWithdrawalAmount =
       withdrawalTransactions.reduce(
         (sum, item) =>
@@ -617,18 +678,32 @@ const memberThriftDetailsById = async (req, res) => {
         0
       );
 
-    const totalInterest = entryTransactions.reduce(
-      (sum, item) =>
-        sum + Number(item.interest || 0),
-      0
-    );
+    // Total Thrift Amount Used in Loan Adjustment
+    const totalLoanAdjustmentAmount =
+      loanAdjustmentTransactions.reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
+        0
+      );
 
-    const netThriftAmount =
-      totalEntryAmount -
-      totalWithdrawalAmount;
+    // Total Interest
+    const totalInterest =
+      entryTransactions.reduce(
+        (sum, item) =>
+          sum + Number(item.interest || 0),
+        0
+      );
 
     // ==========================================
-    // 9. First Transaction
+    // 11. Final Thrift Balance
+    // ==========================================
+    const netThriftAmount =
+      totalEntryAmount -
+      totalWithdrawalAmount -
+      totalLoanAdjustmentAmount;
+
+    // ==========================================
+    // 12. First Transaction
     // ==========================================
     let firstTransactionDate = "-";
 
@@ -652,7 +727,7 @@ const memberThriftDetailsById = async (req, res) => {
     }
 
     // ==========================================
-    // 10. Response
+    // 13. Response
     // ==========================================
     return res.status(200).json({
       success: true,
@@ -700,6 +775,8 @@ const memberThriftDetailsById = async (req, res) => {
         totalEntryAmount,
 
         totalWithdrawalAmount,
+
+        totalLoanAdjustmentAmount,
 
         totalInterest,
 
@@ -940,6 +1017,12 @@ transactions.sort((a, b) => {
           sum + Number(item.amount || 0),
         0
       );
+      const totalLoanAdjustmentAmount =
+  loanAdjustmentTransactions.reduce(
+    (sum, item) =>
+      sum + Number(item.amount || 0),
+    0
+  );
 
     const totalInterest =
       entryTransactions.reduce(
@@ -949,8 +1032,9 @@ transactions.sort((a, b) => {
       );
 
     const netThriftAmount =
-      totalEntryAmount -
-      totalWithdrawalAmount;
+  totalEntryAmount -
+  totalWithdrawalAmount -
+  totalLoanAdjustmentAmount;
 
     // ==========================================
     // 9. First Transaction Date
@@ -1686,6 +1770,20 @@ const monthlyInterestAmount =
                 </div>
 
               </div>
+
+              <div class="detail-item">
+
+  <div class="label">
+    Total Loan Adjustment Amount
+  </div>
+
+  <div class="value">
+    ₹${Number(
+      totalLoanAdjustmentAmount
+    ).toLocaleString("en-IN")}
+  </div>
+
+</div>
 
 
               <div class="detail-item">

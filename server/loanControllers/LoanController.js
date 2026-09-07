@@ -856,7 +856,7 @@ exports.getAllLoanReports = async (req, res) => {
             `${member.firstname} ${member.lastname}`,
 
           firstLoanDate:
-            firstLoan.createdAt
+            firstLoan.transactionDate
               .toLocaleDateString("en-GB")
               .replace(/\//g, "-"),
 
@@ -946,8 +946,8 @@ exports.memberLoanDetailsById = async (req, res) => {
     if (loans.length > 0) {
       const firstLoan = loans[0];
 
-      firstLoanDate = firstLoan.createdAt
-        ? firstLoan.createdAt
+      firstLoanDate = firstLoan.transactionDate
+        ? firstLoan.transactionDate
             .toLocaleDateString("en-GB")
             .replace(/\//g, "-")
         : "-";
@@ -1095,8 +1095,8 @@ let transactionId = "-";
 if (loans.length > 0) {
   const firstLoan = loans[0];
 
-  firstLoanDate = firstLoan.createdAt
-    ? firstLoan.createdAt
+  firstLoanDate = firstLoan.transactionDate
+    ? firstLoan.transactionDate
         .toLocaleDateString("en-GB")
         .replace(/\//g, "-")
     : "-";
@@ -1496,9 +1496,9 @@ const formatAmount = (amount) => {
           }
 
           .container {
-            width: 100%;
-            padding: 20px;
-          }
+  width: 100%;
+  padding: 12px 20px;
+}
 
           .title {
             text-align: center;
@@ -1507,13 +1507,17 @@ const formatAmount = (amount) => {
             color: #012970;
             margin-bottom: 25px;
           }
+            
+.card {
+  width: 88%;
+  margin-left: auto;
+  margin-right: auto;
 
-          .card {
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            margin-bottom: 22px;
-            overflow: hidden;
-          }
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
 
           .card-title {
             margin: 0;
@@ -2200,11 +2204,11 @@ const getLoanReportData = async () => {
         memberName:
           `${member.firstname} ${member.lastname}`,
 
-        firstLoanDate: firstLoan.createdAt
-          ? firstLoan.createdAt
-              .toLocaleDateString("en-GB")
-              .replace(/\//g, "-")
-          : "-",
+        firstLoanDate: firstLoan.transactionDate
+  ? new Date(firstLoan.transactionDate)
+      .toLocaleDateString("en-GB")
+      .replace(/\//g, "-")
+  : "-",
 
         totalLoanAmount,
 

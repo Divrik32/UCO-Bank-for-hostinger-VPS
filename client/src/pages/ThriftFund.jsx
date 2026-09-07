@@ -147,17 +147,35 @@ const fetchTotalThriftInterest = async (memberId) => {
     } catch { console.error("Failed to fetch interest rate"); }
   };
 
-  const fetchThriftPaymentMethods = async () => {
-    try {
-      const res = await api.get(`${API}/payment-methods`);
-  
-      setEntryPaymentMethods(res.data.data.entryMethods || []);
-      setWithdrawalPaymentMethods(res.data.data.withdrawalMethods || []);
-    } catch (error) {
-      console.error("Failed to fetch payment methods");
-      toast.error("Failed to fetch payment methods");
-    }
-  };
+const fetchThriftPaymentMethods = async () => { 
+  try { 
+    const res = await api.get(`${API}/payment-methods`); 
+
+    const entryMethods = res.data.data.entryMethods || [];
+    const withdrawalMethods = res.data.data.withdrawalMethods || [];
+
+    setEntryPaymentMethods(entryMethods); 
+    setWithdrawalPaymentMethods(withdrawalMethods); 
+
+    // Default Entry Payment Method
+    setEntryForm((prev) => ({
+      ...prev,
+      paymentMethod:
+        prev.paymentMethod || entryMethods[0] || "",
+    }));
+
+    // Default Withdrawal Payment Method
+    setWithdrawalForm((prev) => ({
+      ...prev,
+      paymentMethod:
+        prev.paymentMethod || withdrawalMethods[0] || "",
+    }));
+
+  } catch (error) { 
+    console.error("Failed to fetch payment methods"); 
+    toast.error("Failed to fetch payment methods"); 
+  } 
+};
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";

@@ -119,17 +119,35 @@ const fetchInterestRate = async () => {
   }
 };
 
-  const fetchSharePaymentMethods = async () => {
-    try {
-      const res = await api.get(`${API}/payment-methods`);
-  
-      setCreditPaymentMethods(res.data.data?.creditMethods || []);
-      setDebitPaymentMethods(res.data.data?.debitMethods || []);
-    } catch (error) {
-      console.error("Failed to fetch payment methods");
-      toast.error("Failed to fetch payment methods");
-    }
-  };
+const fetchSharePaymentMethods = async () => {
+  try {
+    const res = await api.get(`${API}/payment-methods`);
+
+    const creditMethods = res.data.data?.creditMethods || [];
+    const debitMethods = res.data.data?.debitMethods || [];
+
+    setCreditPaymentMethods(creditMethods);
+    setDebitPaymentMethods(debitMethods);
+
+    // Default Credit Payment Method
+    setCreditForm((prev) => ({
+      ...prev,
+      paymentMode:
+        prev.paymentMode || creditMethods[0] || "",
+    }));
+
+    // Default Debit Payment Method
+    setDebitForm((prev) => ({
+      ...prev,
+      paymentMode:
+        prev.paymentMode || debitMethods[0] || "",
+    }));
+
+  } catch (error) {
+    console.error("Failed to fetch payment methods");
+    toast.error("Failed to fetch payment methods");
+  }
+};
 
 const fetchDividendRate = async () => {
   try {
@@ -386,9 +404,20 @@ const getEntryDate = (item) => {
     // 10. Loan Adjustment
     // ==========================================
 
-    const loanAdjustmentRes = await api.get(
-      `/loan/loan-adjustment/${encodeURIComponent(searchMemberId)}`
-    );
+let loanAdjustmentData = [];
+
+try {
+  const loanAdjustmentRes = await api.get(
+    `/loan/loan-adjustment/${encodeURIComponent(searchMemberId)}`
+  );
+
+  loanAdjustmentData = loanAdjustmentRes.data.data || [];
+} catch (error) {
+  // Loan adjustment না থাকলে search fail করবে না
+  if (error.response?.status !== 404) {
+    throw error;
+  }
+}
 
     // ==========================================
     // 11. Credit Transactions
@@ -448,10 +477,7 @@ const debits = (
     // 13. Loan Adjustment Transactions
     // ==========================================
 
-    const loanAdjustments = (
-      loanAdjustmentRes.data.data || []
-    )
-      .filter(
+    const loanAdjustments = loanAdjustmentData.filter(
         (item) =>
           item.paymentMode ===
             "Amount given from Share A/C" ||

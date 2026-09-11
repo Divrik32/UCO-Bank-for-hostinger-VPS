@@ -815,21 +815,13 @@ exports.getAllLoanReports = async (req, res) => {
       if (loans.length === 0) {
         reports.push({
           memberCode: member.memberId,
-
-          membershipNumber:
-            member.membershipNumber || "-",
-
-          memberName:
-            `${member.firstname} ${member.lastname}`,
-
+          membershipNumber: member.membershipNumber || "-",
+          memberName: `${member.firstname} ${member.lastname}`,
+          pf_no: member.pf_no || "-",
           firstLoanDate: "-",
-
           totalLoanAmount: 0,
-
           interest: "None",
-
           paymentMode: "-",
-
           transactionId: "-",
         });
       }
@@ -848,27 +840,16 @@ exports.getAllLoanReports = async (req, res) => {
 
         reports.push({
           memberCode: member.memberId,
-
-          membershipNumber:
-            member.membershipNumber || "-",
-
-          memberName:
-            `${member.firstname} ${member.lastname}`,
-
-          firstLoanDate:
-            firstLoan.transactionDate
-              .toLocaleDateString("en-GB")
-              .replace(/\//g, "-"),
-
+          membershipNumber: member.membershipNumber || "-",
+          memberName: `${member.firstname} ${member.lastname}`,
+          pf_no: member.pf_no || "-",
+          firstLoanDate: firstLoan.transactionDate
+            .toLocaleDateString("en-GB")
+            .replace(/\//g, "-"),
           totalLoanAmount,
-
           interest: "None",
-
-          paymentMode:
-            firstLoan.paymentMode || "-",
-
-          transactionId:
-            firstLoan.transactionId || "-",
+          paymentMode: firstLoan.paymentMode || "-",
+          transactionId: firstLoan.transactionId || "-",
         });
       }
     }
@@ -877,7 +858,6 @@ exports.getAllLoanReports = async (req, res) => {
       success: true,
       data: reports,
     });
-
   } catch (error) {
     console.error(
       "Get all loan reports error:",
@@ -2182,11 +2162,20 @@ const getLoanReportData = async () => {
     if (loans.length === 0) {
       reports.push({
         memberCode: member.memberId,
-        memberName: `${member.firstname} ${member.lastname}`,
+
+        memberName:
+          `${member.firstname} ${member.lastname}`,
+
+        pf_no: member.pf_no || "-",
+
         firstLoanDate: "-",
+
         totalLoanAmount: 0,
+
         interest: "None",
+
         paymentMode: "-",
+
         transactionId: "-",
       });
     } else {
@@ -2204,11 +2193,13 @@ const getLoanReportData = async () => {
         memberName:
           `${member.firstname} ${member.lastname}`,
 
+        pf_no: member.pf_no || "-",
+
         firstLoanDate: firstLoan.transactionDate
-  ? new Date(firstLoan.transactionDate)
-      .toLocaleDateString("en-GB")
-      .replace(/\//g, "-")
-  : "-",
+          ? new Date(firstLoan.transactionDate)
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
+          : "-",
 
         totalLoanAmount,
 
@@ -2255,6 +2246,10 @@ exports.loanReportPDF = async (req, res) => {
 
           <td>
             ${report.memberName || "-"}
+          </td>
+
+          <td> 
+            ${report.pf_no || "-"} 
           </td>
 
           <td>
@@ -2415,6 +2410,10 @@ exports.loanReportPDF = async (req, res) => {
                 Member Name
               </th>
 
+              <th> 
+                PF Number 
+              </th>
+
               <th>
                 First Loan Date
               </th>
@@ -2446,7 +2445,7 @@ exports.loanReportPDF = async (req, res) => {
               rows ||
               `
                 <tr>
-                  <td colspan="8">
+                  <td colspan="9">
                     No loan report found.
                   </td>
                 </tr>

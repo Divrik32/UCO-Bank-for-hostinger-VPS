@@ -854,7 +854,7 @@ exports.getMemberShareTransactions = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     }).select(
-      "memberId membershipNumber firstname lastname"
+      "memberId membershipNumber firstname lastname pf_no"
     );
 
     if (!members.length) {
@@ -914,6 +914,8 @@ exports.getMemberShareTransactions = async (req, res) => {
 
         memberName:
           `${member.firstname} ${member.lastname}`,
+
+         pf_no: member.pf_no || "-",
       });
     });
 
@@ -934,6 +936,10 @@ exports.getMemberShareTransactions = async (req, res) => {
 
           memberName: member
             ? member.memberName
+            : "-",
+
+          pf_no: member
+            ? member.pf_no
             : "-",
 
           // IMPORTANT:
@@ -975,6 +981,10 @@ exports.getMemberShareTransactions = async (req, res) => {
 
           memberName: member
             ? member.memberName
+            : "-",
+
+          pf_no: member
+            ? member.pf_no
             : "-",
 
           // IMPORTANT:
@@ -1025,6 +1035,10 @@ exports.getMemberShareTransactions = async (req, res) => {
 
           memberName: member
             ? member.memberName
+            : "-",
+
+          pf_no: member
+            ? member.pf_no
             : "-",
 
           // Loan Adjustment-এর আলাদা
@@ -2606,7 +2620,7 @@ exports.printShareReport = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     })
-      .select("memberId firstname lastname")
+      .select("memberId firstname lastname pf_no")
       .sort({ memberId: 1 });
 
     // ==========================================
@@ -2639,14 +2653,16 @@ exports.printShareReport = async (req, res) => {
 
     const memberMap = new Map();
 
-    members.forEach((member) => {
-      memberMap.set(member.memberId, {
-        memberId: member.memberId,
+members.forEach((member) => {
+  memberMap.set(member.memberId, {
+    memberId: member.memberId,
 
-        memberName:
-          `${member.firstname || ""} ${member.lastname || ""}`.trim(),
-      });
-    });
+    memberName:
+      `${member.firstname || ""} ${member.lastname || ""}`.trim(),
+
+    pf_no: member.pf_no || "-",
+  });
+});
 
     // ==========================================
     // 6. Format Credit Share Transactions
@@ -2658,29 +2674,33 @@ exports.printShareReport = async (req, res) => {
           item.memberId
         );
 
-        return {
-          memberId: item.memberId,
+return {
+  memberId: item.memberId,
 
-          memberName: member
-            ? member.memberName
-            : "-",
+  memberName: member
+    ? member.memberName
+    : "-",
 
-          // CreditShare has timestamps: true
-          transactionDate:
-            item.creditDate || item.createdAt,
+  pf_no: member
+    ? member.pf_no
+    : "-",
 
-          // CreditShare amount field
-          investmentAmount:
-            Number(item.investmentAmount || 0),
+  // CreditShare has timestamps: true
+  transactionDate:
+    item.creditDate || item.createdAt,
 
-          paymentMode:
-            item.paymentMode || "-",
+  // CreditShare amount field
+  investmentAmount:
+    Number(item.investmentAmount || 0),
 
-          transactionId:
-            item.transactionId || "-",
+  paymentMode:
+    item.paymentMode || "-",
 
-          transactionType: "Credit",
-        };
+  transactionId:
+    item.transactionId || "-",
+
+  transactionType: "Credit",
+};
       }
     );
 
@@ -2694,29 +2714,33 @@ exports.printShareReport = async (req, res) => {
           item.memberId
         );
 
-        return {
-          memberId: item.memberId,
+return {
+  memberId: item.memberId,
 
-          memberName: member
-            ? member.memberName
-            : "-",
+  memberName: member
+    ? member.memberName
+    : "-",
 
-          // DebitShare has timestamps: true
-          transactionDate:
-            item.debitDate || item.createdAt,
+  pf_no: member
+    ? member.pf_no
+    : "-",
 
-          // DebitShare amount field
-          investmentAmount:
-            Number(item.amount || 0),
+  // DebitShare has timestamps: true
+  transactionDate:
+    item.debitDate || item.createdAt,
 
-          paymentMode:
-            item.paymentMode || "-",
+  // DebitShare amount field
+  investmentAmount:
+    Number(item.amount || 0),
 
-          transactionId:
-            item.transactionId || "-",
+  paymentMode:
+    item.paymentMode || "-",
 
-          transactionType: "Debit",
-        };
+  transactionId:
+    item.transactionId || "-",
+
+  transactionType: "Debit",
+};
       }
     );
 
@@ -2779,6 +2803,10 @@ exports.printShareReport = async (req, res) => {
 
             <td>
               ${transaction.memberName || "-"}
+            </td>
+
+            <td> 
+              ${transaction.pf_no || "-"} 
             </td>
 
             <td>
@@ -2946,6 +2974,10 @@ exports.printShareReport = async (req, res) => {
               <th>
                 Member Name
               </th>
+              
+              <th> 
+                PF Number 
+              </th>
 
               <th>
                 Transaction Date
@@ -2978,7 +3010,7 @@ exports.printShareReport = async (req, res) => {
               `
                 <tr>
 
-                  <td colspan="8">
+                  <td colspan="9">
                     No share report found.
                   </td>
 

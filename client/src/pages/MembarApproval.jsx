@@ -378,12 +378,16 @@ export default function MemberApproval() {
                 </th>
 
                 <th style={styles.th}>
-                  Contact Number
+                  PF Number
                 </th>
 
                 <th style={styles.th}>
-                  Email
+                  Contact Number
                 </th>
+
+                {/* <th style={styles.th}>
+                  Email
+                </th> */}
 
                 <th style={styles.th}>
                   Total Loan
@@ -457,15 +461,20 @@ export default function MemberApproval() {
                         {member.lastname}
                       </td>
 
+                      {/* PF Number */}
+                      <td style={styles.td}>
+                        {member.pf_no || "-"}
+                      </td>
+
                       {/* Contact */}
                       <td style={styles.td}>
                         {member.phoneno || "-"}
                       </td>
 
                       {/* Email */}
-                      <td style={styles.td}>
+                      {/* <td style={styles.td}>
                         {member.email || "-"}
-                      </td>
+                      </td> */}
 
                       {/* Total Loan */}
                       <td style={styles.td}>

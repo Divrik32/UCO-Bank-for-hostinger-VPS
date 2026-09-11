@@ -300,6 +300,7 @@ export default function LoanReport() {
               <th style={styles.th}>Member Code</th>
               <th style={styles.th}>Membership Number</th>
               <th style={styles.th}>Member Name</th>
+              <th style={styles.th}>PF Number</th>
               <th style={styles.th}>First Loan Date</th>
               <th style={styles.th}>Total Loan Amount</th>
               <th style={styles.th}>Interest</th>
@@ -335,6 +336,10 @@ export default function LoanReport() {
           
                   <td style={styles.td}>
                     {report.memberName || "-"}
+                  </td>
+
+                  <td style={styles.td}>
+                    {report.pf_no || "-"}
                   </td>
           
                   <td style={styles.td}>

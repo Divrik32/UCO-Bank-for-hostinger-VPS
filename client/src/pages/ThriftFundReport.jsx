@@ -390,6 +390,10 @@ export default function ThriftFundReport() {
                 </th>
 
                 <th style={styles.th}>
+                  PF Number
+                </th>
+
+                <th style={styles.th}>
                   Transaction Date
                 </th>
 
@@ -427,7 +431,7 @@ export default function ThriftFundReport() {
 
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     style={styles.td}
                   >
                     Loading...
@@ -471,6 +475,11 @@ export default function ThriftFundReport() {
                       <td style={styles.td}>
                         {report.memberName || "-"}
                       </td>
+
+                      {/* PF Number */}
+<td style={styles.td}>
+  {report.pf_no || "-"}
+</td>
 
 
                       {/* Transaction Date */}

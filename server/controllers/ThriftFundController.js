@@ -380,7 +380,7 @@ const getMemberThriftTransactions = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     }).select(
-      "memberId membershipNumber firstname lastname"
+      "memberId membershipNumber firstname lastname pf_no"
     );
 
     if (!members.length) {
@@ -424,6 +424,7 @@ const getMemberThriftTransactions = async (req, res) => {
         memberId: member.memberId,
         membershipNumber: member.membershipNumber || "-",
         memberName: `${member.firstname} ${member.lastname}`,
+        pf_no: member.pf_no || "-",
       });
     });
 
@@ -436,13 +437,20 @@ const getMemberThriftTransactions = async (req, res) => {
 
         return {
           memberId: item.memberId,
-          membershipNumber: member? member.membershipNumber: "-",
-          memberName: member? member.memberName: "-",
+          membershipNumber: member
+            ? member.membershipNumber
+            : "-",
+          memberName: member
+            ? member.memberName
+            : "-",
+          pf_no: member
+            ? member.pf_no
+            : "-",
           transactionDate: item.entryDate,
           thriftAmount: item.totalAmountReceived,
           interest: item.yearlyInterestAmount || 0,
           paymentMode: item.paymentMethod,
-          transactionId:item.transactionId || "-",
+          transactionId: item.transactionId || "-",
           transactionType: "Entry",
         };
       }
@@ -459,13 +467,20 @@ const getMemberThriftTransactions = async (req, res) => {
 
         return {
           memberId: item.memberId,
-          membershipNumber: member? member.membershipNumber : "-",
-          memberName: member? member.memberName: "-",
+          membershipNumber: member
+            ? member.membershipNumber
+            : "-",
+          memberName: member
+            ? member.memberName
+            : "-",
+          pf_no: member
+            ? member.pf_no
+            : "-",
           transactionDate: item.withdrawalDate,
           thriftAmount: item.withdrawalAmount,
           interest: "-",
           paymentMode: item.paymentMethod,
-          transactionId:item.transactionId || "-",
+          transactionId: item.transactionId || "-",
           transactionType: "Withdrawal",
         };
       });
@@ -1990,7 +2005,7 @@ const printThriftFundReport = async (req, res) => {
     const members = await PersonalInformation.find({
       approval_status: "approved",
     })
-      .select("memberId firstname lastname")
+      .select("memberId firstname lastname pf_no")
       .sort({ memberId: 1 });
 
     // ==========================================
@@ -2025,12 +2040,14 @@ const printThriftFundReport = async (req, res) => {
     const memberMap = new Map();
 
     members.forEach((member) => {
-      memberMap.set(member.memberId, {
-        memberId: member.memberId,
-        memberName:
-          `${member.firstname} ${member.lastname}`,
-      });
-    });
+  memberMap.set(member.memberId, {
+    memberId: member.memberId,
+    memberName:
+      `${member.firstname} ${member.lastname}`,
+
+    pf_no: member.pf_no || "-",
+  });
+});
 
     // ==========================================
     // 6. Format Entry Transactions
@@ -2042,15 +2059,18 @@ const printThriftFundReport = async (req, res) => {
           item.memberId
         );
 
-        return {
-          memberId: item.memberId,
+return {
+  memberId: item.memberId,
+  memberName: member
+    ? member.memberName
+    : "-",
 
-          memberName: member
-            ? member.memberName
-            : "-",
+  pf_no: member
+    ? member.pf_no
+    : "-",
 
-          transactionDate:
-            item.entryDate,
+  transactionDate:
+    item.entryDate,
 
           amount: Number(
             item.totalAmountReceived || 0
@@ -2081,15 +2101,18 @@ const printThriftFundReport = async (req, res) => {
           item.memberId
         );
 
-        return {
-          memberId: item.memberId,
+return {
+  memberId: item.memberId,
+  memberName: member
+    ? member.memberName
+    : "-",
 
-          memberName: member
-            ? member.memberName
-            : "-",
+  pf_no: member
+    ? member.pf_no
+    : "-",
 
-          transactionDate:
-            item.withdrawalDate,
+  transactionDate:
+    item.withdrawalDate,
 
           amount: Number(
             item.withdrawalAmount || 0
@@ -2164,6 +2187,10 @@ const printThriftFundReport = async (req, res) => {
 
               <td>
                 ${transaction.memberName || "-"}
+              </td>
+
+              <td>
+                ${transaction.pf_no || "-"}
               </td>
 
               <td>
@@ -2345,6 +2372,10 @@ const printThriftFundReport = async (req, res) => {
               </th>
 
               <th>
+                PF Number
+              </th>
+
+              <th>
                 Transaction Date
               </th>
 
@@ -2379,7 +2410,7 @@ const printThriftFundReport = async (req, res) => {
               rows ||
               `
                 <tr>
-                  <td colspan="9">
+                  <td colspan="10">
                     No thrift fund report found.
                   </td>
                 </tr>

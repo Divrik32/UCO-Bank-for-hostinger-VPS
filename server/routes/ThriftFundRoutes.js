@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions, getThriftPaymentMethods, memberThriftDetailsById, printMemberThriftDetails, printThriftFundReport, getTotalThriftInterest, updateThriftEntryParticular, updateThriftWithdrawalParticular } = require("../controllers/ThriftFundController.js");
+const { createThriftWithdrawal, createThriftEntry, getTotalTransactionDetails, getMemberByMemberId, getAvailableBalance, getMemberThriftTransactions, getThriftPaymentMethods, memberThriftDetailsById, printMemberThriftDetails, printThriftFundReport, getTotalThriftInterest, updateThriftEntryParticular, updateThriftWithdrawalParticular, getThriftFundEntries } = require("../controllers/ThriftFundController.js");
 const { updateInterestRate, getInterestRate } = require("../controllers/interestController.js");
 
 router.get("/payment-methods", getThriftPaymentMethods);
 router.get("/interest-rate", getInterestRate);
 router.put("/update-interest", updateInterestRate);
 router.post("/thrift-entry", createThriftEntry);
+router.get("/thrift-entries", getThriftFundEntries);
 router.post("/thrift-withdrawal", createThriftWithdrawal);
 router.get("/transaction/:memberId", getTotalTransactionDetails);
 router.get("/member/:memberId", getMemberByMemberId);

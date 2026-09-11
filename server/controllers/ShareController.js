@@ -245,8 +245,6 @@ exports.createCreditShare = async (req, res) => {
   }
 };
 
-
-
 exports.getAllCreditShare = async(req,res)=>{
 
  try{

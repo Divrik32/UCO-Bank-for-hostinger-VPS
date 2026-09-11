@@ -159,6 +159,26 @@ const createThriftEntry = async (req, res) => {
   }
 };
 
+const getThriftFundEntries = async (req, res) => {
+  try {
+    const entries = await ThriftFundEntry.find()
+      .sort({ entryDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: entries.length,
+      data: entries,
+    });
+  } catch (error) {
+    console.error("Error fetching thrift fund entries:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch thrift fund entries",
+      error: error.message,
+    });
+  }
+};
 
 // ================= CREATE WITHDRAWAL =================
 const createThriftWithdrawal = async (req, res) => {
@@ -2595,6 +2615,7 @@ const updateThriftWithdrawalParticular = async (req, res) => {
 module.exports = {
   getThriftPaymentMethods,
   createThriftEntry,
+  getThriftFundEntries,
   createThriftWithdrawal,
   getTotalTransactionDetails,
   getMemberByMemberId,

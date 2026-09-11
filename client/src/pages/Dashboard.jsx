@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import api from "../api/axios";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -39,26 +40,72 @@ function StatCard({ title, value, icon, color, bgColor }) {
   );
 }
 
-export default function Dashboard({
-  loanBalance = 3501852,
-  thriftBalance = 643192,
-  activeMembers = 8,
-  inactiveMembers = 0,
-  shareBalance = 200000,
-}) {
-  const totalMembers = activeMembers + inactiveMembers;
+export default function Dashboard() {
+  const [officialEntryCount, setOfficialEntryCount] = useState(0);
+  const [thriftFundCount, setThriftFundCount] = useState(0);
+  const [creditShareCount, setCreditShareCount] = useState(0);
+  const [approvedMemberCount, setApprovedMemberCount] = useState(0);
+  const [activeMemberCount, setActiveMemberCount] = useState(0);
+  const [inactiveMemberCount, setInactiveMemberCount] = useState(0);
 
-  const barData = [
-    { name: "Loan", value: Number(loanBalance) },
-    { name: "Thrift Fund", value: Number(thriftBalance) },
-    { name: "Members", value: totalMembers },
-    { name: "Shares", value: Number(shareBalance) },
-  ];
+useEffect(() => {
+  const fetchDashboardStats = async () => {
+    try {
+      const res = await api.get("/dashboard/stats");
 
-  const pieData = [
-    { name: "Active Members", value: Number(activeMembers) },
-    { name: "Inactive Members", value: Number(inactiveMembers) || 1 },
-  ];
+      if (res.data.success) {
+        setOfficialEntryCount(
+          res.data.data.officialEntryCount
+        );
+
+        setThriftFundCount(
+          res.data.data.thriftFundCount
+        );
+
+        setCreditShareCount(
+          res.data.data.creditShareCount
+        );
+
+        setApprovedMemberCount(
+          res.data.data.approvedMemberCount
+        );
+
+        setActiveMemberCount(
+          res.data.data.activeMemberCount
+        );
+
+        setInactiveMemberCount(
+          res.data.data.inactiveMemberCount
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Failed to fetch dashboard stats:",
+        error
+      );
+    }
+  };
+
+  fetchDashboardStats();
+}, []);
+
+const barData = [
+  { name: "Official Entry", value: officialEntryCount },
+  { name: "Thrift Fund", value: thriftFundCount },
+  { name: "Members", value: approvedMemberCount },
+  { name: "Credit Shares", value: creditShareCount },
+];
+
+const pieData = [
+  {
+    name: "Active Members",
+    value: activeMemberCount,
+  },
+  {
+    name: "Inactive Members",
+    value: inactiveMemberCount,
+  },
+];
 
   const PIE_COLORS = ["#4154f1", "#2eca6a"];
 
@@ -96,10 +143,34 @@ export default function Dashboard({
 
           {/* stat cards */}
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-            <StatCard title="LOANS"       value={loanBalance}   icon="bi-bank"           color="#4154f1" bgColor="#e8eaff" />
-            <StatCard title="THRIFT FUND" value={thriftBalance}  icon="bi-currency-dollar" color="#2eca6a" bgColor="#e0f7ea" />
-            <StatCard title="MEMBERS"     value={totalMembers}   icon="bi-people"          color="#ff771d" bgColor="#fff0e5" />
-            <StatCard title="SHARES"      value={shareBalance}   icon="bi-bar-chart-line"  color="#ee6c74" bgColor="#fde9ea" />
+<StatCard
+  title="OFFICIAL ENTRY"
+  value={officialEntryCount}
+  icon="bi-bank"
+  color="#4154f1"
+  bgColor="#e8eaff"
+/>
+<StatCard
+  title="THRIFT FUND"
+  value={thriftFundCount}
+  icon="bi-currency-dollar"
+  color="#2eca6a"
+  bgColor="#e0f7ea"
+/>
+<StatCard
+  title="MEMBERS"
+  value={approvedMemberCount}
+  icon="bi-people"
+  color="#ff771d"
+  bgColor="#fff0e5"
+/>
+<StatCard
+  title="SHARES"
+  value={creditShareCount}
+  icon="bi-bar-chart-line"
+  color="#ee6c74"
+  bgColor="#fde9ea"
+/>
           </div>
 
           {/* bar chart */}
@@ -113,7 +184,7 @@ export default function Dashboard({
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={barData}>
                 <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }}  />
                 <Tooltip />
                 <Bar dataKey="value" fill="#4154f1" radius={[4, 4, 0, 0]} />
               </BarChart>

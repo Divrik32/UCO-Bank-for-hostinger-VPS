@@ -10,6 +10,7 @@ const app = express();
 const path = require("path");
 const shareRoutes = require("./routes/shareRoutes.js");
 const loanRoutes = require("./routes/loanRoutes.js");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 dns.setServers(["1.1.1.1","8.8.8.8"])
 // DB CONNECT
 connectDB();
@@ -38,6 +39,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/thrift-fund", thriftRoutes);
 app.use("/api/share", shareRoutes);
 app.use("/api/loan", loanRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // TEST ROUTE
 app.get("/", (req, res) => {

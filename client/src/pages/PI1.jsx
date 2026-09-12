@@ -376,6 +376,8 @@ const handleSubmit = (e) => {
                 <option>Wife</option>
                 <option>Son</option>
                 <option>Daughter</option>
+                <option>Brother</option>
+                <option>Sister</option>
               </select>
             </div>
           </div>

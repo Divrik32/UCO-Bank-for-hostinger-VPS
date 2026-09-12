@@ -61,7 +61,7 @@ date_of_retirement: {
 
     guardian_relation: {
       type: String,
-      enum: ["Father", "Mother", "Spouse"],
+      enum: ["Father", "Mother", "Husband", "Wife", "Brother", "Sister","Son","Daughter"],
       required: true,
     },
 
@@ -251,7 +251,7 @@ nominee_name: {   // ❗ fix mapping
 
     nominee_relation: {
       type: String,
-      enum: ["Father", "Mother", "Spouse","Brother","Sister"],
+      enum: ["Father", "Mother", "Wife", "Husband", "Brother","Sister", "Son","Daughter"],
       required: true,
     },
 

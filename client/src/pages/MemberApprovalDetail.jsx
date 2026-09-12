@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { toast } from "react-toastify";
-import { Printer } from "lucide-react";
+import { Printer, Pencil, Check } from "lucide-react";
 
 // ── Dummy data for preview ──────────────────────────────────────────────────
 const dummyMember = {
@@ -44,12 +44,91 @@ const dummyMember = {
 };
 // ────────────────────────────────────────────────────────────────────────────
 
-// Reusable row component
-function InfoRow({ label, value }) {
+function InfoRow({ label, value, field, member, setMember }) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleEdit = () => {
+    setEditValue(value || "");
+    setEditing(true);
+  };
+
+  const handleUpdate = async () => {
+    try {
+      setSaving(true);
+
+      const res = await api.put(`/users/member/${member._id}`, {
+        field,
+        value: editValue,
+      });
+
+      if (res.data.success) {
+        setMember((prev) => ({
+          ...prev,
+          [field]: editValue,
+        }));
+
+        toast.success(`${label} updated successfully`);
+        setEditing(false);
+      }
+    } catch (error) {
+      console.error("Update field error:", error);
+
+      toast.error(
+        error.response?.data?.message ||
+          `Failed to update ${label}`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={rowStyles.row}>
       <span style={rowStyles.label}>{label}</span>
-      <span style={rowStyles.value}>{value || "—"}</span>
+
+      <div style={rowStyles.valueContainer}>
+        {editing ? (
+          <input
+            type={
+              field === "dob" ||
+              field === "date_of_joining" ||
+              field === "date_of_retirement" ||
+              field === "nominee_dob"
+                ? "date"
+                : field === "age" ||
+                  field === "pincode" ||
+                  field === "nominee_age" ||
+                  field === "percentage_share"
+                ? "number"
+                : "text"
+            }
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            style={rowStyles.input}
+            autoFocus
+          />
+        ) : (
+          <span style={rowStyles.value}>
+            {value || "—"}
+          </span>
+        )}
+
+        <button
+          type="button"
+          onClick={editing ? handleUpdate : handleEdit}
+          disabled={saving}
+          style={rowStyles.editButton}
+          title={editing ? "Update" : "Edit"}
+        >
+          {editing ? (
+            <Check size={16} strokeWidth={2.5} />
+          ) : (
+            <Pencil size={15} strokeWidth={2} />
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -323,23 +402,141 @@ const handleApprove = async () => {
         <div style={styles.col}>
 
           <InfoCard title="Member Details">
-            <InfoRow label="Member Name"       value={member.firstname} />
-            <InfoRow label="Last Name"         value={member.lastname} />
-            <InfoRow label="Member D.O.B"      value={formatDate(member.dob)} />
-            <InfoRow label="Membership Number" value={member.membershipNumber} />
-            <InfoRow label="Age"               value={member.age} />
-            <InfoRow label="Date of Joining"   value={formatDate(member.date_of_joining)} />
-            <InfoRow label="Date of Retirement" value={formatDate(member.date_of_retirement)} />
-            <InfoRow label="Gender"            value={member.gender} />
-            <InfoRow label="Status"            value={member.status} />
-            <InfoRow label="Guardian Name"     value={member.guardian_firstname} />
-            <InfoRow label="Guardian Relation" value={member.guardian_relation} />
-            <InfoRow label="Phone"             value={member.phoneno} />
-            <InfoRow label="Email Id"          value={member.email} />
-            <InfoRow label="House/Flat No."    value={member.address_line1} />
-            <InfoRow label="Street No./Area"   value={member.address_line2} />
-            <InfoRow label="State"             value={member.state} />
-            <InfoRow label="Pincode"           value={member.pincode} />
+            <InfoRow
+  label="Member Name"
+  value={member.firstname}
+  field="firstname"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Last Name"
+  value={member.lastname}
+  field="lastname"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Member D.O.B"
+  value={formatDate(member.dob)}
+  field="dob"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Membership Number"
+  value={member.membershipNumber}
+  field="membershipNumber"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Age"
+  value={member.age}
+  field="age"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Date of Joining"
+  value={formatDate(member.date_of_joining)}
+  field="date_of_joining"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Date of Retirement"
+  value={formatDate(member.date_of_retirement)}
+  field="date_of_retirement"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Gender"
+  value={member.gender}
+  field="gender"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Status"
+  value={member.status}
+  field="status"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Guardian Name"
+  value={member.guardian_firstname}
+  field="guardian_firstname"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Guardian Relation"
+  value={member.guardian_relation}
+  field="guardian_relation"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Phone"
+  value={member.phoneno}
+  field="phoneno"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Email Id"
+  value={member.email}
+  field="email"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="House/Flat No."
+  value={member.address_line1}
+  field="address_line1"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Street No./Area"
+  value={member.address_line2}
+  field="address_line2"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="State"
+  value={member.state}
+  field="state"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Pincode"
+  value={member.pincode}
+  field="pincode"
+  member={member}
+  setMember={setMember}
+/>
 
             {/* Profile and signature images */}
             <div style={styles.imgRow}>
@@ -366,12 +563,53 @@ const handleApprove = async () => {
           </InfoCard>
 
           <InfoCard title="Member Banking Information">
-            <InfoRow label="Bank Name"    value={member.bank_name} />
-            <InfoRow label="Branch Name"  value={member.branch_name} />
-            <InfoRow label="Account No."  value={member.account_number} />
-            <InfoRow label="Category"     value={member.category} />
-            <InfoRow label="IFSC Code"    value={member.ifsc_code} />
-            <InfoRow label="MICR Code"    value={member.micr_code} />
+            <InfoRow
+  label="Bank Name"
+  value={member.bank_name}
+  field="bank_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Branch Name"
+  value={member.branch_name}
+  field="branch_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Account No."
+  value={member.account_number}
+  field="account_number"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Category"
+  value={member.category}
+  field="category"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="IFSC Code"
+  value={member.ifsc_code}
+  field="ifsc_code"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="MICR Code"
+  value={member.micr_code}
+  field="micr_code"
+  member={member}
+  setMember={setMember}
+/>
           </InfoCard>
 
         </div>
@@ -380,14 +618,61 @@ const handleApprove = async () => {
         <div style={styles.col}>
 
           <InfoCard title="KYC Details">
-            <InfoRow label="PF No"              value={member.pf_no} />
-            <InfoRow label="Gender"             value={member.gender} />
-            <InfoRow label="ID Proof Name"      value={member.id_proof_name} />
-            <InfoRow label="ID Proof No"        value={member.id_proof_no} />
-            <InfoRow label="Address Proof"      value={member.address_proof_name} />
-            <InfoRow label="Address Proof No"   value={member.address_proof_no} />
-            <InfoRow label="Sign. Proof Name"   value={member.sign_proof_name} />
-            <InfoRow label="PAN Card No"        value={member.pan_no} />
+            <InfoRow
+  label="PF No"
+  value={member.pf_no}
+  field="pf_no"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="ID Proof Name"
+  value={member.id_proof_name}
+  field="id_proof_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="ID Proof No"
+  value={member.id_proof_no}
+  field="id_proof_no"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Address Proof"
+  value={member.address_proof_name}
+  field="address_proof_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Address Proof No"
+  value={member.address_proof_no}
+  field="address_proof_no"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Sign. Proof Name"
+  value={member.sign_proof_name}
+  field="sign_proof_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="PAN Card No"
+  value={member.pan_no}
+  field="pan_no"
+  member={member}
+  setMember={setMember}
+/>
 
             {/* Document images */}
             <div style={styles.imgRow}>
@@ -413,11 +698,49 @@ const handleApprove = async () => {
           </InfoCard>
 
           <InfoCard title="Nominee Details">
-            <InfoRow label="Nominee Name"  value={member.nominee_name} />
-            <InfoRow label="D.O.B"         value={member.nominee_dob} />
-            <InfoRow label="Age"           value={member.nominee_age} />
-            <InfoRow label="Relation"      value={member.nominee_relation} />
-            <InfoRow label="Per. Of Share" value={member.percentage_share ? `${member.percentage_share}%` : ""} />
+            <InfoRow
+  label="Nominee Name"
+  value={member.nominee_name}
+  field="nominee_name"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="D.O.B"
+  value={formatDate(member.nominee_dob)}
+  field="nominee_dob"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Age"
+  value={member.nominee_age}
+  field="nominee_age"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Relation"
+  value={member.nominee_relation}
+  field="nominee_relation"
+  member={member}
+  setMember={setMember}
+/>
+
+<InfoRow
+  label="Per. Of Share"
+  value={
+    member.percentage_share
+      ? `${member.percentage_share}%`
+      : ""
+  }
+  field="percentage_share"
+  member={member}
+  setMember={setMember}
+/>
           </InfoCard>
 
         </div>
@@ -634,15 +957,52 @@ const rowStyles = {
     borderBottom: "0.5px solid #f0f0f0",
     gap: "8px",
     fontSize: "13.5px",
+    alignItems: "center",
   },
+
   label: {
     minWidth: "160px",
     color: "#555",
     fontWeight: "500",
     flexShrink: 0,
   },
+
+  valueContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flex: 1,
+    minWidth: 0,
+  },
+
   value: {
     color: "#222",
     wordBreak: "break-word",
+  },
+
+  input: {
+    flex: 1,
+    minWidth: 0,
+    padding: "5px 8px",
+    border: "1px solid #ced4da",
+    borderRadius: "4px",
+    fontSize: "13px",
+    fontFamily: "inherit",
+    outline: "none",
+  },
+
+  editButton: {
+    width: "28px",
+    height: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#012970",
+    cursor: "pointer",
+    borderRadius: "4px",
+    flexShrink: 0,
   },
 };

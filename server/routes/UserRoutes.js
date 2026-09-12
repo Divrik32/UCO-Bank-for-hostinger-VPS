@@ -17,7 +17,9 @@ const {
   printMemberDetails,
   memberApprovalPDF,
   getNomineeRelations,
-  getMemberByMembershipNumber
+  getMemberByMembershipNumber,
+  deleteMember,
+  updateMemberForm
 } = require("../controllers/UserController.js");
 
 const router = express.Router();
@@ -59,12 +61,9 @@ const multiUpload = upload.fields([
 ]);
 
 // ================= PROTECTED ROUTES =================
-router.post(
-  "/submit-member-form",
-  authMiddleware,
-  multiUpload,
-  submitMemberForm
-);
+router.post("/submit-member-form", authMiddleware, multiUpload, submitMemberForm);
+router.delete("/member/:id", deleteMember);
+router.put("/member/:id", updateMemberForm);
 router.get("/approval-pending-members", getApprovalPendingMembers);
 router.get("/approved-members", getApprovedMembers);
 router.get("/members/:id", getMemberById);

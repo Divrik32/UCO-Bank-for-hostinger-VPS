@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer, X } from "lucide-react";
+import { Search, Printer, X, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 
@@ -143,6 +143,38 @@ export default function MemberApproval() {
       setPrinting(false);
     }
   };
+
+  // ==========================================
+// DELETE MEMBER
+// ==========================================
+
+const handleDeleteMember = async (memberId) => {
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this member?"
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    await api.delete(`/users/member/${memberId}`);
+
+    toast.success("Member deleted successfully.");
+
+    // Delete করা member frontend list থেকেও remove
+    setMembers((prevMembers) =>
+      prevMembers.filter(
+        (member) => member._id !== memberId
+      )
+    );
+  } catch (error) {
+    console.error("Delete member error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to delete member."
+    );
+  }
+};
 
   return (
     <div style={styles.wrapper}>
@@ -513,20 +545,37 @@ export default function MemberApproval() {
     </span>
   )}
 </td>
+{/* Action */}
+<td style={styles.td}>
+  <div style={styles.actionButtons}>
 
-                      {/* Action */}
-                      <td style={styles.td}>
-                        <button
-                          style={styles.viewBtn}
-                          onClick={() =>
-                            navigate(
-                              `/${role}/member_approval/${member._id}`
-                            )
-                          }
-                        >
-                          View
-                        </button>
-                      </td>
+    {/* View Button */}
+    <button
+      style={styles.viewBtn}
+      onClick={() =>
+        navigate(
+          `/${role}/member_approval/${member._id}`
+        )
+      }
+    >
+      View
+    </button>
+
+    {/* Delete Button */}
+    <button
+      type="button"
+      style={styles.deleteBtn}
+      onClick={() =>
+        handleDeleteMember(member._id)
+      }
+      title="Delete Member"
+    >
+      <Trash2 size={15} />
+      Delete
+    </button>
+
+  </div>
+</td>
                     </tr>
                   )
                 )
@@ -540,6 +589,30 @@ export default function MemberApproval() {
 }
 
 const styles = {
+  actionButtons: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  whiteSpace: "nowrap",
+},
+
+deleteBtn: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "5px",
+  backgroundColor: "transparent",
+  color: "#dc3545",
+  border: "1.5px solid #dc3545",
+  borderRadius: "5px",
+  padding: "5px 12px",
+  fontSize: "13px",
+  fontWeight: "500",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  fontFamily: "inherit",
+},
   approvedStatus: {
   display: "inline-flex",
   alignItems: "center",

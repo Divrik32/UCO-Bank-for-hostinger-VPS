@@ -239,6 +239,182 @@ const submitMemberForm = async (req, res) => {
   }
 };
 
+// ================= DELETE MEMBER =================
+
+const deleteMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = await PersonalInformation.findById(id);
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    // Delete member
+    await PersonalInformation.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Member deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete member error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// ================= UPDATE MEMBER FORM =================
+
+const updateMemberForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // যে field update করতে চাই সেই field name
+    const { field, value } = req.body;
+
+    // ==========================================
+    // CHECK MEMBER
+    // ==========================================
+
+    const member = await PersonalInformation.findById(id);
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    // ==========================================
+    // CHECK FIELD
+    // ==========================================
+
+    if (!field) {
+      return res.status(400).json({
+        success: false,
+        message: "Field name is required",
+      });
+    }
+
+    // ==========================================
+    // ALLOWED FIELDS
+    // ==========================================
+
+    const allowedFields = [
+      // Personal
+      "firstname",
+      "lastname",
+      "dob",
+      "membershipNumber",
+      "branch",
+      "date_of_joining",
+      "date_of_retirement",
+      "age",
+      "gender",
+      "status",
+      "guardian_firstname",
+      "guardian_relation",
+      "phoneno",
+      "email",
+      "address_line1",
+      "address_line2",
+      "state",
+      "pincode",
+
+      // KYC
+      "pf_no",
+      "id_proof_name",
+      "id_proof_no",
+      "address_proof_name",
+      "address_proof_no",
+      "sign_proof_name",
+      "pan_no",
+
+      // Bank
+      "bank_name",
+      "branch_name",
+      "account_number",
+      "category",
+      "ifsc_code",
+      "micr_code",
+
+      // Nominee
+      "nominee_name",
+      "nominee_dob",
+      "nominee_age",
+      "nominee_relation",
+      "percentage_share",
+    ];
+
+    // ==========================================
+    // PREVENT INVALID FIELD UPDATE
+    // ==========================================
+
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({
+        success: false,
+        message: "This field cannot be updated",
+      });
+    }
+
+    // ==========================================
+    // CHECK VALUE
+    // ==========================================
+
+    if (value === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Value is required",
+      });
+    }
+
+    // ==========================================
+    // UPDATE ONLY THAT FIELD
+    // ==========================================
+
+    const updatedMember =
+      await PersonalInformation.findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            [field]: value,
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(200).json({
+      success: true,
+      message: `${field} updated successfully`,
+      data: updatedMember,
+    });
+
+  } catch (error) {
+    console.error("Update member field error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const getApprovalPendingMembers = async (req, res) => {
   try {
     // ==========================================
@@ -1901,6 +2077,8 @@ module.exports = {
   registerUser,
   loginUser,
   submitMemberForm,
+  deleteMember,
+  updateMemberForm,
   getApprovalPendingMembers,
   getApprovedMembers,
   getMemberById,

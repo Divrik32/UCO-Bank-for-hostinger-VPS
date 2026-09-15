@@ -348,7 +348,7 @@ export default function PreviewEditPage() {
           {/* Personal Info */}
           <Card title="Personal Information" onEdit={() => navigate(`/${basePath}/pi1`)}>
             <Field label="Member Name"       name="firstname"           value={formData.firstname}           onChange={handleChange} required />
-            <Field label="Last Name"          name="lastname"            value={formData.lastname}            onChange={handleChange} required />
+            <Field label="Last Name"          name="lastname"            value={formData.lastname}            onChange={handleChange} />
             <Field label="Member D.O.B"       name="dob"                 value={formData.dob}                 onChange={handleChange} required />
             <Field
               label="Date of Joining"
@@ -371,7 +371,7 @@ export default function PreviewEditPage() {
             <Field label="Membership Number"  name="membershipNumber"    value={formData.membershipNumber}    onChange={handleChange}/>
             <Field label="Branch"             name="branch"              value={formData.branch}              onChange={handleChange}/>
             <Field label="Phone"              name="phoneno"             value={formData.phoneno}             onChange={handleChange} required />
-            <Field label="Email"              name="email"               value={formData.email}               onChange={handleChange} required />
+            <Field label="Email"              name="email"               value={formData.email}               onChange={handleChange}  />
             <Field label="Gender"             name="gender"              value={formData.gender}              onChange={handleChange} required />
             <Field label="Status"             name="status"              value={formData.status}              onChange={handleChange} required />
             <Field label="Guardian Name"      name="guardian_firstname"  value={formData.guardian_firstname}  onChange={handleChange} required />

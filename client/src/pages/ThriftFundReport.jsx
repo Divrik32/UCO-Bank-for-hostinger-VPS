@@ -26,7 +26,8 @@ export default function ThriftFundReport() {
       const res = await api.get(
         "/thrift-fund/member-thrift-transactions"
       );
-
+      console.log(res.data.data);
+      
       setReports(res.data.data || []);
     } catch (err) {
       console.log(err);

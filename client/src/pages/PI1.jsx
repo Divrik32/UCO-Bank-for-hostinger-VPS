@@ -96,7 +96,7 @@ const basePath = location.pathname.split("/")[1];
 const [isSaved, setIsSaved] = useState(false);
 const isFormValid =
   form.firstname &&
-  form.lastname &&
+  // form.lastname &&
   form.dob &&
   // form.date_of_joining &&
   // form.date_of_retirement &&
@@ -250,7 +250,8 @@ const handleSubmit = (e) => {
   {name !== "membershipNumber" &&
    name !== "date_of_joining" &&
    name !== "date_of_retirement" &&
-   name !== "email" && (
+   name !== "email" &&
+   name !== "lastname" &&  (
     <span style={{ color: "red" }}> *</span>
   )}
 </div>

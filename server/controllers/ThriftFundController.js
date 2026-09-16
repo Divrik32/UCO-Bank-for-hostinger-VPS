@@ -4,6 +4,7 @@ const ThriftFundWithdrawal = require("../models/ThriftFundWithdrawal.js");
 const PersonalInformation = require("../models/PersonalInformation.js");
 const { default: puppeteer } = require("puppeteer");
 const loanAdjustmentModel = require("../loanModels/loanAdjustmentModel.js");
+const InterestAccruedAndPayable = require("../models/InterestAccruedAndPayable.js");
 
 const generateTransactionId = async () => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -106,14 +107,12 @@ const getCurrentBalance = async (memberId) => {
 // ================= CREATE ENTRY =================
 const createThriftEntry = async (req, res) => {
   try {
-    const {
+const {
   memberId,
   totalAmountReceived,
   paymentMethod,
   chequeNumber,
   entryDate,
-  interestAccruedAndPayable,
-  totalInterestBalance,
 } = req.body;
 
     const transactionId = await generateTransactionId();
@@ -130,7 +129,7 @@ const createThriftEntry = async (req, res) => {
     const newBalance =
       currentBalance + Number(totalAmountReceived);
 
-    const entry = await ThriftFundEntry.create({
+const entry = await ThriftFundEntry.create({
   memberId,
   totalAmountReceived,
   paymentMethod,
@@ -141,22 +140,11 @@ const createThriftEntry = async (req, res) => {
   particular: "By Installement",
 
   yearlyInterestAmount,
-
-  interestAccruedAndPayable: Number(
-    interestAccruedAndPayable || 0
-  ),
-
-  totalInterestBalance: Number(
-    totalInterestBalance || 0
-  ),
-
   availableBalance: currentBalance,
   remainingBalance: newBalance,
 
   // Entry Date
-  entryDate: entryDate
-    ? new Date(entryDate)
-    : new Date(),
+  entryDate: entryDate ? new Date(entryDate) : new Date(),
 });
 
     return res.status(201).json({
@@ -2656,6 +2644,86 @@ const updateThriftWithdrawalParticular = async (req, res) => {
   }
 };
 
+// ================= CREATE INTEREST ACCRUED & PAYABLE =================
+const createInterestAccruedAndPayable = async (req, res) => {
+  try {
+    const {
+      memberId,
+      interestAccruedAndPayableCredit,
+      interestAccruedAndPayableDebit,
+      transactionDate,
+    } = req.body;
+
+    const entry =
+      await InterestAccruedAndPayable.create({
+        memberId,
+
+        interestAccruedAndPayableCredit:
+          Number(
+            interestAccruedAndPayableCredit || 0
+          ),
+
+        interestAccruedAndPayableDebit:
+          Number(
+            interestAccruedAndPayableDebit || 0
+          ),
+
+        transactionDate: transactionDate
+          ? new Date(transactionDate)
+          : new Date(),
+      });
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Interest accrued and payable created successfully",
+      data: entry,
+    });
+
+  } catch (error) {
+    console.error(
+      "Create interest accrued and payable error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ================= GET INTEREST ACCRUED & PAYABLE =================
+const getInterestAccruedAndPayable = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    const entries =
+      await InterestAccruedAndPayable.find({
+        memberId,
+      }).sort({
+        transactionDate: -1,
+      });
+
+    return res.status(200).json({
+      success: true,
+      count: entries.length,
+      data: entries,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get interest accrued and payable error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getThriftPaymentMethods,
   createThriftEntry,
@@ -2670,5 +2738,7 @@ module.exports = {
   printThriftFundReport,
   getTotalThriftInterest,
   updateThriftEntryParticular,
-  updateThriftWithdrawalParticular
+  updateThriftWithdrawalParticular,
+  createInterestAccruedAndPayable,
+  getInterestAccruedAndPayable,
 };

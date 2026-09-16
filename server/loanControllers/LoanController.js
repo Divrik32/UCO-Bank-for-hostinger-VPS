@@ -513,26 +513,39 @@ exports.getLoanAdjustment = async (req, res) => {
       .findOne({ memberId })
       .sort({ createdAt: -1 });
 
+    // Member-এর কোনো official loan না থাকলে
+    // error না দিয়ে empty data return করবে
     if (!latestLoan) {
-      return res.status(404).json({
-        success: false,
-        message: "Official loan entry not found"
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // loanCode না থাকলেও error না দিয়ে empty data return করবে
+    if (!latestLoan.loanCode) {
+      return res.status(200).json({
+        success: true,
+        data: [],
       });
     }
 
     const data = await loanAdjustmentModel.find({
       memberId,
-      loanCode: latestLoan.loanCode
+      loanCode: latestLoan.loanCode,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data
+      data,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("getLoanAdjustment Error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+      data: [],
     });
   }
 };

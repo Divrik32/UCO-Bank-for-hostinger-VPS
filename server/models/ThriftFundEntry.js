@@ -47,18 +47,6 @@ const thriftFundEntrySchema = new mongoose.Schema(
       min: 0,
     },
 
-    interestAccruedAndPayable: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    
-    totalInterestBalance: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-
     availableBalance: {
       type: Number,
       default: 0,

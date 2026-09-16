@@ -64,15 +64,22 @@ export default function ThriftFund() {
   const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState([]);
   const [monthlyThriftInterest, setMonthlyThriftInterest] = useState(0);
   const [halfYearlyThriftInterest, setHalfYearlyThriftInterest] = useState(0);
-  const [entryForm, setEntryForm] = useState({
-    totalAmountReceived: "",
-    paymentMethod: entryPaymentMethods[0] || "",
-    chequeNumber: "",
-    yearlyInterestAmount: "",
-    interestAccruedAndPayable: "",
-    totalInterestBalance: "",
-    entryDate: "",
-  });
+const [entryForm, setEntryForm] = useState({
+  totalAmountReceived: "",
+  paymentMethod: entryPaymentMethods[0] || "",
+  chequeNumber: "",
+  yearlyInterestAmount: "",
+  entryDate: "",
+});
+
+const [interestForm, setInterestForm] = useState({
+  creditAmount: "",
+  debitAmount: "",
+  transactionDate: "",
+  totalInterestBalance: "",
+});
+
+const [interestTransactions, setInterestTransactions] = useState([]);
 
   const [withdrawalForm, setWithdrawalForm] = useState({
     withdrawalAmount: "",
@@ -110,23 +117,44 @@ const [savingParticular, setSavingParticular] = useState(false);
   }, [entryForm.totalAmountReceived, interestRate]);
 
   useEffect(() => {
-  const interestAccrued = Number(
-    entryForm.interestAccruedAndPayable || 0
+  const currentCredit = Number(
+    interestForm.creditAmount || 0
   );
 
-  const halfYearlyInterest = Number(
-    halfYearlyThriftInterest || 0
+  const currentDebit = Number(
+    interestForm.debitAmount || 0
   );
 
-  const totalInterest =
-    interestAccrued + halfYearlyInterest;
+  const previousCredit = interestTransactions.reduce(
+    (sum, item) =>
+      sum +
+      Number(item.interestAccruedAndPayableCredit || 0),
+    0
+  );
 
-  setEntryForm((prev) => ({
+  const previousDebit = interestTransactions.reduce(
+    (sum, item) =>
+      sum +
+      Number(item.interestAccruedAndPayableDebit || 0),
+    0
+  );
+
+  const totalInterestBalance =
+    Number(halfYearlyThriftInterest || 0) +
+    previousCredit -
+    previousDebit +
+    currentCredit -
+    currentDebit;
+
+  setInterestForm((prev) => ({
     ...prev,
-    totalInterestBalance: totalInterest.toFixed(0),
+    totalInterestBalance:
+      totalInterestBalance.toFixed(0),
   }));
 }, [
-  entryForm.interestAccruedAndPayable,
+  interestForm.creditAmount,
+  interestForm.debitAmount,
+  interestTransactions,
   halfYearlyThriftInterest,
 ]);
 
@@ -186,6 +214,29 @@ const calculateHalfYearlyThriftInterest = (transactionList) => {
       setAvailableBalance(res.data.availableBalance || 0);
     } catch { toast.error("Failed to fetch balance"); }
   };
+
+  const fetchInterestTransactions = async (memberId) => {
+  try {
+    const res = await api.get(
+      `${API}/interest-accrued-payable/${memberId}`
+    );
+
+    const data = res.data.data || [];
+
+    setInterestTransactions(data);
+
+    return data;
+  } catch (error) {
+    console.error(
+      "Failed to fetch interest accrued and payable transactions:",
+      error
+    );
+
+    setInterestTransactions([]);
+
+    return [];
+  }
+};
 
   const fetchInterestRate = async () => {
     try {
@@ -427,7 +478,22 @@ calculateHalfYearlyThriftInterest(allTransactions);
 
 await fetchAvailableBalance(searchMemberId);
 
-    setActiveTab("entry");
+// ==========================================
+// Fetch Interest Accrued & Payable Transactions
+// ==========================================
+
+const interestData = await fetchInterestTransactions(searchMemberId);
+
+setInterestTransactions(interestData);
+
+setInterestForm((prev) => ({
+  ...prev,
+  creditAmount: "",
+  debitAmount: "",
+  transactionDate: "",
+}));
+
+setActiveTab("entry");
 
   } catch (error) {
     console.error(
@@ -558,34 +624,113 @@ const submitEntry = async () => {
       totalAmountReceived: Number(
         entryForm.totalAmountReceived
       ),
-        interestAccruedAndPayable: Number(
-    entryForm.interestAccruedAndPayable || 0
-  ),
-
-  totalInterestBalance: Number(
-    entryForm.totalInterestBalance || 0
-  ),
     });
 
     toast.success("Entry created successfully");
 
     await fetchAvailableBalance(member.memberId);
 
-setEntryForm({
-  totalAmountReceived: "",
-  paymentMethod: entryPaymentMethods[0] || "",
-  chequeNumber: "",
-  yearlyInterestAmount: "",
-  interestAccruedAndPayable: "",
-  totalInterestBalance: "",
-  entryDate: "",
-});
+   setEntryForm({
+     totalAmountReceived: "",
+     paymentMethod: entryPaymentMethods[0] || "",
+     chequeNumber: "",
+     yearlyInterestAmount: "",
+     entryDate: "",
+   });
 
     handleSearch();
   } catch (error) {
     toast.error(
       error.response?.data?.message ||
         "Failed to create entry"
+    );
+  }
+};
+
+const submitInterestAccruedAndPayable = async () => {
+  try {
+    if (!member?.memberId) {
+      toast.error("Please search a member first");
+      return;
+    }
+
+    const creditAmount = Number(
+      interestForm.creditAmount || 0
+    );
+
+    const debitAmount = Number(
+      interestForm.debitAmount || 0
+    );
+
+    // Credit অথবা Debit যেকোনো একটি থাকতে হবে
+    if (creditAmount <= 0 && debitAmount <= 0) {
+      toast.error(
+        "Enter either Credit Amount or Debit Amount"
+      );
+      return;
+    }
+
+    // দুইটো একসাথে prevent
+    if (creditAmount > 0 && debitAmount > 0) {
+      toast.error(
+        "You can enter either Credit or Debit, not both"
+      );
+      return;
+    }
+
+    // Transaction Date অবশ্যই দিতে হবে
+    if (!interestForm.transactionDate) {
+      toast.error("Please select transaction date");
+      return;
+    }
+
+    await api.post(
+      `${API}/interest-accrued-payable`,
+      {
+        memberId: member.memberId,
+
+        interestAccruedAndPayableCredit:
+          creditAmount,
+
+        interestAccruedAndPayableDebit:
+          debitAmount,
+
+        // Date is required
+        transactionDate: new Date(
+          interestForm.transactionDate
+        ),
+      }
+    );
+
+    toast.success(
+      "Interest transaction created successfully"
+    );
+
+    // নতুন transaction সহ আবার fetch
+    const updatedTransactions =
+      await fetchInterestTransactions(
+        member.memberId
+      );
+
+    setInterestTransactions(updatedTransactions);
+
+    // Form reset
+    setInterestForm({
+      creditAmount: "",
+      debitAmount: "",
+      transactionDate: "",
+      totalInterestBalance: "",
+    });
+
+  } catch (error) {
+    console.error(
+      "Interest accrued and payable error:",
+      error
+    );
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to create interest transaction"
     );
   }
 };
@@ -605,10 +750,27 @@ setEntryForm({
   };
 
   const tabs = [
-    { key: "entry",       label: "Thrift Fund Entry" },
-    { key: "withdrawal",  label: "Thrift Fund Withdrawal" },
-    { key: "transaction", label: "Total Transaction Details" },
-  ];
+  {
+    key: "entry",
+    label: "Thrift Fund Entry",
+  },
+  {
+    key: "withdrawal",
+    label: "Thrift Fund Withdrawal",
+  },
+  {
+    key: "interest",
+    label: "Interest Accrued & Payable",
+  },
+  {
+    key: "transaction",
+    label: "Total Transaction Details",
+  },
+  {
+    key: "interestTransactions",
+    label: "Interest A/C Transactions",
+  },
+];
 
   // ── Shared input styles ──
   const inputStyle = {
@@ -1142,30 +1304,6 @@ setEntryForm({
                 <Field label="Yearly Interest Amount" isMobile={isMobile}>
                   <input style={inputDisabled} disabled value={entryForm.yearlyInterestAmount} />
                 </Field>
-                <Field label="Interest Accrued and Payable A/C" isMobile={isMobile}>
-  <input
-    type="number"
-    style={inputStyle}
-    value={entryForm.interestAccruedAndPayable}
-    onChange={(e) =>
-      setEntryForm({
-        ...entryForm,
-        interestAccruedAndPayable: e.target.value,
-      })
-    }
-    placeholder="Enter amount"
-    min="0"
-  />
-</Field>
-
-<Field label="Total Interest Balance" isMobile={isMobile}>
-  <input
-    type="number"
-    style={inputDisabled}
-    disabled
-    value={entryForm.totalInterestBalance}
-  />
-</Field>
                 <Field label="Available Balance" isMobile={isMobile}>
                   <input style={inputDisabled} disabled value={Number(availableBalance).toFixed(0)} />
                 </Field>
@@ -1253,6 +1391,123 @@ setEntryForm({
                 </div>
               </div>
             )}
+
+            {/* ── Interest Accrued & Payable Tab ── */}
+{activeTab === "interest" && (
+  <div style={{ maxWidth: "680px" }}>
+    <h5
+      style={{
+        fontWeight: "700",
+        marginBottom: "18px",
+        fontSize: "15px",
+        color: "#1a2052",
+        fontFamily: "'Inter', sans-serif",
+        paddingBottom: "8px",
+        borderBottom: "1.5px solid #e2e8f0",
+      }}
+    >
+      Interest Accrued & Payable
+    </h5>
+
+    {/* Credit Amount */}
+    <Field
+      label="Interest Credit Amount"
+      isMobile={isMobile}
+    >
+      <input
+        type="number"
+        min="0"
+        style={inputStyle}
+        value={interestForm.creditAmount}
+        disabled={
+          Number(interestForm.debitAmount || 0) > 0
+        }
+        onChange={(e) => {
+          setInterestForm((prev) => ({
+            ...prev,
+            creditAmount: e.target.value,
+            debitAmount: "",
+          }));
+        }}
+        placeholder="Enter credit amount"
+      />
+    </Field>
+
+    {/* Debit Amount */}
+    <Field
+      label="Interest Debit Amount"
+      isMobile={isMobile}
+    >
+      <input
+        type="number"
+        min="0"
+        style={inputStyle}
+        value={interestForm.debitAmount}
+        disabled={
+          Number(interestForm.creditAmount || 0) > 0
+        }
+        onChange={(e) => {
+          setInterestForm((prev) => ({
+            ...prev,
+            debitAmount: e.target.value,
+            creditAmount: "",
+          }));
+        }}
+        placeholder="Enter debit amount"
+      />
+    </Field>
+
+    {/* Transaction Date */}
+    <Field
+      label="Date of Interest"
+      isMobile={isMobile}
+    >
+      <input
+        type="date"
+        style={inputStyle}
+        value={interestForm.transactionDate}
+        required
+        onChange={(e) =>
+          setInterestForm((prev) => ({
+            ...prev,
+            transactionDate: e.target.value,
+          }))
+        }
+      />
+    </Field>
+
+    {/* Total Interest Balance */}
+    <Field
+      label="Total Interest Balance"
+      isMobile={isMobile}
+    >
+      <input
+        type="text"
+        style={inputDisabled}
+        disabled
+        value={
+          interestForm.totalInterestBalance || "0"
+        }
+      />
+    </Field>
+
+    <div
+      style={{
+        textAlign: "center",
+        marginTop: "20px",
+      }}
+    >
+      <button
+        style={btnPrimary}
+        onClick={
+          submitInterestAccruedAndPayable
+        }
+      >
+        Submit
+      </button>
+    </div>
+  </div>
+)}
 
             {/* ── Transaction Tab ── */}
             {activeTab === "transaction" && (
@@ -1496,6 +1751,227 @@ setEntryForm({
                 </div>
               </div>
             )}
+
+            {/* ── Interest A/C Transactions Tab ── */}
+{activeTab === "interestTransactions" && (
+  <div>
+    <h5
+      style={{
+        fontWeight: "700",
+        marginBottom: "18px",
+        fontSize: "15px",
+        color: "#1a2052",
+        fontFamily: "'Inter', sans-serif",
+        paddingBottom: "8px",
+        borderBottom: "1.5px solid #e2e8f0",
+      }}
+    >
+      Interest A/C Transactions
+    </h5>
+
+    <div
+      style={{
+        overflowX: "auto",
+        overflowY: "auto",
+        height: "340px",
+        borderRadius: "6px",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: "14px",
+        }}
+      >
+        <thead
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1,
+          }}
+        >
+          <tr>
+            {[
+              "Date of Interest",
+              "Debit Rs",
+              "Credit Rs",
+              "Balance Rs",
+            ].map((h) => (
+              <th
+                key={h}
+                style={th}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {(() => {
+            let runningBalance = Number(
+              halfYearlyThriftInterest || 0
+            );
+
+            const sortedTransactions = [
+              ...interestTransactions,
+            ].sort(
+              (a, b) =>
+                new Date(a.transactionDate).getTime() -
+                new Date(b.transactionDate).getTime()
+            );
+
+            return sortedTransactions.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  style={{
+                    textAlign: "center",
+                    padding: "28px",
+                    color: "#aaa",
+                  }}
+                >
+                  No interest transactions found
+                </td>
+              </tr>
+            ) : (
+              sortedTransactions.map((item, index) => {
+                const credit = Number(
+                  item.interestAccruedAndPayableCredit ||
+                    0
+                );
+
+                const debit = Number(
+                  item.interestAccruedAndPayableDebit ||
+                    0
+                );
+
+                runningBalance =
+                  runningBalance +
+                  credit -
+                  debit;
+
+                return (
+                  <tr
+                    key={item._id || index}
+                    style={{
+                      backgroundColor:
+                        index % 2 === 0
+                          ? "#ffffff"
+                          : "#fdfdfd",
+                    }}
+                  >
+                    {/* Date */}
+                    <td style={td}>
+                      {formatDateTime(
+                        item.transactionDate
+                      )}
+                    </td>
+
+                    {/* Debit */}
+                    <td
+                      style={{
+                        ...td,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {debit > 0
+                        ? `₹${debit.toFixed(0)}`
+                        : ""}
+                    </td>
+
+                    {/* Credit */}
+                    <td
+                      style={{
+                        ...td,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {credit > 0
+                        ? `₹${credit.toFixed(0)}`
+                        : ""}
+                    </td>
+
+                    {/* Balance */}
+                    <td
+                      style={{
+                        ...td,
+                        fontWeight: "700",
+                      }}
+                    >
+                      ₹{runningBalance.toFixed(0)}
+                    </td>
+                  </tr>
+                );
+              })
+            );
+          })()}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Current Total Interest Balance */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        borderRadius: "8px",
+        overflow: "hidden",
+        boxShadow:
+          "0 2px 8px rgba(30,64,175,0.10)",
+        border: "1.5px solid #dbeafe",
+        width: "fit-content",
+        marginLeft: "auto",
+        marginTop: "12px",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#1e40af",
+          color: "#fff",
+          fontWeight: "700",
+          fontSize: "13px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "10px 18px",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Total Interest Balance
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "#eff6ff",
+          color: "#1e40af",
+          fontWeight: "800",
+          fontSize: "14px",
+          fontFamily: "'Inter', sans-serif",
+          padding: "10px 18px",
+          whiteSpace: "nowrap",
+        }}
+      >
+        ₹
+        {(
+          Number(halfYearlyThriftInterest || 0) +
+          interestTransactions.reduce(
+            (sum, item) =>
+              sum +
+              Number(
+                item.interestAccruedAndPayableCredit ||
+                  0
+              ) -
+              Number(
+                item.interestAccruedAndPayableDebit ||
+                  0
+              ),
+            0
+          )
+        ).toFixed(0)}
+      </div>
+    </div>
+  </div>
+)}
           </div>
         )}
       </div>

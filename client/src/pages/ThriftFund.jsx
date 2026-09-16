@@ -63,12 +63,14 @@ export default function ThriftFund() {
   const [entryPaymentMethods, setEntryPaymentMethods] = useState([]);
   const [withdrawalPaymentMethods, setWithdrawalPaymentMethods] = useState([]);
   const [monthlyThriftInterest, setMonthlyThriftInterest] = useState(0);
-const [yearlyThriftInterest, setYearlyThriftInterest] = useState(0);
+  const [halfYearlyThriftInterest, setHalfYearlyThriftInterest] = useState(0);
   const [entryForm, setEntryForm] = useState({
     totalAmountReceived: "",
     paymentMethod: entryPaymentMethods[0] || "",
     chequeNumber: "",
     yearlyInterestAmount: "",
+    interestAccruedAndPayable: "",
+    totalInterestBalance: "",
     entryDate: "",
   });
 
@@ -107,24 +109,69 @@ const [savingParticular, setSavingParticular] = useState(false);
     setEntryForm((prev) => ({ ...prev, yearlyInterestAmount: interest.toFixed(0) }));
   }, [entryForm.totalAmountReceived, interestRate]);
 
-const fetchTotalThriftInterest = async (memberId) => {
+  useEffect(() => {
+  const interestAccrued = Number(
+    entryForm.interestAccruedAndPayable || 0
+  );
+
+  const halfYearlyInterest = Number(
+    halfYearlyThriftInterest || 0
+  );
+
+  const totalInterest =
+    interestAccrued + halfYearlyInterest;
+
+  setEntryForm((prev) => ({
+    ...prev,
+    totalInterestBalance: totalInterest.toFixed(0),
+  }));
+}, [
+  entryForm.interestAccruedAndPayable,
+  halfYearlyThriftInterest,
+]);
+
+const calculateHalfYearlyThriftInterest = (transactionList) => {
   try {
-    const res = await api.get(
-      `${API}/total-thrift-interest/${memberId}`
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    let balanceSum = 0;
+
+    let runningBalance = 0;
+
+    const sortedTransactions = [...transactionList].sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
     );
 
-    setMonthlyThriftInterest(
-      Number(res.data.monthlyThriftInterest || 0)
-    );
+    sortedTransactions.forEach((item) => {
+      const amount = Number(item.amount || 0);
 
-    setYearlyThriftInterest(
-      Number(res.data.yearlyThriftInterest || 0)
-    );
+      if (item.type === "Credit") {
+        runningBalance += amount;
+      } else if (item.type === "Debit") {
+        runningBalance -= amount;
+      }
+
+      const transactionDate = new Date(item.date);
+
+      if (transactionDate >= sixMonthsAgo) {
+        balanceSum += runningBalance;
+      }
+    });
+
+    const halfYearlyInterest =
+      (balanceSum * Number(interestRate || 0)) / 1200;
+
+    setHalfYearlyThriftInterest(halfYearlyInterest);
   } catch (error) {
-    console.error("Failed to fetch thrift interest");
+    console.error(
+      "Failed to calculate half yearly thrift interest:",
+      error
+    );
 
-    setMonthlyThriftInterest(0);
-    setYearlyThriftInterest(0);
+    setHalfYearlyThriftInterest(0);
   }
 };
 
@@ -366,17 +413,19 @@ const handleSearch = async () => {
         new Date(b.date).getTime()
     );
 
-    setTransactions(allTransactions);
+setTransactions(allTransactions);
 
-    // ==========================================
-    // 8. Fetch Financial Details
-    // ==========================================
+// ==========================================
+// 8. Calculate Half Yearly Thrift Interest
+// ==========================================
 
-    await fetchAvailableBalance(searchMemberId);
+calculateHalfYearlyThriftInterest(allTransactions);
 
-    await fetchTotalThriftInterest(
-      searchMemberId
-    );
+// ==========================================
+// 9. Fetch Available Balance
+// ==========================================
+
+await fetchAvailableBalance(searchMemberId);
 
     setActiveTab("entry");
 
@@ -509,20 +558,28 @@ const submitEntry = async () => {
       totalAmountReceived: Number(
         entryForm.totalAmountReceived
       ),
+        interestAccruedAndPayable: Number(
+    entryForm.interestAccruedAndPayable || 0
+  ),
+
+  totalInterestBalance: Number(
+    entryForm.totalInterestBalance || 0
+  ),
     });
 
     toast.success("Entry created successfully");
 
     await fetchAvailableBalance(member.memberId);
-    await fetchTotalThriftInterest(member.memberId);
 
-    setEntryForm({
-      totalAmountReceived: "",
-      paymentMethod: entryPaymentMethods[0] || "",
-      chequeNumber: "",
-      yearlyInterestAmount: "",
-      entryDate: "",
-    });
+setEntryForm({
+  totalAmountReceived: "",
+  paymentMethod: entryPaymentMethods[0] || "",
+  chequeNumber: "",
+  yearlyInterestAmount: "",
+  interestAccruedAndPayable: "",
+  totalInterestBalance: "",
+  entryDate: "",
+});
 
     handleSearch();
   } catch (error) {
@@ -722,47 +779,47 @@ const submitEntry = async () => {
       </div>
     </div>
 
-    {/* Yearly Thrift Interest */}
-    <div
-      style={{
-        display: "flex",
-        alignItems: "stretch",
-        borderRadius: "7px",
-        overflow: "hidden",
-        border: "1.5px solid #fef3c7",
-        boxShadow: "0 1px 4px rgba(245,158,11,0.08)",
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: "#d97706",
-          color: "#fff",
-          fontWeight: "700",
-          fontSize: "13px",
-          fontFamily: "'Inter', sans-serif",
-          padding: "8px 14px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Yearly Thrift Interest
-      </div>
-
-      <div
-        style={{
-          backgroundColor: "#fffbeb",
-          color: "#92400e",
-          fontWeight: "800",
-          fontSize: "14px",
-          fontFamily: "'Inter', sans-serif",
-          padding: "8px 14px",
-          whiteSpace: "nowrap",
-          minWidth: "80px",
-          textAlign: "center",
-        }}
-      >
-        ₹{Number(yearlyThriftInterest).toFixed(0)}
-      </div>
-    </div>
+{/* Half Yearly Thrift Interest */}
+<div 
+  style={{ 
+    display: "flex", 
+    alignItems: "stretch", 
+    borderRadius: "7px", 
+    overflow: "hidden", 
+    border: "1.5px solid #fef3c7", 
+    boxShadow: "0 1px 4px rgba(245,158,11,0.08)", 
+  }} 
+> 
+  <div 
+    style={{ 
+      backgroundColor: "#d97706", 
+      color: "#fff", 
+      fontWeight: "700", 
+      fontSize: "13px", 
+      fontFamily: "'Inter', sans-serif", 
+      padding: "8px 14px", 
+      whiteSpace: "nowrap", 
+    }} 
+  > 
+    Half Yearly Thrift Interest 
+  </div> 
+ 
+  <div 
+    style={{ 
+      backgroundColor: "#fffbeb", 
+      color: "#92400e", 
+      fontWeight: "800", 
+      fontSize: "14px", 
+      fontFamily: "'Inter', sans-serif", 
+      padding: "8px 14px", 
+      whiteSpace: "nowrap", 
+      minWidth: "80px", 
+      textAlign: "center", 
+    }} 
+  > 
+    ₹{Number(halfYearlyThriftInterest).toFixed(0)} 
+  </div> 
+</div>
   </>
 )}
       </div>
@@ -1085,18 +1142,42 @@ const submitEntry = async () => {
                 <Field label="Yearly Interest Amount" isMobile={isMobile}>
                   <input style={inputDisabled} disabled value={entryForm.yearlyInterestAmount} />
                 </Field>
+                <Field label="Interest Accrued and Payable A/C" isMobile={isMobile}>
+  <input
+    type="number"
+    style={inputStyle}
+    value={entryForm.interestAccruedAndPayable}
+    onChange={(e) =>
+      setEntryForm({
+        ...entryForm,
+        interestAccruedAndPayable: e.target.value,
+      })
+    }
+    placeholder="Enter amount"
+    min="0"
+  />
+</Field>
+
+<Field label="Total Interest Balance" isMobile={isMobile}>
+  <input
+    type="number"
+    style={inputDisabled}
+    disabled
+    value={entryForm.totalInterestBalance}
+  />
+</Field>
                 <Field label="Available Balance" isMobile={isMobile}>
                   <input style={inputDisabled} disabled value={Number(availableBalance).toFixed(0)} />
                 </Field>
                 <Field label="Balance After Entry" isMobile={isMobile}>
                   <input style={inputDisabled} disabled value={
-  entryForm.totalAmountReceived
-    ? (
-        Number(availableBalance) +
-        Number(entryForm.totalAmountReceived)
-      ).toFixed(0)
-    : Number(availableBalance).toFixed(0)
-} />
+                    entryForm.totalAmountReceived
+                      ? (
+                          Number(availableBalance) +
+                          Number(entryForm.totalAmountReceived)
+                        ).toFixed(0)
+                      : Number(availableBalance).toFixed(0)
+                  } />
                 </Field>
                 <Field label="Entry Date" isMobile={isMobile}>
                   <input type="date" style={inputStyle} value={entryForm.entryDate} onChange={(e) => setEntryForm({ ...entryForm, entryDate: e.target.value })} />

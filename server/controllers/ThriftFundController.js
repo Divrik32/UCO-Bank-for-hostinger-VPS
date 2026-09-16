@@ -107,12 +107,14 @@ const getCurrentBalance = async (memberId) => {
 const createThriftEntry = async (req, res) => {
   try {
     const {
-      memberId,
-      totalAmountReceived,
-      paymentMethod,
-      chequeNumber,
-      entryDate,
-    } = req.body;
+  memberId,
+  totalAmountReceived,
+  paymentMethod,
+  chequeNumber,
+  entryDate,
+  interestAccruedAndPayable,
+  totalInterestBalance,
+} = req.body;
 
     const transactionId = await generateTransactionId();
 
@@ -129,22 +131,33 @@ const createThriftEntry = async (req, res) => {
       currentBalance + Number(totalAmountReceived);
 
     const entry = await ThriftFundEntry.create({
-      memberId,
-      totalAmountReceived,
-      paymentMethod,
-      transactionId,
-      chequeNumber,
+  memberId,
+  totalAmountReceived,
+  paymentMethod,
+  transactionId,
+  chequeNumber,
 
-      // Particular
-      particular: "By Installement",
+  // Particular
+  particular: "By Installement",
 
-      yearlyInterestAmount,
-      availableBalance: currentBalance,
-      remainingBalance: newBalance,
+  yearlyInterestAmount,
 
-      // Entry Date
-      entryDate: entryDate ? new Date(entryDate) : new Date(),
-    });
+  interestAccruedAndPayable: Number(
+    interestAccruedAndPayable || 0
+  ),
+
+  totalInterestBalance: Number(
+    totalInterestBalance || 0
+  ),
+
+  availableBalance: currentBalance,
+  remainingBalance: newBalance,
+
+  // Entry Date
+  entryDate: entryDate
+    ? new Date(entryDate)
+    : new Date(),
+});
 
     return res.status(201).json({
       success: true,

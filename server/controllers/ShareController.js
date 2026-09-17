@@ -2614,14 +2614,15 @@ exports.printShareReport = async (req, res) => {
 
   try {
     // ==========================================
-    // 1. Get ALL approved members
+    // 1. Get ALL members
+    // First created → Last created
     // ==========================================
 
-    const members = await PersonalInformation.find({
-      approval_status: "approved",
-    })
-      .select("memberId firstname lastname pf_no")
-      .sort({ memberId: 1 });
+    const members = await PersonalInformation.find({})
+      .select(
+        "memberId membershipNumber firstname lastname pf_no createdAt"
+      )
+      .sort({ createdAt: 1 });
 
     // ==========================================
     // 2. Get ALL member IDs
@@ -2637,7 +2638,7 @@ exports.printShareReport = async (req, res) => {
 
     const creditShares = await CreditShare.find({
       memberId: { $in: memberIds },
-    });
+    }).select("memberId creditDate createdAt");
 
     // ==========================================
     // 4. Get ALL Debit Share entries
@@ -2645,7 +2646,7 @@ exports.printShareReport = async (req, res) => {
 
     const debitShares = await DebitShare.find({
       memberId: { $in: memberIds },
-    });
+    }).select("memberId debitDate createdAt");
 
     // ==========================================
     // 5. Create Member Map
@@ -2653,119 +2654,77 @@ exports.printShareReport = async (req, res) => {
 
     const memberMap = new Map();
 
-members.forEach((member) => {
-  memberMap.set(member.memberId, {
-    memberId: member.memberId,
+    members.forEach((member) => {
+      memberMap.set(member.memberId, {
+        memberId: member.memberId,
 
-    memberName:
-      `${member.firstname || ""} ${member.lastname || ""}`.trim(),
+        membershipNumber:
+          member.membershipNumber || "-",
 
-    pf_no: member.pf_no || "-",
-  });
-});
+        memberName:
+          `${member.firstname || ""} ${
+            member.lastname || ""
+          }`.trim() || "-",
 
-    // ==========================================
-    // 6. Format Credit Share Transactions
-    // ==========================================
-
-    const creditTransactions = creditShares.map(
-      (item) => {
-        const member = memberMap.get(
-          item.memberId
-        );
-
-return {
-  memberId: item.memberId,
-
-  memberName: member
-    ? member.memberName
-    : "-",
-
-  pf_no: member
-    ? member.pf_no
-    : "-",
-
-  // CreditShare has timestamps: true
-  transactionDate:
-    item.creditDate || item.createdAt,
-
-  // CreditShare amount field
-  investmentAmount:
-    Number(item.investmentAmount || 0),
-
-  paymentMode:
-    item.paymentMode || "-",
-
-  transactionId:
-    item.transactionId || "-",
-
-  transactionType: "Credit",
-};
-      }
-    );
-
-    // ==========================================
-    // 7. Format Debit Share Transactions
-    // ==========================================
-
-    const debitTransactions = debitShares.map(
-      (item) => {
-        const member = memberMap.get(
-          item.memberId
-        );
-
-return {
-  memberId: item.memberId,
-
-  memberName: member
-    ? member.memberName
-    : "-",
-
-  pf_no: member
-    ? member.pf_no
-    : "-",
-
-  // DebitShare has timestamps: true
-  transactionDate:
-    item.debitDate || item.createdAt,
-
-  // DebitShare amount field
-  investmentAmount:
-    Number(item.amount || 0),
-
-  paymentMode:
-    item.paymentMode || "-",
-
-  transactionId:
-    item.transactionId || "-",
-
-  transactionType: "Debit",
-};
-      }
-    );
-
-    // ==========================================
-    // 8. Merge Credit + Debit Transactions
-    // ==========================================
-
-    const allTransactions = [
-      ...creditTransactions,
-      ...debitTransactions,
-    ];
-
-    // ==========================================
-    // 9. Latest → Earliest
-    // ==========================================
-
-    allTransactions.sort((a, b) => {
-      return (
-        new Date(b.transactionDate) -
-        new Date(a.transactionDate)
-      );
+        pfNumber:
+          member.pf_no ?? "-",
+      });
     });
 
     // ==========================================
-    // 10. Format Date
+    // 6. Create Latest Transaction Date Map
+    // ==========================================
+
+    const latestTransactionMap = new Map();
+
+    // Credit dates
+    creditShares.forEach((item) => {
+      const date =
+        item.creditDate || item.createdAt;
+
+      if (!date) return;
+
+      const currentLatest =
+        latestTransactionMap.get(
+          item.memberId
+        );
+
+      if (
+        !currentLatest ||
+        new Date(date) > new Date(currentLatest)
+      ) {
+        latestTransactionMap.set(
+          item.memberId,
+          date
+        );
+      }
+    });
+
+    // Debit dates
+    debitShares.forEach((item) => {
+      const date =
+        item.debitDate || item.createdAt;
+
+      if (!date) return;
+
+      const currentLatest =
+        latestTransactionMap.get(
+          item.memberId
+        );
+
+      if (
+        !currentLatest ||
+        new Date(date) > new Date(currentLatest)
+      ) {
+        latestTransactionMap.set(
+          item.memberId,
+          date
+        );
+      }
+    });
+
+    // ==========================================
+    // 7. Format Date
     // ==========================================
 
     const formatDate = (date) => {
@@ -2785,11 +2744,23 @@ return {
     };
 
     // ==========================================
-    // 11. Generate Table Rows
+    // 8. Generate Report Rows
     // ==========================================
 
-    const rows = allTransactions
-      .map((transaction, index) => {
+    const rows = await Promise.all(
+      members.map(async (member, index) => {
+
+        // Existing share balance calculation
+        const balanceAmount =
+          await getShareCurrentBalance(
+            member.memberId
+          );
+
+        const latestTransactionDate =
+          latestTransactionMap.get(
+            member.memberId
+          ) || null;
+
         return `
           <tr>
 
@@ -2798,48 +2769,44 @@ return {
             </td>
 
             <td>
-              ${transaction.memberId || "-"}
+              ${member.memberId || "-"}
             </td>
 
             <td>
-              ${transaction.memberName || "-"}
+              ${member.membershipNumber || "-"}
             </td>
 
-            <td> 
-              ${transaction.pf_no || "-"} 
+            <td>
+              ${
+                `${member.firstname || ""} ${
+                  member.lastname || ""
+                }`.trim() || "-"
+              }
+            </td>
+
+            <td>
+              ${member.pf_no ?? "-"}
             </td>
 
             <td>
               ${formatDate(
-                transaction.transactionDate
+                latestTransactionDate
               )}
             </td>
 
             <td>
               ₹${Number(
-                transaction.investmentAmount || 0
+                balanceAmount || 0
               ).toLocaleString("en-IN")}
-            </td>
-
-            <td>
-              ${transaction.paymentMode || "-"}
-            </td>
-
-            <td>
-              ${transaction.transactionId || "-"}
-            </td>
-
-            <td>
-              ${transaction.transactionType || "-"}
             </td>
 
           </tr>
         `;
       })
-      .join("");
+    );
 
     // ==========================================
-    // 12. HTML
+    // 9. HTML
     // ==========================================
 
     const html = `
@@ -2972,11 +2939,15 @@ return {
               </th>
 
               <th>
+                Membership Number
+              </th>
+
+              <th>
                 Member Name
               </th>
-              
-              <th> 
-                PF Number 
+
+              <th>
+                PF Number
               </th>
 
               <th>
@@ -2984,19 +2955,7 @@ return {
               </th>
 
               <th>
-                Amount
-              </th>
-
-              <th>
-                Payment Mode
-              </th>
-
-              <th>
-                Transaction ID
-              </th>
-
-              <th>
-                Type
+                Balance Amount
               </th>
 
             </tr>
@@ -3006,16 +2965,15 @@ return {
           <tbody>
 
             ${
-              rows ||
-              `
-                <tr>
-
-                  <td colspan="9">
-                    No share report found.
-                  </td>
-
-                </tr>
-              `
+              rows.length > 0
+                ? rows.join("")
+                : `
+                  <tr>
+                    <td colspan="7">
+                      No share report found.
+                    </td>
+                  </tr>
+                `
             }
 
           </tbody>
@@ -3028,7 +2986,7 @@ return {
     `;
 
     // ==========================================
-    // 13. Launch Puppeteer
+    // 10. Launch Puppeteer
     // ==========================================
 
     browser = await puppeteer.launch({
@@ -3044,7 +3002,7 @@ return {
       await browser.newPage();
 
     // ==========================================
-    // 14. Load HTML
+    // 11. Load HTML
     // ==========================================
 
     await page.setContent(html, {
@@ -3052,7 +3010,7 @@ return {
     });
 
     // ==========================================
-    // 15. Generate PDF
+    // 12. Generate PDF
     // ==========================================
 
     const pdf = await page.pdf({
@@ -3071,7 +3029,7 @@ return {
     });
 
     // ==========================================
-    // 16. Send PDF
+    // 13. Send PDF
     // ==========================================
 
     res.setHeader(
@@ -3336,6 +3294,250 @@ exports.getDividendRate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch dividend rate",
+      error: error.message,
+    });
+  }
+};
+
+exports.getAllMemberShareReport = async (req, res) => {
+  try {
+    const members = await PersonalInformation.find({})
+      .select(
+        "memberId membershipNumber firstname lastname pf_no createdAt"
+      )
+      .sort({ createdAt: 1 });
+
+    if (!members.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No members found",
+      });
+    }
+
+    const data = await Promise.all(
+      members.map(async (member) => {
+        // Existing balance calculation
+        const balanceAmount =
+          await getShareCurrentBalance(member.memberId);
+
+        // Credit transactions
+        const credits = await CreditShare.find({
+          memberId: member.memberId,
+        }).select("creditDate createdAt");
+
+        // Debit transactions
+        const debits = await DebitShare.find({
+          memberId: member.memberId,
+        }).select("debitDate createdAt");
+
+        // Get all transaction dates
+        const transactionDates = [
+          ...credits.map(
+            (item) => item.creditDate || item.createdAt
+          ),
+          ...debits.map(
+            (item) => item.debitDate || item.createdAt
+          ),
+        ].filter(Boolean);
+
+        // Latest transaction date
+        let transactionDate = null;
+
+        if (transactionDates.length > 0) {
+          transactionDate = transactionDates.sort(
+            (a, b) =>
+              new Date(b).getTime() -
+              new Date(a).getTime()
+          )[0];
+        }
+
+        return {
+          memberCode: member.memberId || "-",
+          membershipNumber:
+            member.membershipNumber || "-",
+          memberName:
+            `${member.firstname || ""} ${
+              member.lastname || ""
+            }`.trim() || "-",
+          pfNumber: member.pf_no ?? "-",
+          transactionDate,
+          balanceAmount: Number(balanceAmount || 0),
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      totalMembers: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error(
+      "Get all member share report error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
+// DELETE SHARE TRANSACTION
+// ==========================================
+exports.deleteShareTransaction = async (req, res) => {
+  try {
+    const { transactionType, id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID is required",
+      });
+    }
+
+    let deletedTransaction = null;
+
+    // ==========================================
+    // CREDIT SHARE
+    // ==========================================
+    if (transactionType === "credit") {
+      deletedTransaction =
+        await CreditShare.findByIdAndDelete(id);
+    }
+
+    // ==========================================
+    // DEBIT SHARE
+    // ==========================================
+    else if (transactionType === "debit") {
+      deletedTransaction =
+        await DebitShare.findByIdAndDelete(id);
+    }
+
+    // ==========================================
+    // LOAN ADJUSTMENT
+    // ==========================================
+    else if (transactionType === "loanAdjustment") {
+      const loanAdjustment =
+        await loanAdjustmentModel.findById(id);
+
+      // ------------------------------------------
+      // Transaction not found
+      // ------------------------------------------
+      if (!loanAdjustment) {
+        return res.status(404).json({
+          success: false,
+          message: "Transaction not found",
+        });
+      }
+
+      // ------------------------------------------
+      // BOTH
+      // ------------------------------------------
+      if (loanAdjustment.paymentMode === "Both") {
+        const shareAmount = Number(
+          loanAdjustment.shareAdjustmentAmount || 0
+        );
+
+        const thriftAmount = Number(
+          loanAdjustment.thriftAdjustmentAmount || 0
+        );
+
+        // Share amount must exist
+        if (shareAmount <= 0) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "No share adjustment amount found in this transaction",
+          });
+        }
+
+        // ------------------------------------------
+        // If Thrift amount also exists
+        // keep document and remove ONLY
+        // Share adjustment
+        // ------------------------------------------
+        if (thriftAmount > 0) {
+          loanAdjustment.shareAdjustmentAmount = 0;
+
+          deletedTransaction =
+            await loanAdjustment.save();
+        }
+
+        // ------------------------------------------
+        // If no Thrift amount exists
+        // delete complete document
+        // ------------------------------------------
+        else {
+          deletedTransaction =
+            await loanAdjustmentModel.findByIdAndDelete(id);
+        }
+      }
+
+      // ------------------------------------------
+      // ONLY SHARE ACCOUNT
+      // ------------------------------------------
+      else if (
+        loanAdjustment.paymentMode ===
+        "Amount given from Share A/C"
+      ) {
+        deletedTransaction =
+          await loanAdjustmentModel.findByIdAndDelete(id);
+      }
+
+      // ------------------------------------------
+      // Other payment modes are NOT
+      // share transactions
+      // ------------------------------------------
+      else {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This is not a share fund transaction",
+        });
+      }
+    }
+
+    // ==========================================
+    // INVALID TRANSACTION TYPE
+    // ==========================================
+    else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction type",
+      });
+    }
+
+    // ==========================================
+    // DELETE FAILED
+    // ==========================================
+    if (!deletedTransaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    // ==========================================
+    // SUCCESS
+    // ==========================================
+    return res.status(200).json({
+      success: true,
+      message: "Transaction deleted successfully",
+      data: deletedTransaction,
+    });
+
+  } catch (error) {
+    console.error(
+      "Delete share transaction error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete transaction",
       error: error.message,
     });
   }

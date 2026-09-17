@@ -23,111 +23,98 @@ export default function ShareReport() {
     fetchReports();
   }, []);
 
-  const fetchReports = async () => {
-    try {
-      const res = await api.get(
-        "/share/member-share-transactions"
-      );
-     console.log(res.data.data);
-     
-      setReports(res.data.data || []);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchReports = async () => {
+  try {
+    const res = await api.get("/share/members-share-report");
+
+    console.log(res.data.data);
+
+    setReports(res.data.data || []);
+  } catch (err) {
+    console.log(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// ================================
+// Filter Reports
+// ================================
+const filteredReports = reports.filter((report) => {
 
   // ================================
-  // Filter Reports
+  // Member Code
   // ================================
-  const filteredReports = reports.filter(
-    (report) => {
+  const matchMemberCode =
+    report.memberCode
+      ?.toLowerCase()
+      .includes(memberCodeSearch.toLowerCase());
 
-      // ================================
-      // Member Code
-      // ================================
-      const matchMemberCode =
-        report.memberId
-          ?.toLowerCase()
-          .includes(
-            memberCodeSearch.toLowerCase()
-          );
+  // ================================
+  // Membership Number
+  // ================================
+  const matchMembershipNumber =
+    report.membershipNumber
+      ?.toString()
+      .toLowerCase()
+      .includes(membershipNumberSearch.toLowerCase());
 
-      const matchMembershipNumber =
-  report.membershipNumber
-    ?.toString()
-    .toLowerCase()
-    .includes(
-      membershipNumberSearch.toLowerCase()
-    );
+  // ================================
+  // Member Name
+  // ================================
+  const matchMemberName =
+    report.memberName
+      ?.toLowerCase()
+      .includes(memberNameSearch.toLowerCase());
 
-      // ================================
-      // Member Name
-      // ================================
-      const matchMemberName =
-        report.memberName
-          ?.toLowerCase()
-          .includes(
-            memberNameSearch.toLowerCase()
-          );
+  // ================================
+  // Date Filter
+  // ================================
+  let matchDate = true;
 
-      // ================================
-      // Date Filter
-      // ================================
-      let matchDate = true;
+  if (fromDate || toDate) {
 
-      if (fromDate || toDate) {
+    const transactionDate =
+      new Date(report.transactionDate);
 
-        const transactionDate =
-          new Date(report.transactionDate);
+    if (isNaN(transactionDate.getTime())) {
+      matchDate = false;
+    } else {
 
-        if (
-          isNaN(transactionDate.getTime())
-        ) {
-          matchDate = false;
-        } else {
-
-          // From Date
-          if (
-            fromDate &&
-            transactionDate <
-              new Date(fromDate)
-          ) {
-            matchDate = false;
-          }
-
-          // To Date
-          if (toDate) {
-
-            const endDate =
-              new Date(toDate);
-
-            endDate.setHours(
-              23,
-              59,
-              59,
-              999
-            );
-
-            if (
-              transactionDate >
-              endDate
-            ) {
-              matchDate = false;
-            }
-          }
-        }
+      // From Date
+      if (
+        fromDate &&
+        transactionDate < new Date(fromDate)
+      ) {
+        matchDate = false;
       }
 
-      return (
-        matchMemberCode &&
-        matchMembershipNumber &&
-        matchMemberName &&
-        matchDate
-      );
+      // To Date
+      if (toDate) {
+
+        const endDate = new Date(toDate);
+
+        endDate.setHours(
+          23,
+          59,
+          59,
+          999
+        );
+
+        if (transactionDate > endDate) {
+          matchDate = false;
+        }
+      }
     }
+  }
+
+  return (
+    matchMemberCode &&
+    matchMembershipNumber &&
+    matchMemberName &&
+    matchDate
   );
+});
 
   // ================================
   // Format Date
@@ -456,195 +443,138 @@ const handlePrint = () => {
 
           <table style={styles.table}>
 
-            <thead>
+<thead>
+  <tr style={styles.theadRow}>
+
+    <th style={styles.th}>
+      Sl.
+    </th>
+
+    <th style={styles.th}>
+      Member Code
+    </th>
+
+    <th style={styles.th}>
+      Membership Number
+    </th>
+
+    <th style={styles.th}>
+      Member Name
+    </th>
+
+    <th style={styles.th}>
+      PF Number
+    </th>
+
+    <th style={styles.th}>
+      Transaction Date
+    </th>
+
+    <th style={styles.th}>
+      Balance Amount
+    </th>
+
+    <th style={styles.th}>
+      Action
+    </th>
+
+  </tr>
+</thead>
+
+
+<tbody>
+
+  {loading ? (
+
+    <tr>
+      <td
+        colSpan={8}
+        style={styles.td}
+      >
+        Loading...
+      </td>
+    </tr>
+
+  ) : filteredReports.length === 0 ? (
+
+    <tr>
+      <td
+        colSpan={8}
+        style={styles.td}
+      >
+        No share report found.
+      </td>
+    </tr>
+
+  ) : (
+
+    filteredReports.map((report, index) => (
+
+      <tr
+        key={`${report.memberCode}-${index}`}
+      >
+
+        {/* Sl. */}
+        <td style={styles.td}>
+          {index + 1}
+        </td>
+
+        {/* Member Code */}
+        <td style={styles.td}>
+          {report.memberCode || "-"}
+        </td>
+
+        {/* Membership Number */}
+        <td style={styles.td}>
+          {report.membershipNumber || "-"}
+        </td>
+
+        {/* Member Name */}
+        <td style={styles.td}>
+          {report.memberName || "-"}
+        </td>
+
+        {/* PF Number */}
+        <td style={styles.td}>
+          {report.pfNumber ?? "-"}
+        </td>
+
+        {/* Transaction Date */}
+        <td style={styles.td}>
+          {formatDate(report.transactionDate)}
+        </td>
+
+        {/* Balance Amount */}
+        <td style={styles.td}>
+          ₹
+          {Number(
+            report.balanceAmount || 0
+          ).toLocaleString()}
+        </td>
 
-              <tr style={styles.theadRow}>
+        {/* Action */}
+        <td style={styles.td}>
 
-                <th style={styles.th}>
-                  Sl.
-                </th>
+          <button
+            style={styles.viewBtn}
+            onClick={() => {
+              navigate(
+                `/${role}/share-details/${report.memberCode}`
+              );
+            }}
+          >
+            View
+          </button>
 
-                <th style={styles.th}>
-                  Member Code
-                </th>
+        </td>
 
-                <th style={styles.th}>
-                  Membership Number
-                </th>
+      </tr>
 
-                <th style={styles.th}>
-                  Member Name
-                </th>
+    ))
 
-                <th style={styles.th}>
-                  PF Number
-                </th>
+  )}
 
-                <th style={styles.th}>
-                  Transaction Date
-                </th>
-
-                <th style={styles.th}>
-                  Amount
-                </th>
-
-                <th style={styles.th}>
-                  Payment Mode
-                </th>
-
-                <th style={styles.th}>
-                  Transaction ID
-                </th>
-
-                <th style={styles.th}>
-                  Type
-                </th>
-
-                <th style={styles.th}>
-                  Action
-                </th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody>
-
-              {loading ? (
-
-                <tr>
-
-                  <td
-                    colSpan={11}
-                    style={styles.td}
-                  >
-                    Loading...
-                  </td>
-
-                </tr>
-
-              ) : filteredReports.length === 0 ? (
-
-                <tr>
-
-                  <td
-                    colSpan={11}
-                    style={styles.td}
-                  >
-                    No share report found.
-                  </td>
-
-                </tr>
-
-              ) : (
-
-                filteredReports.map(
-                  (report, index) => (
-
-                    <tr
-                      key={`${report.memberId}-${report.transactionId}-${index}`}
-                    >
-
-                      {/* Sl. */}
-
-                      <td style={styles.td}>
-                        {index + 1}
-                      </td>
-
-
-                      {/* Member Code */}
-
-                      <td style={styles.td}>
-                        {report.memberId || "-"}
-                      </td>
-
-                      {/* Membership Number */}
-<td style={styles.td}>
-  {report.membershipNumber || "-"}
-</td>
-
-
-                      {/* Member Name */}
-
-                      <td style={styles.td}>
-                        {report.memberName || "-"}
-                      </td>
-
-                      {/* PF Number */}
-
-                      <td style={styles.td}>
-                        {report.pf_no || "-"}
-                      </td>
-
-
-                      {/* Transaction Date */}
-
-                      <td style={styles.td}>
-                        {formatDate(
-                          report.transactionDate
-                        )}
-                      </td>
-
-
-                      {/* Amount */}
-
-                      <td style={styles.td}>
-                        ₹
-                        {Number(
-                          report.shareAmount || 0
-                        ).toLocaleString()}
-                      </td>
-
-
-                      {/* Payment Mode */}
-
-                      <td style={styles.td}>
-                        {report.paymentMode || "-"}
-                      </td>
-
-
-                      {/* Transaction ID */}
-
-                      <td style={styles.td}>
-                        {report.transactionId || "-"}
-                      </td>
-
-
-                      {/* Transaction Type */}
-
-                      <td style={styles.td}>
-                        {report.transactionType || "-"}
-                      </td>
-
-
-                      {/* Action */}
-
-                      <td style={styles.td}>
-
-                        <button
-                          style={styles.viewBtn}
-                          onClick={() => {
-
-                            navigate(
-                              `/${role}/share-details/${report.memberId}`
-                            );
-
-                          }}
-                        >
-                          View
-                        </button>
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )
-
-              )}
-
-            </tbody>
+</tbody>
 
           </table>
 

@@ -421,7 +421,7 @@ const getApprovalPendingMembers = async (req, res) => {
     // 1. Get All Pending Members
     // ==========================================
     const members = await PersonalInformation.find({}).sort({
-      createdAt: -1,
+      createdAt: 1,
     });
 
     // ==========================================

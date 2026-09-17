@@ -2000,160 +2000,150 @@ const printThriftFundReport = async (req, res) => {
 
   try {
     // ==========================================
-    // 1. Get ALL approved members
+    // 1. Get Current Thrift Interest Rate
     // ==========================================
-
-    const members = await PersonalInformation.find({
-      approval_status: "approved",
-    })
-      .select("memberId firstname lastname pf_no")
-      .sort({ memberId: 1 });
-
-    // ==========================================
-    // 2. Get ALL member IDs
-    // ==========================================
-
-    const memberIds = members.map(
-      (member) => member.memberId
-    );
-
-    // ==========================================
-    // 3. Get ALL thrift entries
-    // ==========================================
-
-    const entries = await ThriftFundEntry.find({
-      memberId: { $in: memberIds },
+    const interestData = await InterestRate.findOne().sort({
+      createdAt: -1,
     });
 
-    // ==========================================
-    // 4. Get ALL withdrawals
-    // ==========================================
-
-    const withdrawals =
-      await ThriftFundWithdrawal.find({
-        memberId: { $in: memberIds },
-      });
+    const interestRate = interestData
+      ? Number(interestData.rate || 0)
+      : 7;
 
     // ==========================================
-    // 5. Create Member Map
+    // 2. Get ALL Members
+    //    First Created -> Last Created
     // ==========================================
-
-    const memberMap = new Map();
-
-    members.forEach((member) => {
-  memberMap.set(member.memberId, {
-    memberId: member.memberId,
-    memberName:
-      `${member.firstname} ${member.lastname}`,
-
-    pf_no: member.pf_no || "-",
-  });
-});
+    const members = await PersonalInformation.find({})
+      .select(
+        "memberId membershipNumber firstname lastname pf_no createdAt"
+      )
+      .sort({ createdAt: 1 });
 
     // ==========================================
-    // 6. Format Entry Transactions
+    // 3. Create Report Data
     // ==========================================
+    const reportData = await Promise.all(
+      members.map(async (member, index) => {
 
-    const entryTransactions = entries.map(
-      (item) => {
-        const member = memberMap.get(
-          item.memberId
+        // ======================================
+        // Current Balance
+        // Credit - Withdrawal - Loan Adjustment
+        // ======================================
+        const balanceAmount = await getCurrentBalance(
+          member.memberId
         );
 
-return {
-  memberId: item.memberId,
-  memberName: member
-    ? member.memberName
-    : "-",
+        // ======================================
+        // Get ALL Thrift Entries
+        // ======================================
+        const entries = await ThriftFundEntry.find({
+          memberId: member.memberId,
+        }).select("entryDate createdAt");
 
-  pf_no: member
-    ? member.pf_no
-    : "-",
+        // ======================================
+        // Get ALL Withdrawals
+        // ======================================
+        const withdrawals =
+          await ThriftFundWithdrawal.find({
+            memberId: member.memberId,
+          }).select("withdrawalDate createdAt");
 
-  transactionDate:
-    item.entryDate,
+        // ======================================
+        // Get Thrift Loan Adjustments
+        // ======================================
+        const loanAdjustments =
+          await loanAdjustmentModel.find({
+            memberId: member.memberId,
+            paymentMode: {
+              $in: [
+                "Amount given from thrift A/C",
+                "Both",
+              ],
+            },
+          }).select("createdAt");
 
-          amount: Number(
-            item.totalAmountReceived || 0
+        // ======================================
+        // Collect All Transaction Dates
+        // ======================================
+        const transactionDates = [
+          ...entries.map(
+            (item) =>
+              item.entryDate || item.createdAt
           ),
 
-          interest: Number(
-            item.yearlyInterestAmount || 0
+          ...withdrawals.map(
+            (item) =>
+              item.withdrawalDate || item.createdAt
           ),
 
-          paymentMode:
-            item.paymentMethod || "-",
+          ...loanAdjustments.map(
+            (item) => item.createdAt
+          ),
+        ].filter(Boolean);
 
-          transactionId:
-            item.transactionId || "-",
+        // ======================================
+        // Last Transaction Date
+        // ======================================
+        let lastTransactionDate = null;
 
-          transactionType: "Entry",
+        if (transactionDates.length > 0) {
+          lastTransactionDate =
+            transactionDates.reduce(
+              (latest, current) => {
+                return new Date(current) >
+                  new Date(latest)
+                  ? current
+                  : latest;
+              }
+            );
+        }
+
+        // ======================================
+        // Interest
+        //
+        // Balance Amount × Interest Rate / 100
+        // ======================================
+        const interest =
+          (Number(balanceAmount || 0) *
+            interestRate) /
+          100;
+
+        // ======================================
+        // Return Row
+        // ======================================
+        return {
+          serial: index + 1,
+
+          memberCode:
+            member.memberId || "-",
+
+          membershipNumber:
+            member.membershipNumber || "-",
+
+          memberName:
+            `${member.firstname || ""} ${
+              member.lastname || ""
+            }`.trim() || "-",
+
+          pfNumber:
+            member.pf_no ?? "-",
+
+          transactionDateLast:
+            lastTransactionDate,
+
+          balanceAmount:
+            Number(balanceAmount || 0),
+
+          interest:
+            Number(interest.toFixed(0)),
         };
-      }
+      })
     );
 
     // ==========================================
-    // 7. Format Withdrawal Transactions
+    // 4. Format Date
     // ==========================================
-
-    const withdrawalTransactions =
-      withdrawals.map((item) => {
-        const member = memberMap.get(
-          item.memberId
-        );
-
-return {
-  memberId: item.memberId,
-  memberName: member
-    ? member.memberName
-    : "-",
-
-  pf_no: member
-    ? member.pf_no
-    : "-",
-
-  transactionDate:
-    item.withdrawalDate,
-
-          amount: Number(
-            item.withdrawalAmount || 0
-          ),
-
-          interest: "-",
-
-          paymentMode:
-            item.paymentMethod || "-",
-
-          transactionId:
-            item.transactionId || "-",
-
-          transactionType: "Withdrawal",
-        };
-      });
-
-    // ==========================================
-    // 8. Merge Transactions
-    // ==========================================
-
-    const allTransactions = [
-      ...entryTransactions,
-      ...withdrawalTransactions,
-    ];
-
-    // ==========================================
-    // 9. Latest → Earliest
-    // ==========================================
-
-    allTransactions.sort(
-      (a, b) =>
-        new Date(b.transactionDate) -
-        new Date(a.transactionDate)
-    );
-
-    // ==========================================
-    // 10. Format Date
-    // ==========================================
-
     const formatDate = (date) => {
       if (!date) return "-";
 
@@ -2169,75 +2159,59 @@ return {
     };
 
     // ==========================================
-    // 11. Generate Table Rows
+    // 5. Generate Table Rows
     // ==========================================
+    const rows = reportData
+      .map((report) => {
+        return `
+          <tr>
 
-    const rows = allTransactions
-      .map(
-        (transaction, index) => {
-          return `
-            <tr>
+            <td>
+              ${report.serial}
+            </td>
 
-              <td>
-                ${index + 1}
-              </td>
+            <td>
+              ${report.memberCode}
+            </td>
 
-              <td>
-                ${transaction.memberId || "-"}
-              </td>
+            <td>
+              ${report.membershipNumber}
+            </td>
 
-              <td>
-                ${transaction.memberName || "-"}
-              </td>
+            <td>
+              ${report.memberName}
+            </td>
 
-              <td>
-                ${transaction.pf_no || "-"}
-              </td>
+            <td>
+              ${report.pfNumber}
+            </td>
 
-              <td>
-                ${formatDate(
-                  transaction.transactionDate
-                )}
-              </td>
+            <td>
+              ${formatDate(
+                report.transactionDateLast
+              )}
+            </td>
 
-              <td>
-                ₹${Number(
-                  transaction.amount || 0
-                ).toLocaleString("en-IN")}
-              </td>
+            <td>
+              ₹${Number(
+                report.balanceAmount || 0
+              ).toLocaleString("en-IN")}
+            </td>
 
-              <td>
-                ${
-                  transaction.interest === "-"
-                    ? "-"
-                    : `₹${Number(
-                        transaction.interest || 0
-                      ).toLocaleString("en-IN")}`
-                }
-              </td>
+            <td>
+              ₹${Number(
+                report.interest || 0
+              ).toFixed(0)}
+            </td>
 
-              <td>
-                ${transaction.paymentMode || "-"}
-              </td>
-
-              <td>
-                ${transaction.transactionId || "-"}
-              </td>
-
-              <td>
-                ${transaction.transactionType || "-"}
-              </td>
-
-            </tr>
-          `;
-        }
-      )
+          </tr>
+        `;
+      })
       .join("");
 
     // ==========================================
-    // 12. HTML
+    // 6. HTML
     // ==========================================
-
     const html = `
       <!DOCTYPE html>
 
@@ -2369,6 +2343,10 @@ return {
               </th>
 
               <th>
+                Membership Number
+              </th>
+
+              <th>
                 Member Name
               </th>
 
@@ -2381,23 +2359,11 @@ return {
               </th>
 
               <th>
-                Amount
+                Balance Amount
               </th>
 
               <th>
                 Interest
-              </th>
-
-              <th>
-                Payment Mode
-              </th>
-
-              <th>
-                Transaction ID
-              </th>
-
-              <th>
-                Type
               </th>
 
             </tr>
@@ -2411,7 +2377,7 @@ return {
               rows ||
               `
                 <tr>
-                  <td colspan="10">
+                  <td colspan="8">
                     No thrift fund report found.
                   </td>
                 </tr>
@@ -2428,9 +2394,8 @@ return {
     `;
 
     // ==========================================
-    // 13. Launch Puppeteer
+    // 7. Launch Puppeteer
     // ==========================================
-
     browser = await puppeteer.launch({
       headless: true,
 
@@ -2444,17 +2409,15 @@ return {
       await browser.newPage();
 
     // ==========================================
-    // 14. Load HTML
+    // 8. Load HTML
     // ==========================================
-
     await page.setContent(html, {
       waitUntil: "networkidle0",
     });
 
     // ==========================================
-    // 15. Generate PDF
+    // 9. Generate PDF
     // ==========================================
-
     const pdf = await page.pdf({
       format: "A4",
 
@@ -2471,9 +2434,8 @@ return {
     });
 
     // ==========================================
-    // 16. Send PDF
+    // 10. Send PDF
     // ==========================================
-
     res.setHeader(
       "Content-Type",
       "application/pdf"
@@ -2495,6 +2457,7 @@ return {
 
     res.status(500).json({
       success: false,
+
       message:
         "Failed to generate thrift fund report PDF",
     });
@@ -2724,6 +2687,339 @@ const getInterestAccruedAndPayable = async (req, res) => {
   }
 };
 
+// ================= ALL MEMBER THRIFT BALANCE REPORT =================
+
+const getAllMemberThriftBalanceReport = async (req, res) => {
+  try {
+    // ==========================================
+    // 1. Get current thrift interest rate
+    // ==========================================
+    const interestData = await InterestRate.findOne().sort({
+      createdAt: -1,
+    });
+
+    const interestRate = interestData
+      ? Number(interestData.rate || 0)
+      : 7;
+
+    // ==========================================
+    // 2. Get ALL members
+    //    First created -> Last created
+    // ==========================================
+    const members = await PersonalInformation.find({})
+      .select(
+        "memberId membershipNumber firstname lastname pf_no createdAt"
+      )
+      .sort({ createdAt: 1 });
+
+    if (!members.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No members found",
+      });
+    }
+
+    // ==========================================
+    // 3. Create report for each member
+    // ==========================================
+    const data = await Promise.all(
+      members.map(async (member, index) => {
+        // ======================================
+        // Current Balance
+        // Uses your existing calculation:
+        // Credit - Withdrawal - Loan Adjustment
+        // ======================================
+        const balanceAmount = await getCurrentBalance(
+          member.memberId
+        );
+
+        // ======================================
+        // Get ALL thrift entries
+        // ======================================
+        const entries = await ThriftFundEntry.find({
+          memberId: member.memberId,
+        }).select("entryDate createdAt");
+
+        // ======================================
+        // Get ALL thrift withdrawals
+        // ======================================
+        const withdrawals =
+          await ThriftFundWithdrawal.find({
+            memberId: member.memberId,
+          }).select("withdrawalDate createdAt");
+
+        // ======================================
+        // Get thrift related loan adjustments
+        // ======================================
+        const loanAdjustments =
+          await loanAdjustmentModel.find({
+            memberId: member.memberId,
+            paymentMode: {
+              $in: [
+                "Amount given from thrift A/C",
+                "Both",
+              ],
+            },
+          }).select("createdAt");
+
+        // ======================================
+        // Collect all transaction dates
+        // ======================================
+        const transactionDates = [
+          ...entries.map(
+            (item) =>
+              item.entryDate || item.createdAt
+          ),
+
+          ...withdrawals.map(
+            (item) =>
+              item.withdrawalDate || item.createdAt
+          ),
+
+          ...loanAdjustments.map(
+            (item) => item.createdAt
+          ),
+        ].filter(Boolean);
+
+        // ======================================
+        // Latest Transaction Date
+        // ======================================
+        let lastTransactionDate = null;
+
+        if (transactionDates.length > 0) {
+          lastTransactionDate =
+            transactionDates.reduce(
+              (latest, current) => {
+                return new Date(current) >
+                  new Date(latest)
+                  ? current
+                  : latest;
+              }
+            );
+        }
+
+        // ======================================
+        // Interest
+        //
+        // Balance Amount × Interest Rate / 100
+        // ======================================
+        const interest =
+          (Number(balanceAmount || 0) *
+            interestRate) /
+          100;
+
+        // ======================================
+        // Final Row
+        // ======================================
+        return {
+          serial: index + 1,
+
+          memberCode: member.memberId || "-",
+
+          membershipNumber: member.membershipNumber || "-",
+
+          memberName: `${member.firstname || ""} ${
+              member.lastname || ""
+            }`.trim() || "-",
+
+          pfNumber: member.pf_no ?? "-",
+
+          transactionDateLast: lastTransactionDate,
+
+          balanceAmount: Number(balanceAmount || 0),
+
+          interest: Number(interest.toFixed(2)),
+        };
+      })
+    );
+
+    // ==========================================
+    // 4. Response
+    // ==========================================
+    return res.status(200).json({
+      success: true,
+
+      totalMembers: data.length,
+
+      interestRate,
+
+      data,
+    });
+  } catch (error) {
+    console.error(
+      "Get all member thrift balance report error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
+// DELETE THRIFT FUND TRANSACTION
+// ==========================================
+// ==========================================
+// DELETE THRIFT FUND TRANSACTION
+// ==========================================
+const deleteThriftTransaction = async (req, res) => {
+  try {
+    const { transactionType, id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID is required",
+      });
+    }
+
+    let deletedTransaction = null;
+
+    // ==========================================
+    // THRIFT ENTRY
+    // ==========================================
+    if (transactionType === "entry") {
+      deletedTransaction =
+        await ThriftFundEntry.findByIdAndDelete(id);
+    }
+
+    // ==========================================
+    // THRIFT WITHDRAWAL
+    // ==========================================
+    else if (transactionType === "withdrawal") {
+      deletedTransaction =
+        await ThriftFundWithdrawal.findByIdAndDelete(id);
+    }
+
+    // ==========================================
+    // LOAN ADJUSTMENT
+    // ==========================================
+    else if (transactionType === "loanAdjustment") {
+      const loanAdjustment =
+        await loanAdjustmentModel.findById(id);
+
+      // ------------------------------------------
+      // Transaction not found
+      // ------------------------------------------
+      if (!loanAdjustment) {
+        return res.status(404).json({
+          success: false,
+          message: "Transaction not found",
+        });
+      }
+
+      // ------------------------------------------
+      // BOTH
+      // ------------------------------------------
+      if (loanAdjustment.paymentMode === "Both") {
+        const thriftAmount = Number(
+          loanAdjustment.thriftAdjustmentAmount || 0
+        );
+
+        const shareAmount = Number(
+          loanAdjustment.shareAdjustmentAmount || 0
+        );
+
+        // Thrift amount must exist
+        if (thriftAmount <= 0) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "No thrift adjustment amount found in this transaction",
+          });
+        }
+
+        // ------------------------------------------
+        // If Share amount also exists
+        // keep the document and remove ONLY
+        // Thrift adjustment
+        // ------------------------------------------
+        if (shareAmount > 0) {
+          loanAdjustment.thriftAdjustmentAmount = 0;
+
+          deletedTransaction =
+            await loanAdjustment.save();
+        }
+
+        // ------------------------------------------
+        // If no Share amount exists
+        // delete the complete document
+        // ------------------------------------------
+        else {
+          deletedTransaction =
+            await loanAdjustmentModel.findByIdAndDelete(id);
+        }
+      }
+
+      // ------------------------------------------
+      // ONLY THRIFT ACCOUNT
+      // ------------------------------------------
+      else if (
+        loanAdjustment.paymentMode ===
+        "Amount given from thrift A/C"
+      ) {
+        deletedTransaction =
+          await loanAdjustmentModel.findByIdAndDelete(id);
+      }
+
+      // ------------------------------------------
+      // Other payment modes are NOT thrift
+      // transactions
+      // ------------------------------------------
+      else {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This is not a thrift fund transaction",
+        });
+      }
+    }
+
+    // ==========================================
+    // INVALID TYPE
+    // ==========================================
+    else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction type",
+      });
+    }
+
+    // ==========================================
+    // DELETE FAILED
+    // ==========================================
+    if (!deletedTransaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    // ==========================================
+    // SUCCESS
+    // ==========================================
+    return res.status(200).json({
+      success: true,
+      message: "Transaction deleted successfully",
+      data: deletedTransaction,
+    });
+
+  } catch (error) {
+    console.error(
+      "Delete thrift transaction error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete transaction",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getThriftPaymentMethods,
   createThriftEntry,
@@ -2741,4 +3037,6 @@ module.exports = {
   updateThriftWithdrawalParticular,
   createInterestAccruedAndPayable,
   getInterestAccruedAndPayable,
+  getAllMemberThriftBalanceReport,
+  deleteThriftTransaction
 };

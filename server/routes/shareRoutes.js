@@ -23,7 +23,9 @@ const {
   updateDebitShareDocuments,
   updateCreditShareDocuments,
   createDividendRate,
-  getDividendRate
+  getDividendRate,
+  getAllMemberShareReport,
+  deleteShareTransaction
 } = require("../controllers/ShareController.js");
 
 /* ================= SHARE INTEREST ================= */
@@ -60,5 +62,7 @@ router.get("/dividend-balance/:memberId", getDividendAvailableBalance);
 router.post("/dividend-rate", createDividendRate);
 // Fetch Dividend Rate
 router.get("/dividend-rate", getDividendRate);
+router.get("/members-share-report", getAllMemberShareReport);
+router.delete("/transaction/:transactionType/:id", deleteShareTransaction);
 
 module.exports = router;

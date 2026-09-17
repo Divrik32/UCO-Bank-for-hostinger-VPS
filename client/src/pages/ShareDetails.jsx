@@ -67,6 +67,7 @@ const fetchMemberShareDetails = async () => {
       createdAt: item.creditDate || item.createdAt,
       bookNo: item.bookNo || "",
       certificateNo: item.certificateNo || "",
+      transactionSource: "credit",
     }));
 
     // ==========================================
@@ -79,6 +80,7 @@ const fetchMemberShareDetails = async () => {
       createdAt: item.debitDate || item.createdAt,
       bookNo: item.bookNo || "",
       certificateNo: item.certificateNo || "",
+      transactionSource: "debit",
     }));
 
     // ==========================================
@@ -107,6 +109,7 @@ const fetchMemberShareDetails = async () => {
           bookNo: "",
           certificateNo: "",
           isLoanAdjustment: true,
+          transactionSource: "loanAdjustment",
         };
       });
 
@@ -146,6 +149,53 @@ const fetchMemberShareDetails = async () => {
     );
   } finally {
     setLoading(false);
+  }
+};
+
+// ==========================================
+// DELETE SHARE TRANSACTION
+// ==========================================
+const handleDeleteTransaction = async (transaction) => {
+  try {
+    if (!transaction?.id) {
+      alert("Transaction ID not found.");
+      return;
+    }
+
+    const transactionSource =
+      transaction.transactionSource;
+
+    if (!transactionSource) {
+      alert("Transaction type not found.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this transaction?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await api.delete(
+      `/share/transaction/${transactionSource}/${transaction.id}`
+    );
+
+    alert("Transaction deleted successfully.");
+
+    await fetchMemberShareDetails();
+
+  } catch (error) {
+    console.error(
+      "Failed to delete share transaction:",
+      error
+    );
+
+    alert(
+      error.response?.data?.message ||
+        "Failed to delete transaction."
+    );
   }
 };
 
@@ -711,6 +761,9 @@ let runningBalance = 0;
           <th style={styles.th}>
             Certificate No.
           </th>
+          <th style={styles.th}>
+            Action
+          </th>
         </tr>
       </thead>
 
@@ -718,7 +771,7 @@ let runningBalance = 0;
         {sortedTransactions.length === 0 ? (
           <tr>
             <td
-              colSpan={9}
+              colSpan={10}
               style={{
                 ...styles.td,
                 padding: "28px",
@@ -872,6 +925,18 @@ let runningBalance = 0;
                     ? "-"
                     : transaction.certificateNo || "-"}
                 </td>
+
+                <td style={styles.td}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDeleteTransaction(transaction)
+                    }
+                    style={styles.deleteBtn}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             );
           })
@@ -921,6 +986,17 @@ function DetailItem({
 ========================================== */
 
 const styles = {
+
+  deleteBtn: {
+  padding: "6px 12px",
+  border: "none",
+  borderRadius: "6px",
+  backgroundColor: "#dc3545",
+  color: "#fff",
+  fontSize: "12px",
+  fontWeight: "600",
+  cursor: "pointer",
+},
 
   wrapper: {
     padding: "20px 24px",

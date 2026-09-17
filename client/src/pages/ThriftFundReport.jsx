@@ -24,7 +24,7 @@ export default function ThriftFundReport() {
   const fetchReports = async () => {
     try {
       const res = await api.get(
-        "/thrift-fund/member-thrift-transactions"
+        "/thrift-fund/members-thrift-report"
       );
       console.log(res.data.data);
       
@@ -45,12 +45,10 @@ export default function ThriftFundReport() {
   // Filter Reports
   // ================================
   const filteredReports = reports.filter((report) => {
-    // Member Code
-    const matchMemberCode = report.memberId
-      ?.toLowerCase()
-      .includes(memberCodeSearch.toLowerCase());
+  // Member Code
+  const matchMemberCode = report.memberCode?.toLowerCase().includes(memberCodeSearch.toLowerCase());
 
-        // ================================
+  // ================================
   // Membership Number
   // ================================
   const matchMembershipNumber =
@@ -70,7 +68,7 @@ export default function ThriftFundReport() {
     let matchDate = true;
 
     if (fromDate || toDate) {
-      const transactionDate = new Date(report.transactionDate);
+      const transactionDate = new Date(report.transactionDateLast);
 
       if (isNaN(transactionDate.getTime())) {
         matchDate = false;
@@ -399,23 +397,11 @@ export default function ThriftFundReport() {
                 </th>
 
                 <th style={styles.th}>
-                  Amount
+                  Balance Amount
                 </th>
 
                 <th style={styles.th}>
                   Interest
-                </th>
-
-                <th style={styles.th}>
-                  Payment Mode
-                </th>
-
-                <th style={styles.th}>
-                  Transaction ID
-                </th>
-
-                <th style={styles.th}>
-                  Type
                 </th>
 
                 <th style={styles.th}>
@@ -432,7 +418,7 @@ export default function ThriftFundReport() {
 
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={9}
                     style={styles.td}
                   >
                     Loading...
@@ -443,7 +429,7 @@ export default function ThriftFundReport() {
 
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9}
                     style={styles.td}
                   >
                     No thrift fund report found.
@@ -465,7 +451,7 @@ export default function ThriftFundReport() {
 
                       {/* Member Code */}
                       <td style={styles.td}>
-                        {report.memberId || "-"}
+                        {report.memberCode || "-"}
                       </td>
                       {/* Membership Number */}
                       <td style={styles.td}>
@@ -478,67 +464,43 @@ export default function ThriftFundReport() {
                       </td>
 
                       {/* PF Number */}
-<td style={styles.td}>
-  {report.pf_no || "-"}
-</td>
-
+                      <td style={styles.td}>
+                        {report.pfNumber ?? "-"}
+                      </td>
 
                       {/* Transaction Date */}
                       <td style={styles.td}>
                         {formatDate(
-                          report.transactionDate
+                          report.transactionDateLast
                         )}
                       </td>
 
-
-                      {/* Amount */}
+                      {/* Balance Amount */}
                       <td style={styles.td}>
                         ₹
                         {Number(
-                          report.thriftAmount || 0
-                        ).toLocaleString()}
+                          report.balanceAmount || 0
+                        ).toLocaleString("en-IN")}
                       </td>
-
 
                       {/* Interest */}
                       <td style={styles.td}>
-                        {report.interest === "-"
-                          ? "-"
-                          : `₹${Number(
-                              report.interest || 0
-                            ).toLocaleString()}`}
+                        ₹{Number(report.interest || 0).toFixed(0)}
                       </td>
 
-
-                      {/* Payment Mode */}
+                      {/* Action */}
                       <td style={styles.td}>
-                        {report.paymentMode || "-"}
+                        <button
+                          style={styles.viewBtn}
+                          onClick={() => {
+                            navigate(
+                              `/${role}/thrift-fund-details/${report.memberCode}`
+                            );
+                          }}
+                        >
+                          View
+                        </button>
                       </td>
-
-
-                      {/* Transaction ID */}
-                      <td style={styles.td}>
-                        {report.transactionId || "-"}
-                      </td>
-
-{/* Type */}
-<td style={styles.td}>
-  {report.transactionType || "-"}
-</td>
-
-                     {/* Action */}
-                     <td style={styles.td}>
-                       <button
-                         style={styles.viewBtn}
-                         onClick={() => {
-                          navigate(
-                            `/${role}/thrift-fund-details/${report.memberId}`
-                          )
-                         }}
-                       >
-                         View
-                       </button>
-                     </td>
 
                     </tr>
 

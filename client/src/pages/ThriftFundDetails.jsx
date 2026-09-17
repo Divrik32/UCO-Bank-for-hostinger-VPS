@@ -55,8 +55,19 @@ const memberData = res.data.data;
 // ==========================================
 // Existing Thrift Transactions
 // ==========================================
-let thriftTransactions = memberData.transactions || [];
+let thriftTransactions = (
+  memberData.transactions || []
+).map((item) => ({
+  ...item,
 
+  transactionSource:
+    item.transactionType === "Entry" ||
+    item.type === "Entry" ||
+    item.transactionType === "Credit" ||
+    item.type === "Credit"
+      ? "entry"
+      : "withdrawal",
+}));
 // ==========================================
 // Fetch Loan Adjustment Transactions
 // Only:
@@ -103,6 +114,7 @@ try {
 
         // Mark it as loan adjustment
         isLoanAdjustment: true,
+        transactionSource: "loanAdjustment",
       };
     })
     .filter((item) => item.amount > 0);
@@ -163,6 +175,53 @@ setMember({
       setLoading(false);
     }
   };
+
+  // ==========================================
+// DELETE TRANSACTION
+// ==========================================
+const handleDeleteTransaction = async (transaction) => {
+  try {
+    if (!transaction?._id) {
+      alert("Transaction ID not found.");
+      return;
+    }
+
+    const transactionSource = transaction.transactionSource;
+
+    if (!transactionSource) {
+      alert("Transaction type not found.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this transaction?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await api.delete(
+      `/thrift-fund/transaction/${transactionSource}/${transaction._id}`
+    );
+
+    alert("Transaction deleted successfully.");
+
+    // Refresh member details
+    await fetchMemberThriftDetails();
+
+  } catch (error) {
+    console.error(
+      "Failed to delete transaction:",
+      error
+    );
+
+    alert(
+      error.response?.data?.message ||
+        "Failed to delete transaction."
+    );
+  }
+};
 
   // ==========================================
   // FORMAT DATE
@@ -688,6 +747,10 @@ setMember({
       Monthly Interest
     </th>
 
+    <th style={styles.th}>
+      Action
+    </th>
+
   </tr>
 </thead>
 
@@ -698,7 +761,7 @@ setMember({
 
           <tr>
             <td
-              colSpan={7}
+              colSpan={8}
               style={styles.td}
             >
               No transactions found.
@@ -960,6 +1023,19 @@ const monthlyInterest =
   })}
 </td>
 
+{/* Action */}
+<td style={styles.td}>
+  <button
+    type="button"
+    onClick={() =>
+      handleDeleteTransaction(transaction)
+    }
+    style={styles.deleteBtn}
+  >
+    Delete
+  </button>
+</td>
+
                   </tr>
                 );
 
@@ -1017,6 +1093,17 @@ function DetailItem({
 ========================================== */
 
 const styles = {
+
+  deleteBtn: {
+  padding: "6px 12px",
+  border: "none",
+  borderRadius: "6px",
+  backgroundColor: "#dc3545",
+  color: "#fff",
+  fontSize: "12px",
+  fontWeight: "600",
+  cursor: "pointer",
+},
 
   // ==========================================
   // Wrapper

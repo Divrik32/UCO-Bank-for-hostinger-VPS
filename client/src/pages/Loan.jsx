@@ -106,6 +106,113 @@ const [officialForm, setOfficialForm] = useState({
   const txScrollRef = useRef(null);
   const [paymentModes, setPaymentModes] = useState([]);
 
+// ==========================================
+// Transaction Summary
+// Uses EXACT SAME calculation as table
+// ==========================================
+const transactionSummary = (() => {
+  let runningBalance = 0;
+  let runningInterestBalance = 0;
+  let totalInterestCharge = 0;
+
+  transactions.forEach((item, i) => {
+    const transactionType = String(
+      item.type || item.transactionType || ""
+    ).toUpperCase();
+
+    const amount = Number(
+      item.amount || item.Amount || 0
+    );
+
+    const currentDate = new Date(
+      item.TransactionDate ||
+        item.transactionDate ||
+        item.date
+    );
+
+    // ==========================================
+    // NO OF DAYS
+    // ==========================================
+    let noOfDays = "-";
+
+    if (i < transactions.length - 1) {
+      const nextItem = transactions[i + 1];
+
+      const nextDate = new Date(
+        nextItem.TransactionDate ||
+          nextItem.transactionDate ||
+          nextItem.date
+      );
+
+      const diffTime =
+        nextDate.getTime() - currentDate.getTime();
+
+      const diffDays = Math.floor(
+        diffTime / (1000 * 60 * 60 * 24)
+      );
+
+      noOfDays = Math.max(diffDays, 0);
+    }
+
+    // ==========================================
+    // DEBIT → ADD TO BALANCE
+    // ==========================================
+    if (transactionType === "DEBIT") {
+      runningBalance += amount;
+    }
+
+    // ==========================================
+    // INTEREST CHARGE
+    // ==========================================
+    let interestCharge = 0;
+
+    if (noOfDays !== "-") {
+      interestCharge =
+        (runningBalance *
+          Number(item.interestRate || 0) *
+          Number(noOfDays || 0)) /
+        36500;
+    }
+
+    // ==========================================
+    // ADD INTEREST CHARGE
+    // Same as table
+    // ==========================================
+    totalInterestCharge += Math.round(interestCharge);
+
+    // ==========================================
+    // IMPORTANT:
+    // First add current interest to interest balance
+    // ==========================================
+    runningInterestBalance += interestCharge;
+
+    // ==========================================
+    // CREDIT → FIRST CLEAR INTEREST
+    // THEN REDUCE BALANCE
+    // ==========================================
+    if (transactionType === "CREDIT") {
+      if (amount <= runningInterestBalance) {
+        runningInterestBalance -= amount;
+      } else {
+        const remainingCredit =
+          amount - runningInterestBalance;
+
+        runningInterestBalance = 0;
+
+        runningBalance = Math.max(
+          runningBalance - remainingCredit,
+          0
+        );
+      }
+    }
+  });
+
+  return {
+    lastBalance: Math.round(runningBalance),
+    totalInterestCharge: totalInterestCharge,
+  };
+})();
+
   const fetchPaymentModes = async () => {
     try {
       const res = await api.get("/loan/payment-modes");
@@ -786,7 +893,7 @@ const submitAdjustment = async () => {
                 textAlign: "center",
               }}
             >
-              ₹{Number(availableBalance).toLocaleString()}
+              ₹{transactionSummary.lastBalance.toLocaleString("en-IN")} 
             </div>
           </div>
         )}
@@ -830,7 +937,7 @@ const submitAdjustment = async () => {
         textAlign: "center",
       }}
     >
-₹{Math.round(Number(totalLoanInterest)).toLocaleString("en-IN")}
+₹{transactionSummary.totalInterestCharge.toLocaleString("en-IN")} 
     </div>
   </div>
 )}

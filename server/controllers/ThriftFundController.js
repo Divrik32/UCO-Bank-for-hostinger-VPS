@@ -247,8 +247,10 @@ const getTotalTransactionDetails = async (req, res) => {
     const { memberId } = req.params;
 
     // Get interest rate
-    const interestData = await InterestRate.findOne();
-    const rate = interestData ? interestData.rate : 7;
+    const interestData = await InterestRate.findOne().sort({
+      createdAt: -1,
+    });
+    const rate = interestData ? Number(interestData.rate || 0) : 7;
 
     // Fetch all entries
     const entries = await ThriftFundEntry.find({ memberId });
@@ -258,34 +260,69 @@ const getTotalTransactionDetails = async (req, res) => {
       memberId,
     });
 
+    // Fetch loan adjustments from Thrift A/C
+    const loanAdjustments = await loanAdjustmentModel.find({
+      memberId,
+      paymentMode: {
+        $in: [
+          "Amount given from thrift A/C",
+          "Both",
+        ],
+      },
+    });
+
     // Format entries as CREDIT
-const creditTransactions = entries.map((item) => ({
-  _id: item._id,
-  amount: item.totalAmountReceived,
-  type: "Credit",
-  date: item.entryDate,
-  interest:
-    (item.totalAmountReceived * rate * 1) / 1200,
-  transactionId: item.transactionId,
-  particular: item.particular || "By Installement",
-}));
+    const creditTransactions = entries.map((item) => ({
+      _id: item._id,
+      amount: Number(item.totalAmountReceived || 0),
+      type: "Credit",
+      date: item.entryDate || item.createdAt,
+      interest:
+        (Number(item.totalAmountReceived || 0) * rate * 1) / 1200,
+      transactionId: item.transactionId,
+      particular: item.particular || "By Installement",
+    }));
 
     // Format withdrawals as DEBIT
-const debitTransactions = withdrawals.map((item) => ({
-  _id: item._id,
-  amount: item.withdrawalAmount,
-  type: "Debit",
-  date: item.withdrawalDate,
-  interest: "",
-  transactionId: item.transactionId,
-  particular: item.particular || "Balance refund to member",
-}));
+    const debitTransactions = withdrawals.map((item) => ({
+      _id: item._id,
+      amount: Number(item.withdrawalAmount || 0),
+      type: "Debit",
+      date: item.withdrawalDate || item.createdAt,
+      interest: "",
+      transactionId: item.transactionId,
+      particular:
+        item.particular || "Balance refund to member",
+    }));
+
+    // Format loan adjustments as DEBIT
+    const loanAdjustmentTransactions = loanAdjustments.map(
+      (item) => ({
+        _id: item._id,
+        amount: Number(
+          item.paymentMode === "Both"
+            ? item.thriftAdjustmentAmount || 0
+            : item.adjustmentAmount || 0
+        ),
+        type: "Debit",
+        date: item.createdAt,
+        interest: "",
+        transactionId: item.transactionId,
+        particular: "Balance Transfer to loan Account",
+        isLoanAdjustment: true,
+      })
+    );
 
     // Merge + sort by date
     const allTransactions = [
       ...creditTransactions,
       ...debitTransactions,
-    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+      ...loanAdjustmentTransactions,
+    ].sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    );
 
     // Add serial number
     const formattedData = allTransactions.map(
@@ -592,6 +629,7 @@ const memberThriftDetailsById = async (req, res) => {
     // 5. Format Entry Transactions
     // ==========================================
     const entryTransactions = entries.map((item) => ({
+      _id: item._id,
       transactionDate: item.entryDate,
 
       amount: Number(
@@ -615,6 +653,7 @@ const memberThriftDetailsById = async (req, res) => {
     // ==========================================
     const withdrawalTransactions =
       withdrawals.map((item) => ({
+        _id: item._id,
         transactionDate:
           item.withdrawalDate,
 
@@ -661,6 +700,7 @@ const memberThriftDetailsById = async (req, res) => {
         }
 
         return {
+          _id: item._id,
           transactionDate: item.createdAt,
 
           amount: thriftAmount,
@@ -1128,7 +1168,72 @@ const currentInterestRate = Number(
 );
 
 // ==========================================
-// 12. Transaction Rows
+// 12. CALCULATE TOTAL INTEREST BALANCE
+// SAME LOGIC AS THRIFT FUND REPORT
+// ==========================================
+
+const interestTransactions =
+  await InterestAccruedAndPayable.find({
+    memberId: memberId,
+  });
+
+const sixMonthsAgo = new Date();
+
+sixMonthsAgo.setMonth(
+  sixMonthsAgo.getMonth() - 6
+);
+
+let balanceSum = 0;
+let interestRunningBalance = 0;
+
+const sortedInterestTransactions = [
+  ...transactions,
+].sort(
+  (a, b) =>
+    new Date(a.transactionDate).getTime() -
+    new Date(b.transactionDate).getTime()
+);
+
+sortedInterestTransactions.forEach((item) => {
+  const amount = Number(item.amount || 0);
+
+  if (item.type === "Credit") {
+    interestRunningBalance += amount;
+  } else if (item.type === "Debit") {
+    interestRunningBalance -= amount;
+  }
+
+  const transactionDate = new Date(
+    item.transactionDate
+  );
+
+  if (transactionDate >= sixMonthsAgo) {
+    balanceSum += interestRunningBalance;
+  }
+});
+
+const halfYearlyThriftInterest =
+  (balanceSum * currentInterestRate) / 1200;
+
+const interestTransactionBalance =
+  interestTransactions.reduce(
+    (sum, item) =>
+      sum +
+      Number(
+        item.interestAccruedAndPayableCredit || 0
+      ) -
+      Number(
+        item.interestAccruedAndPayableDebit || 0
+      ),
+    0
+  );
+
+const totalInterestBalance =
+  Number(halfYearlyThriftInterest || 0) +
+  Number(interestTransactionBalance || 0);
+
+// ==========================================
+// 13. Transaction Rows
 // ==========================================
 
 // Running balance starts from zero
@@ -1840,13 +1945,39 @@ const monthlyInterestAmount =
               <div class="detail-item">
 
                 <div class="label">
+
                   Net Thrift Amount
+
                 </div>
 
                 <div class="value">
+
                   ₹${Number(
+
                     netThriftAmount
+
                   ).toLocaleString("en-IN")}
+
+                </div>
+
+              </div>
+
+              <div class="detail-item">
+
+                <div class="label">
+
+                  Total Interest Balance
+
+                </div>
+
+                <div class="value">
+
+                  ₹${Number(
+
+                    totalInterestBalance
+
+                  ).toLocaleString("en-IN")}
+
                 </div>
 
               </div>
@@ -2007,8 +2138,8 @@ const printThriftFundReport = async (req, res) => {
     });
 
     const interestRate = interestData
-      ? Number(interestData.rate || 0)
-      : 7;
+  ? Number(interestData.rate || 0)
+  : 0;
 
     // ==========================================
     // 2. Get ALL Members
@@ -2039,7 +2170,7 @@ const printThriftFundReport = async (req, res) => {
         // ======================================
         const entries = await ThriftFundEntry.find({
           memberId: member.memberId,
-        }).select("entryDate createdAt");
+        }).select("totalAmountReceived entryDate createdAt");
 
         // ======================================
         // Get ALL Withdrawals
@@ -2047,21 +2178,23 @@ const printThriftFundReport = async (req, res) => {
         const withdrawals =
           await ThriftFundWithdrawal.find({
             memberId: member.memberId,
-          }).select("withdrawalDate createdAt");
+          }).select("withdrawalAmount withdrawalDate createdAt");
 
         // ======================================
         // Get Thrift Loan Adjustments
         // ======================================
-        const loanAdjustments =
-          await loanAdjustmentModel.find({
-            memberId: member.memberId,
-            paymentMode: {
-              $in: [
-                "Amount given from thrift A/C",
-                "Both",
-              ],
-            },
-          }).select("createdAt");
+const loanAdjustments =
+  await loanAdjustmentModel.find({
+    memberId: member.memberId,
+    paymentMode: {
+      $in: [
+        "Amount given from thrift A/C",
+        "Both",
+      ],
+    },
+  }).select(
+    "createdAt paymentMode adjustmentAmount thriftAdjustmentAmount"
+  );
 
         // ======================================
         // Collect All Transaction Dates
@@ -2100,14 +2233,125 @@ const printThriftFundReport = async (req, res) => {
         }
 
         // ======================================
-        // Interest
-        //
-        // Balance Amount × Interest Rate / 100
+        // Interest A/C Transactions
         // ======================================
-        const interest =
-          (Number(balanceAmount || 0) *
-            interestRate) /
-          100;
+        const interestTransactions =
+          await InterestAccruedAndPayable.find({
+            memberId: member.memberId,
+          });
+
+        // ======================================
+        // Thrift Transactions
+        // EXACT SAME LOGIC AS
+        // ThriftFundReport FRONTEND
+        // ======================================
+const thriftInterestTransactions = [
+  ...entries.map((item) => ({
+    amount: Number(
+      item.totalAmountReceived || 0
+    ),
+    date:
+      item.entryDate || item.createdAt,
+    type: "Credit",
+  })),
+
+  ...withdrawals.map((item) => ({
+    amount: Number(
+      item.withdrawalAmount || 0
+    ),
+    date:
+      item.withdrawalDate || item.createdAt,
+    type: "Debit",
+  })),
+
+  ...loanAdjustments.map((item) => ({
+    amount: Number(
+      item.paymentMode === "Both"
+        ? item.thriftAdjustmentAmount || 0
+        : item.adjustmentAmount || 0
+    ),
+    date: item.createdAt,
+    type: "Debit",
+  })),
+];
+
+        const sixMonthsAgo = new Date();
+
+        sixMonthsAgo.setMonth(
+          sixMonthsAgo.getMonth() - 6
+        );
+
+        let balanceSum = 0;
+        let runningBalance = 0;
+
+        const sortedTransactions = [
+  ...thriftInterestTransactions,
+].sort(
+  (a, b) =>
+    new Date(a.date).getTime() -
+    new Date(b.date).getTime()
+);
+
+        sortedTransactions.forEach((item) => {
+          const amount = Number(
+            item.amount || 0
+          );
+
+          if (item.type === "Credit") {
+            runningBalance += amount;
+          } else if (item.type === "Debit") {
+            runningBalance -= amount;
+          }
+
+          const transactionDate = new Date(
+  item.date
+);
+
+          if (
+            transactionDate >=
+            sixMonthsAgo
+          ) {
+            balanceSum += runningBalance;
+          }
+        });
+
+        // ======================================
+        // Half Yearly Thrift Interest
+        // EXACT SAME FORMULA
+        // ======================================
+        const halfYearlyThriftInterest =
+          (balanceSum * interestRate) /
+          1200;
+
+        // ======================================
+        // Interest A/C Credit - Debit
+        // ======================================
+        const interestTransactionBalance =
+          interestTransactions.reduce(
+            (sum, item) =>
+              sum +
+              Number(
+                item.interestAccruedAndPayableCredit ||
+                  0
+              ) -
+              Number(
+                item.interestAccruedAndPayableDebit ||
+                  0
+              ),
+            0
+          );
+
+        // ======================================
+        // TOTAL INTEREST BALANCE
+        // EXACT SAME AS ThriftFundReport
+        // ======================================
+        const totalInterestBalance =
+  Number(
+    halfYearlyThriftInterest || 0
+  ) +
+  Number(
+    interestTransactionBalance || 0
+  );
 
         // ======================================
         // Return Row
@@ -2135,8 +2379,10 @@ const printThriftFundReport = async (req, res) => {
           balanceAmount:
             Number(balanceAmount || 0),
 
-          interest:
-            Number(interest.toFixed(0)),
+          totalInterestBalance:
+            Number(
+              totalInterestBalance.toFixed(0)
+            ),
         };
       })
     );
@@ -2200,7 +2446,7 @@ const printThriftFundReport = async (req, res) => {
 
             <td>
               ₹${Number(
-                report.interest || 0
+                report.totalInterestBalance || 0
               ).toFixed(0)}
             </td>
 
@@ -2363,7 +2609,7 @@ const printThriftFundReport = async (req, res) => {
               </th>
 
               <th>
-                Interest
+                Total Interest Balance 
               </th>
 
             </tr>
@@ -2698,9 +2944,9 @@ const getAllMemberThriftBalanceReport = async (req, res) => {
       createdAt: -1,
     });
 
-    const interestRate = interestData
-      ? Number(interestData.rate || 0)
-      : 7;
+    const interestRate = Number(
+      interestData?.rate || 0
+    );
 
     // ==========================================
     // 2. Get ALL members
@@ -2738,7 +2984,7 @@ const getAllMemberThriftBalanceReport = async (req, res) => {
         // ======================================
         const entries = await ThriftFundEntry.find({
           memberId: member.memberId,
-        }).select("entryDate createdAt");
+        }).select("totalAmountReceived entryDate createdAt");
 
         // ======================================
         // Get ALL thrift withdrawals
@@ -2746,21 +2992,23 @@ const getAllMemberThriftBalanceReport = async (req, res) => {
         const withdrawals =
           await ThriftFundWithdrawal.find({
             memberId: member.memberId,
-          }).select("withdrawalDate createdAt");
+          }).select("withdrawalAmount withdrawalDate createdAt");
 
         // ======================================
         // Get thrift related loan adjustments
         // ======================================
-        const loanAdjustments =
-          await loanAdjustmentModel.find({
-            memberId: member.memberId,
-            paymentMode: {
-              $in: [
-                "Amount given from thrift A/C",
-                "Both",
-              ],
-            },
-          }).select("createdAt");
+        const loanAdjustments = 
+  await loanAdjustmentModel.find({ 
+    memberId: member.memberId, 
+    paymentMode: { 
+      $in: [ 
+        "Amount given from thrift A/C", 
+        "Both", 
+      ], 
+    }, 
+  }).select(
+    "createdAt paymentMode adjustmentAmount thriftAdjustmentAmount"
+  );
 
         // ======================================
         // Collect all transaction dates
@@ -2798,15 +3046,88 @@ const getAllMemberThriftBalanceReport = async (req, res) => {
             );
         }
 
-        // ======================================
-        // Interest
-        //
-        // Balance Amount × Interest Rate / 100
-        // ======================================
-        const interest =
-          (Number(balanceAmount || 0) *
-            interestRate) /
-          100;
+// ======================================
+// Half Yearly Thrift Interest
+// EXACT SAME LOGIC AS ThriftFundReport
+// ======================================
+const thriftInterestTransactions = [
+  ...entries.map((item) => ({
+    amount: Number(item.totalAmountReceived || 0),
+    date: item.entryDate || item.createdAt,
+    type: "Credit",
+  })),
+
+  ...withdrawals.map((item) => ({
+    amount: Number(item.withdrawalAmount || 0),
+    date: item.withdrawalDate || item.createdAt,
+    type: "Debit",
+  })),
+];
+
+const sixMonthsAgo = new Date();
+
+sixMonthsAgo.setMonth(
+  sixMonthsAgo.getMonth() - 6
+);
+
+let balanceSum = 0;
+let runningBalance = 0;
+
+const sortedTransactions = [
+  ...thriftInterestTransactions,
+].sort(
+  (a, b) =>
+    new Date(a.date).getTime() -
+    new Date(b.date).getTime()
+);
+
+sortedTransactions.forEach((item) => {
+  const amount = Number(item.amount || 0);
+
+  if (item.type === "Credit") {
+    runningBalance += amount;
+  } else if (item.type === "Debit") {
+    runningBalance -= amount;
+  }
+
+  const transactionDate = new Date(item.date);
+
+  if (transactionDate >= sixMonthsAgo) {
+    balanceSum += runningBalance;
+  }
+});
+
+const halfYearlyThriftInterest =
+  (balanceSum * interestRate) / 1200;
+
+// ======================================
+// Interest A/C Credit - Debit
+// ======================================
+const interestTransactions =
+  await InterestAccruedAndPayable.find({
+    memberId: member.memberId,
+  });
+
+const interestTransactionBalance =
+  interestTransactions.reduce(
+    (sum, item) =>
+      sum +
+      Number(
+        item.interestAccruedAndPayableCredit || 0
+      ) -
+      Number(
+        item.interestAccruedAndPayableDebit || 0
+      ),
+    0
+  );
+
+// ======================================
+// Total Interest Balance
+// EXACT SAME AS ThriftFundReport
+// ======================================
+const interest =
+  Number(halfYearlyThriftInterest || 0) +
+  Number(interestTransactionBalance || 0);
 
         // ======================================
         // Final Row
@@ -2828,7 +3149,7 @@ const getAllMemberThriftBalanceReport = async (req, res) => {
 
           balanceAmount: Number(balanceAmount || 0),
 
-          interest: Number(interest.toFixed(2)),
+          interest: Number(interest.toFixed(0)),
         };
       })
     );

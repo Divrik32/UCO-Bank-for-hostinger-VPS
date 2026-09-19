@@ -10,7 +10,7 @@ export default function ThriftFundDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [interestRate, setInterestRate] = useState(0);
-
+  const [interestBalance, setInterestBalance] = useState(0);
   // ==========================================
   // PRINT REPORT
   // ==========================================
@@ -33,17 +33,169 @@ const fetchInterestRate = async () => {
   }
 };
 
+// ==========================================
+// FETCH TOTAL INTEREST BALANCE
+// SAME LOGIC AS THRIFT FUND REPORT
+// ==========================================
+const fetchInterestBalance = async () => {
+  try {
+    // ======================================
+    // 1. Get Thrift Transactions
+    // ======================================
+    const txRes = await api.get(
+      `/thrift-fund/transaction/${memberId}`
+    );
+
+    const thriftTransactions = (
+      txRes.data.data || []
+    ).map((item) => ({
+      ...item,
+      amount: Number(item.amount || 0),
+      date: item.date,
+      type: item.type,
+    }));
+
+    // ======================================
+    // 2. Get Interest A/C Transactions
+    // ======================================
+    const interestRes = await api.get(
+      `/thrift-fund/interest-accrued-payable/${memberId}`
+    );
+
+    const interestTransactions =
+      interestRes.data.data || [];
+
+    // ======================================
+    // 3. Calculate Half Yearly Interest
+    // SAME LOGIC AS THRIFT FUND REPORT
+    // ======================================
+    const sixMonthsAgo = new Date();
+
+    sixMonthsAgo.setMonth(
+      sixMonthsAgo.getMonth() - 6
+    );
+
+    let balanceSum = 0;
+    let runningBalance = 0;
+
+    const sortedTransactions = [
+      ...thriftTransactions,
+    ].sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    );
+
+    sortedTransactions.forEach((item) => {
+      const amount = Number(
+        item.amount || 0
+      );
+
+      if (item.type === "Credit") {
+        runningBalance += amount;
+      } else if (item.type === "Debit") {
+        runningBalance -= amount;
+      }
+
+      const transactionDate = new Date(
+        item.date
+      );
+
+      if (
+        transactionDate >=
+        sixMonthsAgo
+      ) {
+        balanceSum += runningBalance;
+      }
+    });
+
+    // ======================================
+    // 4. Interest Rate
+    // ======================================
+    const rateRes = await api.get(
+      "/thrift-fund/interest-rate"
+    );
+
+    const rate = Number(
+      rateRes.data.data?.rate || 0
+    );
+
+    // ======================================
+    // 5. Half Yearly Thrift Interest
+    // SAME FORMULA
+    // ======================================
+    const halfYearlyThriftInterest =
+      (balanceSum * rate) / 1200;
+
+    // ======================================
+    // 6. Interest A/C Credit - Debit
+    // ======================================
+    const interestTransactionBalance =
+      interestTransactions.reduce(
+        (sum, item) =>
+          sum +
+          Number(
+            item.interestAccruedAndPayableCredit ||
+              0
+          ) -
+          Number(
+            item.interestAccruedAndPayableDebit ||
+              0
+          ),
+        0
+      );
+
+    // ======================================
+    // 7. TOTAL INTEREST BALANCE
+    // EXACT SAME LOGIC AS REPORT PAGE
+    // ======================================
+    const totalInterestBalance =
+      Number(
+        halfYearlyThriftInterest || 0
+      ) +
+      Number(
+        interestTransactionBalance || 0
+      );
+
+    setInterestBalance(
+      Number(
+        totalInterestBalance.toFixed(0)
+      )
+    );
+
+  } catch (error) {
+    console.error(
+      "Failed to calculate total interest balance:",
+      error
+    );
+
+    setInterestBalance(0);
+  }
+};
+
   // ==========================================
   // FETCH MEMBER THRIFT DETAILS
   // ==========================================
-  useEffect(() => {
-    fetchMemberThriftDetails();
-    fetchInterestRate();
-  }, [memberId]);
+useEffect(() => {
+  const loadAllData = async () => {
+    setLoading(true);
+
+    try {
+      await Promise.all([
+        fetchMemberThriftDetails(),
+        fetchInterestRate(),
+        fetchInterestBalance(),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadAllData();
+}, [memberId]);
 
   const fetchMemberThriftDetails = async () => {
     try {
-      setLoading(true);
       setError("");
 
 const res = await api.get(
@@ -171,9 +323,7 @@ setMember({
         err.response?.data?.message ||
           "Failed to load member thrift details."
       );
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   // ==========================================
@@ -181,6 +331,7 @@ setMember({
 // ==========================================
 const handleDeleteTransaction = async (transaction) => {
   try {
+    console.log(transaction)
     if (!transaction?._id) {
       alert("Transaction ID not found.");
       return;
@@ -695,6 +846,13 @@ const handleDeleteTransaction = async (transaction) => {
             value={`₹${Number(
               member.netThriftAmount || 0
             ).toLocaleString("en-IN")}`}
+          />
+
+          <DetailItem  
+            label="Total Interest Balance"  
+            value={`₹${Number( 
+              interestBalance || 0 
+            ).toLocaleString("en-IN")}`}  
           />
 
         </div>

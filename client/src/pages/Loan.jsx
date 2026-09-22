@@ -1772,7 +1772,8 @@ const submitAdjustment = async () => {
                       'Amount given by Member', 
                       'Amount given from thrift A/C',
                       'Amount given from Share A/C',
-                      'Both'
+                      'Both',
+                      "Amount given from Dividend A/C",
                     ].map((m) => (
                       <option key={m}>{m}</option>
                     ))}

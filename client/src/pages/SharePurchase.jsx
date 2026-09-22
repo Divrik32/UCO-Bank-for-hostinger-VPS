@@ -227,8 +227,6 @@ const getEntryDate = (item) => {
     }));
   }, [debitForm.amount, transactions]);
 
-  const dividendAmount = (((currentBalance || 0) * dividendRate) / 100).toFixed(2);
-
   const handleSearch = async (searchType = "memberCode") => {
   try {
     // ==========================================
@@ -1452,12 +1450,12 @@ const submitDebit = async () => {
                   <Field label="Share Balance" isMobile={isMobile}><input style={inputDisabled} disabled value={Number(currentBalance || 0).toFixed(0)} /></Field>
                   <Field label="Dividend Rate" isMobile={isMobile}><input style={inputDisabled} disabled value={`${dividendRate}%`} /></Field>
 
-<Field label="Dividend Amount" isMobile={isMobile}>
-  <input
-    style={inputDisabled}
-    disabled
-    value={Number(dividendAmount).toFixed(0)}
-  />
+<Field label="Dividend Amount" isMobile={isMobile}> 
+  <input 
+    style={inputDisabled} 
+    disabled 
+    value={Number(dividendBalance || 0).toFixed(0)} 
+  /> 
 </Field>
 
 <Field label="Amount Paid From Dividend" isMobile={isMobile}>

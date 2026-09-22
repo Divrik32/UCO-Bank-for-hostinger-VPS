@@ -308,6 +308,7 @@ exports.createLoanAdjustment = async (req, res) => {
       "Amount given from thrift A/C",
       "Amount given from Share A/C",
       "Both",
+      "Amount given from Dividend A/C",
     ];
 
     if (!allowedPaymentModes.includes(paymentMode)) {
@@ -611,7 +612,7 @@ exports.getTotalTransactionDetails = async (req, res) => {
     // ─────────────────────────────────────────────
     const officialData = officialEntries.map((item) => ({
       amount: Number(item.loanAmount || 0),
-      paymentMode: "-",
+      paymentMode: item.paymentMode || "-",
       transactionDate: item.transactionDate,
       interest: "Included in EMI",
       interestRate: getInterestRateAtDate(item.transactionDate),
@@ -630,18 +631,36 @@ exports.getTotalTransactionDetails = async (req, res) => {
       type: "CREDIT",
     }));
 
-    // ─────────────────────────────────────────────
-    // Loan Adjustment → CREDIT
-    // ─────────────────────────────────────────────
-    const adjustmentData = loanAdjustments.map((item) => ({
-      amount: Number(item.adjustmentAmount || 0),
-      paymentMode: item.paymentMode,
-      transactionDate: item.createdAt,
-      interest: "Included in EMI",
-      interestRate: getInterestRateAtDate(item.createdAt),
-      type: "CREDIT",
-    }));
+// ─────────────────────────────────────────────
+// Loan Adjustment → CREDIT
+//
+// Both:
+//   thriftAdjustmentAmount + shareAdjustmentAmount
+//
+// Other modes:
+//   adjustmentAmount
+// ─────────────────────────────────────────────
+const adjustmentData = loanAdjustments.map((item) => {
 
+  let amount = 0;
+
+  if (item.paymentMode === "Both") {
+    amount =
+      Number(item.thriftAdjustmentAmount || 0) +
+      Number(item.shareAdjustmentAmount || 0);
+  } else {
+    amount = Number(item.adjustmentAmount || 0);
+  }
+
+  return {
+    amount,
+    paymentMode: item.paymentMode,
+    transactionDate: item.createdAt,
+    interest: "Included in EMI",
+    interestRate: getInterestRateAtDate(item.createdAt),
+    type: "CREDIT",
+  };
+});
     // ─────────────────────────────────────────────
     // Merge + sort by transaction date
     // ─────────────────────────────────────────────

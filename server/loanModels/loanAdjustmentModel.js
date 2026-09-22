@@ -21,6 +21,7 @@ const loanAdjustmentSchema = new mongoose.Schema(
         'Amount given from thrift A/C',
         'Amount given from Share A/C',
         "Both",
+        "Amount given from Dividend A/C",
       ],
     },
     // Member / Thrift / Share single-mode amount

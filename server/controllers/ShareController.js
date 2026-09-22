@@ -3193,13 +3193,16 @@ exports.getDividendAvailableBalance = async (req, res) => {
     // 1. Current share balance
     const shareBalance = await getShareCurrentBalance(memberId);
 
-    // 2. Latest share interest rate
-    const shareInterest = await ShareInterest.findOne()
+    // 2. Latest dividend rate
+    const dividendInterest = await DividendRateModel
+      .findOne()
       .sort({ createdAt: -1 });
 
-    const interestRate = Number(shareInterest?.rate || 0);
+    const interestRate = Number(
+      dividendInterest?.dividendRate || 0
+    );
 
-    // 3. Total dividend amount
+    // 3. Total dividend payment
     const dividendPayments = await dividendPayment.find({
       memberId,
     });
@@ -3210,12 +3213,29 @@ exports.getDividendAvailableBalance = async (req, res) => {
       0
     );
 
-    // 4. Total dividend earned
-    const totalDividend = (shareBalance * interestRate) / 100;
+    // 4. Dividend used for loan adjustment
+    const dividendLoanAdjustments =
+      await loanAdjustmentModel.find({
+        memberId,
+        paymentMode: "Amount given from Dividend A/C",
+      });
 
-    // 5. Remaining dividend balance
+    const totalDividendLoanAdjustment =
+      dividendLoanAdjustments.reduce(
+        (sum, item) =>
+          sum + Number(item.adjustmentAmount || 0),
+        0
+      );
+
+    // 5. Total dividend earned
+    const totalDividend =
+      (shareBalance * interestRate) / 100;
+
+    // 6. Remaining dividend balance
     const availableDividendBalance =
-      totalDividend - totalDividendPaid;
+      totalDividend -
+      totalDividendPaid -
+      totalDividendLoanAdjustment;
 
     return res.status(200).json({
       success: true,
@@ -3224,8 +3244,10 @@ exports.getDividendAvailableBalance = async (req, res) => {
       interestRate,
       totalDividend,
       totalDividendPaid,
+      totalDividendLoanAdjustment,
       availableDividendBalance,
     });
+
   } catch (error) {
     console.error(
       "Get dividend available balance error:",

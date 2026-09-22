@@ -26,9 +26,6 @@ export default function ShareReport() {
 const fetchReports = async () => {
   try {
     const res = await api.get("/share/members-share-report");
-
-    console.log(res.data.data);
-
     setReports(res.data.data || []);
   } catch (err) {
     console.log(err);

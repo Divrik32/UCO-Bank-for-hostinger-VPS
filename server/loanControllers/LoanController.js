@@ -610,26 +610,30 @@ exports.getTotalTransactionDetails = async (req, res) => {
     // ─────────────────────────────────────────────
     // Official Entry → DEBIT
     // ─────────────────────────────────────────────
-    const officialData = officialEntries.map((item) => ({
-      amount: Number(item.loanAmount || 0),
-      paymentMode: item.paymentMode || "-",
-      transactionDate: item.transactionDate,
-      interest: "Included in EMI",
-      interestRate: getInterestRateAtDate(item.transactionDate),
-      type: "DEBIT",
-    }));
+const officialData = officialEntries.map((item) => ({
+  _id: item._id,
+  transactionSource: "officialEntry",
+  amount: Number(item.loanAmount || 0),
+  paymentMode: item.paymentMode || "-",
+  transactionDate: item.transactionDate,
+  interest: "Included in EMI",
+  interestRate: getInterestRateAtDate(item.transactionDate),
+  type: "DEBIT",
+}));
 
     // ─────────────────────────────────────────────
     // EMI Payment → CREDIT
     // ─────────────────────────────────────────────
-    const emiData = emiPayments.map((item) => ({
-      amount: Number(item.amount || 0),
-      paymentMode: item.paymentMode,
-      transactionDate: item.transactionDate,
-      interest: "Included in EMI",
-      interestRate: getInterestRateAtDate(item.transactionDate),
-      type: "CREDIT",
-    }));
+const emiData = emiPayments.map((item) => ({
+  _id: item._id,
+  transactionSource: "emiPayment",
+  amount: Number(item.amount || 0),
+  paymentMode: item.paymentMode,
+  transactionDate: item.transactionDate,
+  interest: "Included in EMI",
+  interestRate: getInterestRateAtDate(item.transactionDate),
+  type: "CREDIT",
+}));
 
 // ─────────────────────────────────────────────
 // Loan Adjustment → CREDIT
@@ -641,7 +645,6 @@ exports.getTotalTransactionDetails = async (req, res) => {
 //   adjustmentAmount
 // ─────────────────────────────────────────────
 const adjustmentData = loanAdjustments.map((item) => {
-
   let amount = 0;
 
   if (item.paymentMode === "Both") {
@@ -653,6 +656,8 @@ const adjustmentData = loanAdjustments.map((item) => {
   }
 
   return {
+    _id: item._id,
+    transactionSource: "loanAdjustment",
     amount,
     paymentMode: item.paymentMode,
     transactionDate: item.createdAt,
@@ -2661,6 +2666,58 @@ exports.getTotalLoanInterest = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+exports.deleteLoanTransaction = async (req, res) => {
+  try {
+    const { transactionType, id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction ID is required",
+      });
+    }
+
+    let deletedTransaction = null;
+
+    if (transactionType === "officialEntry") {
+      deletedTransaction =
+        await officialEntryModel.findByIdAndDelete(id);
+    } else if (transactionType === "emiPayment") {
+      deletedTransaction =
+        await loanPaymentForEmiDetailsModel.findByIdAndDelete(id);
+    } else if (transactionType === "loanAdjustment") {
+      deletedTransaction =
+        await loanAdjustmentModel.findByIdAndDelete(id);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid transaction type",
+      });
+    }
+
+    if (!deletedTransaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Loan transaction deleted successfully",
+      data: deletedTransaction,
+    });
+  } catch (error) {
+    console.error("Delete loan transaction error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete loan transaction",
+      error: error.message,
     });
   }
 };

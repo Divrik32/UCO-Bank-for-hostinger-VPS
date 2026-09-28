@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios";
-import { Printer } from "lucide-react";
+import { Printer, Trash2 } from "lucide-react";
 
 export default function LoanReportDetails() {
   const { memberId } = useParams();
@@ -70,6 +70,50 @@ const fetchTransactions = async () => {
   } catch (err) {
     console.error("Failed to fetch transactions:", err);
     setTransactions([]);
+  }
+};
+
+const handleDeleteTransaction = async (transaction) => {
+  if (!transaction._id) {
+    alert("Transaction ID not found");
+    return;
+  }
+
+  if (!transaction.transactionSource) {
+    alert("Transaction type not found");
+    return;
+  }
+
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this transaction?"
+  );
+
+  if (!confirmDelete) {
+    return;
+  }
+
+  try {
+    await api.delete(
+      `/loan/delete-transaction/${transaction.transactionSource}/${transaction._id}`
+    );
+
+    alert("Transaction deleted successfully");
+
+    await Promise.all([
+      fetchTransactions(),
+      fetchMemberLoanDetails(),
+      fetchAvailableBalance(),
+    ]);
+  } catch (err) {
+    console.error(
+      "Failed to delete transaction:",
+      err
+    );
+
+    alert(
+      err.response?.data?.message ||
+        "Failed to delete transaction"
+    );
   }
 };
 
@@ -448,6 +492,7 @@ const fetchTransactions = async () => {
                   "Product",
                   "Interest Charge",
                   "Interest Balance",
+                  "Action",
                 ].map((header) => (
                   <th
                     key={header}
@@ -468,7 +513,7 @@ const fetchTransactions = async () => {
               {transactions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     style={{
                       ...styles.transactionTd,
                       textAlign: "center",
@@ -739,6 +784,23 @@ const product =
                             2
                           )}
                         </td>
+                        {/* Action */}
+<td
+  style={{
+    ...styles.transactionTd,
+    textAlign: "center",
+  }}
+>
+  <button
+    type="button"
+    style={styles.deleteBtn}
+    onClick={() => handleDeleteTransaction(item)}
+    title="Delete Transaction"
+  >
+    <Trash2 size={14} />
+    Delete
+  </button>
+</td>
                       </tr>
                     );
                   });
@@ -991,5 +1053,19 @@ printBtn: {
     color: "#333",
     fontSize: "14px",
     whiteSpace: "nowrap",
+  },
+    deleteBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "5px",
+    padding: "6px 12px",
+    border: "none",
+    borderRadius: "6px",
+    backgroundColor: "#dc3545",
+    color: "#fff",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
   },
 };

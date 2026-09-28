@@ -24,7 +24,8 @@ const {
   memberLoanDetailsById,
   printMemberLoanDetails,
   loanReportPDF,
-  getTotalLoanInterest
+  getTotalLoanInterest,
+  deleteLoanTransaction
 } = require("../loanControllers/LoanController.js");
 
 // loan interest routes
@@ -66,5 +67,6 @@ router.get("/member-loan-details/:memberId", memberLoanDetailsById);
 router.get("/member-loan-details-pdf/:memberId", printMemberLoanDetails);
 router.get("/loan-report-pdf", loanReportPDF);
 router.get("/total-loan-interest/:memberId", getTotalLoanInterest);
+router.delete("/delete-transaction/:transactionType/:id", deleteLoanTransaction);
 
 module.exports = router;

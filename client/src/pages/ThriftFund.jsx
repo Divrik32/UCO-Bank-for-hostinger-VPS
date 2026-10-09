@@ -80,7 +80,7 @@ const [interestForm, setInterestForm] = useState({
 });
 
 const [interestTransactions, setInterestTransactions] = useState([]);
-
+const [deletingInterestId, setDeletingInterestId] = useState(null);
   const [withdrawalForm, setWithdrawalForm] = useState({
     withdrawalAmount: "",
     paymentMethod: withdrawalPaymentMethods[0] || "",
@@ -235,6 +235,52 @@ const calculateHalfYearlyThriftInterest = (transactionList) => {
     setInterestTransactions([]);
 
     return [];
+  }
+};
+
+// ==========================================
+// DELETE INTEREST A/C TRANSACTION
+// ==========================================
+const handleDeleteInterestTransaction = async (item) => {
+  if (!item?._id) {
+    toast.error("Transaction ID not found");
+    return;
+  }
+
+  if (!window.confirm("Are you sure you want to delete this transaction?")) {
+    return;
+  }
+
+  try {
+    setDeletingInterestId(item._id);
+
+    const res = await api.delete(
+      `${API}/interest-accrued-payable/${item._id}`
+    );
+
+    if (res.data?.success) {
+      toast.success("Interest transaction deleted successfully");
+
+      // Refresh transactions after deletion
+      const updatedTransactions = await fetchInterestTransactions(
+        member.memberId
+      );
+
+      setInterestTransactions(updatedTransactions);
+    } else {
+      toast.error(
+        res.data?.message || "Failed to delete transaction"
+      );
+    }
+  } catch (error) {
+    console.error("Delete interest transaction error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to delete interest transaction"
+    );
+  } finally {
+    setDeletingInterestId(null);
   }
 };
 
@@ -1797,6 +1843,7 @@ const submitInterestAccruedAndPayable = async () => {
               "Debit Rs",
               "Credit Rs",
               "Balance Rs",
+              "Action",
             ].map((h) => (
               <th
                 key={h}
@@ -1825,7 +1872,7 @@ const submitInterestAccruedAndPayable = async () => {
             return sortedTransactions.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   style={{
                     textAlign: "center",
                     padding: "28px",
@@ -1847,10 +1894,7 @@ const submitInterestAccruedAndPayable = async () => {
                     0
                 );
 
-                runningBalance =
-                  runningBalance +
-                  credit -
-                  debit;
+                runningBalance = runningBalance + credit - debit;
 
                 return (
                   <tr
@@ -1902,6 +1946,33 @@ const submitInterestAccruedAndPayable = async () => {
                     >
                       ₹{runningBalance.toFixed(0)}
                     </td>
+                    {/* Action */}
+<td style={td}>
+  <button
+    type="button"
+    onClick={() => handleDeleteInterestTransaction(item)}
+    disabled={
+      deletingInterestId === item._id || !item._id
+    }
+    style={{
+      backgroundColor:
+        deletingInterestId === item._id ? "#9ca3af" : "#dc2626",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "5px",
+      padding: "7px 13px",
+      fontSize: "12px",
+      fontWeight: "700",
+      cursor:
+        deletingInterestId === item._id
+          ? "not-allowed"
+          : "pointer",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {deletingInterestId === item._id ? "Deleting..." : "Delete"}
+  </button>
+</td>
                   </tr>
                 );
               })

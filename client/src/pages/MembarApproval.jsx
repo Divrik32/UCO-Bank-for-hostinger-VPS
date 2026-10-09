@@ -24,7 +24,6 @@ export default function MemberApproval() {
   const fetchMembers = async () => {
     try {
       const res = await api.get("/users/approval-pending-members");
-
       setMembers(res.data.data || []);
     } catch (error) {
       console.log(error);

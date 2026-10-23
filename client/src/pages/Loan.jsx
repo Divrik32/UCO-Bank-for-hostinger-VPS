@@ -56,6 +56,7 @@ export default function Loan() {
   const [activeTab, setActiveTab] = useState("official");
   const [interestRate, setInterestRate] = useState("");
   const [totalLoanInterest, setTotalLoanInterest] = useState(0);
+  
 
 const [officialForm, setOfficialForm] = useState({ 
   loanCode: "", 
@@ -101,6 +102,8 @@ const [officialForm, setOfficialForm] = useState({
 
   const API = "/loan";
   const [transactions, setTransactions] = useState([]);
+  const [halfYearlyTransactions, setHalfYearlyTransactions] = useState([]);
+  const lastHalfYearlyRunRef = useRef("");
   const [loading, setLoading] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);
   const txScrollRef = useRef(null);
@@ -212,6 +215,239 @@ const transactionSummary = (() => {
     totalInterestCharge: totalInterestCharge,
   };
 })();
+
+
+const calculateHalfYearlyTransactions = () => {
+  if (!transactions.length) return [];
+
+  const getTransactionDate = (item) =>
+    new Date(
+      item.TransactionDate ||
+        item.transactionDate ||
+        item.date
+    );
+
+  const getDateKey = (date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const sortedTransactions = [...transactions].sort(
+    (a, b) =>
+      getTransactionDate(a).getTime() -
+      getTransactionDate(b).getTime()
+  );
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+
+  const periods = [];
+
+  // Historical periods: April–September and October–March
+  for (let year = 1900; year <= currentYear; year++) {
+    periods.push({
+      start: new Date(year, 3, 1),
+      end: new Date(year, 8, 30),
+      label: `April ${year} – September ${year}`,
+    });
+
+    periods.push({
+      start: new Date(year, 9, 1),
+      end: new Date(year + 1, 2, 31),
+      label: `October ${year} – March ${year + 1}`,
+    });
+  }
+
+  const results = [];
+
+  for (const period of periods) {
+    // Incomplete half-year periods should not be displayed.
+    if (period.end >= new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    )) {
+      continue;
+    }
+
+    const periodTransactions = sortedTransactions.filter(
+      (item) => {
+        const date = getTransactionDate(item);
+
+        return (
+          date >= period.start &&
+          date < new Date(
+            period.end.getFullYear(),
+            period.end.getMonth(),
+            period.end.getDate() + 1
+          )
+        );
+      }
+    );
+
+    if (!periodTransactions.length) continue;
+
+    const lastTransaction =
+      periodTransactions[periodTransactions.length - 1];
+
+    const lastTransactionDate =
+      getTransactionDate(lastTransaction);
+
+    // Reproduce the same running-balance calculation
+    // used by Total Transaction Details.
+    let runningBalance = 0;
+    let runningInterestBalance = 0;
+
+    for (let i = 0; i < sortedTransactions.length; i++) {
+      const item = sortedTransactions[i];
+      const transactionDate = getTransactionDate(item);
+
+      // Stop after this half-year's last transaction.
+      if (transactionDate > lastTransactionDate) break;
+
+      const type = String(
+        item.type || item.transactionType || ""
+      ).toUpperCase();
+
+      const amount = Number(
+        item.amount || item.Amount || 0
+      );
+
+      if (type === "DEBIT") {
+        runningBalance += amount;
+      }
+
+      let days = 0;
+
+      if (i < sortedTransactions.length - 1) {
+        const nextDate = getTransactionDate(
+          sortedTransactions[i + 1]
+        );
+
+        days = Math.max(
+          Math.floor(
+            (nextDate.getTime() - transactionDate.getTime()) /
+              86400000
+          ),
+          0
+        );
+      }
+
+      const interestCharge =
+        (runningBalance *
+          Number(item.interestRate || 0) *
+          days) /
+        36500;
+
+      runningInterestBalance += interestCharge;
+
+      if (type === "CREDIT") {
+        if (amount <= runningInterestBalance) {
+          runningInterestBalance -= amount;
+        } else {
+          const remainingCredit =
+            amount - runningInterestBalance;
+
+          runningInterestBalance = 0;
+
+          runningBalance = Math.max(
+            runningBalance - remainingCredit,
+            0
+          );
+        }
+      }
+    }
+
+    const lastTransactionBalance =
+      Math.round(runningBalance);
+
+    // Days from the last transaction through the period end,
+    // inclusive. Example: 29 September to 30 September = 2 days.
+    const startDay = new Date(
+      lastTransactionDate.getFullYear(),
+      lastTransactionDate.getMonth(),
+      lastTransactionDate.getDate()
+    );
+
+    const endDay = new Date(
+      period.end.getFullYear(),
+      period.end.getMonth(),
+      period.end.getDate()
+    );
+
+    const noOfDays =
+      Math.max(
+        Math.floor((endDay - startDay) / 86400000) + 1,
+        0
+      );
+
+    const rate = Number(
+      lastTransaction.interestRate || 0
+    );
+
+    const interest = Math.round(
+      (lastTransactionBalance * rate * noOfDays) / 36500
+    );
+
+    results.push({
+      periodLabel: period.label,
+      periodEnd: getDateKey(period.end),
+      lastTransactionDate: getDateKey(lastTransactionDate),
+      balance: lastTransactionBalance + interest,
+      lastTransactionBalance,
+      noOfDays,
+      interestRate: rate,
+      interest,
+    });
+  }
+
+  return results.sort(
+    (a, b) =>
+      new Date(b.periodEnd).getTime() -
+      new Date(a.periodEnd).getTime()
+  );
+};
+
+
+useEffect(() => {
+  const runHalfYearlyCalculation = () => {
+    const today = new Date();
+
+    const isHalfYearStart =
+      (today.getMonth() === 3 && today.getDate() === 1) ||
+      (today.getMonth() === 9 && today.getDate() === 1);
+
+    if (isHalfYearStart) {
+      const runKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+
+      if (lastHalfYearlyRunRef.current !== runKey) {
+        lastHalfYearlyRunRef.current = runKey;
+
+        setHalfYearlyTransactions(
+          calculateHalfYearlyTransactions()
+        );
+      }
+    } else {
+      setHalfYearlyTransactions(
+        calculateHalfYearlyTransactions()
+      );
+    }
+  };
+
+  // Page load বা transactions পরিবর্তন হলে calculation
+  runHalfYearlyCalculation();
+
+  // Website খোলা থাকলে প্রতি ১ মিনিটে date check
+  const intervalId = setInterval(() => {
+    runHalfYearlyCalculation();
+  }, 10 * 1000);
+
+  return () => clearInterval(intervalId);
+}, [transactions]);
+
+
 
   const fetchPaymentModes = async () => {
     try {
@@ -671,13 +907,16 @@ const submitAdjustment = async () => {
   }
 };
 
-  const tabs = [
-    { key: "official",    label: "Official Entry" },
-    { key: "guaranteer",  label: "Guaranteer Member Details" },
-    { key: "emi",         label: "Loan Payment For EMI Details" },
-    { key: "adjustment",  label: "Loan Adjustment" },
-    { key: "transaction", label: "Total Transaction Details" },
-  ];
+
+const tabs = [
+  { key: "official", label: "Official Entry" },
+  { key: "guaranteer", label: "Guaranteer Member Details" },
+  { key: "emi", label: "Loan Payment For EMI Details" },
+  { key: "adjustment", label: "Loan Adjustment" },
+  { key: "transaction", label: "Total Transaction Details" },
+  { key: "halfYearly", label: "Half Yearly Transaction" },
+];
+
 
   // ── Shared styles ──
   const inputStyle = {
@@ -2148,6 +2387,103 @@ const product =
                 </div>
               </div>
             )}
+
+            
+{/* Tab 6 — Half Yearly Transaction */}
+{activeTab === "halfYearly" && (
+  <div>
+    <h5
+      style={{
+        fontWeight: "700",
+        marginBottom: "18px",
+        fontSize: "15px",
+        color: "#1a2052",
+        paddingBottom: "8px",
+        borderBottom: "1.5px solid #e2e8f0",
+      }}
+    >
+      Half Yearly Transaction
+    </h5>
+
+    <div
+      style={{
+        overflowX: "auto",
+        maxHeight: "400px",
+        borderRadius: "6px",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: "14px",
+        }}
+      >
+        <thead>
+          <tr>
+            {[
+              "Sl No",
+              "Transaction Period",
+              "Balance",
+              "No of Days",
+              "Interest",
+            ].map((header) => (
+              <th
+                key={header}
+                style={{
+                  ...th,
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 2,
+                  background: "#f8f9fa",
+                }}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {halfYearlyTransactions.length === 0 ? (
+            <tr>
+              <td
+                colSpan={5}
+                style={{
+                  ...td,
+                  textAlign: "center",
+                  padding: "20px",
+                }}
+              >
+                No completed half-year transactions found
+              </td>
+            </tr>
+          ) : (
+            halfYearlyTransactions.map((item, index) => (
+              <tr key={`${item.periodEnd}-${index}`}>
+                <td style={td}>{index + 1}</td>
+
+                <td style={td}>{item.periodLabel}</td>
+
+                <td style={td}>
+                  ₹{item.balance.toLocaleString("en-IN")}
+                </td>
+
+                <td style={td}>{item.noOfDays}</td>
+
+                <td style={td}>
+                  ₹{item.interest.toLocaleString("en-IN")}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
           </div>
         )}
 

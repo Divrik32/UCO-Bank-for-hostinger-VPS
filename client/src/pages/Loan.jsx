@@ -360,36 +360,43 @@ const calculateHalfYearlyTransactions = () => {
       }
     }
 
-    const lastTransactionBalance =
-      Math.round(runningBalance);
+    const lastTransactionBalance = Math.round(runningBalance);
 
-    // Days from the last transaction through the period end,
-    // inclusive. Example: 29 September to 30 September = 2 days.
-    const startDay = new Date(
-      lastTransactionDate.getFullYear(),
-      lastTransactionDate.getMonth(),
-      lastTransactionDate.getDate()
-    );
+// Days from the last transaction through the period end.
+// Interest calculation আগের মতোই থাকবে।
+const startDay = new Date(
+  lastTransactionDate.getFullYear(),
+  lastTransactionDate.getMonth(),
+  lastTransactionDate.getDate()
+);
 
-    const endDay = new Date(
-      period.end.getFullYear(),
-      period.end.getMonth(),
-      period.end.getDate()
-    );
+const endDay = new Date(
+  period.end.getFullYear(),
+  period.end.getMonth(),
+  period.end.getDate()
+);
 
-    const noOfDays =
-      Math.max(
-        Math.floor((endDay - startDay) / 86400000) + 1,
-        0
-      );
+const noOfDays =
+  Math.max(
+    Math.floor((endDay - startDay) / 86400000) + 1,
+    0
+  );
 
-    const rate = Number(
-      lastTransaction.interestRate || 0
-    );
+const rate = Number(
+  lastTransaction.interestRate || 0
+);
 
-    const interest = Math.round(
-      (lastTransactionBalance * rate * noOfDays) / 36500
-    );
+// Interest calculation-এ আগের noOfDays-ই ব্যবহার হবে।
+const interest = Math.round(
+  (lastTransactionBalance * rate * noOfDays) / 36500
+);
+
+// শুধু No of Days column-এ পুরো half-year period-এর দিন দেখাবে।
+const displayNoOfDays =
+  Math.floor(
+    (period.end.getTime() - period.start.getTime()) /
+      86400000
+  ) + 1;
 
     results.push({
       periodLabel: period.label,
@@ -397,7 +404,7 @@ const calculateHalfYearlyTransactions = () => {
       lastTransactionDate: getDateKey(lastTransactionDate),
       balance: lastTransactionBalance + interest,
       lastTransactionBalance,
-      noOfDays,
+      noOfDays: displayNoOfDays,
       interestRate: rate,
       interest,
     });

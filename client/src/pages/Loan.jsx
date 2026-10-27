@@ -113,10 +113,14 @@ const [officialForm, setOfficialForm] = useState({
 // Transaction Summary
 // Uses EXACT SAME calculation as table
 // ==========================================
+
 const transactionSummary = (() => {
   let runningBalance = 0;
   let runningInterestBalance = 0;
+
   let totalInterestCharge = 0;
+  let totalNumberOfDays = 0;
+  let totalProduct = 0;
 
   transactions.forEach((item, i) => {
     const transactionType = String(
@@ -133,9 +137,6 @@ const transactionSummary = (() => {
         item.date
     );
 
-    // ==========================================
-    // NO OF DAYS
-    // ==========================================
     let noOfDays = "-";
 
     if (i < transactions.length - 1) {
@@ -157,42 +158,35 @@ const transactionSummary = (() => {
       noOfDays = Math.max(diffDays, 0);
     }
 
-    // ==========================================
-    // DEBIT → ADD TO BALANCE
-    // ==========================================
     if (transactionType === "DEBIT") {
       runningBalance += amount;
     }
 
-    // ==========================================
-    // INTEREST CHARGE
-    // ==========================================
     let interestCharge = 0;
 
     if (noOfDays !== "-") {
+      const days = Number(noOfDays);
+
+      // No of Days total
+      totalNumberOfDays += days;
+
+      // Product = Balance × No of Days
+      const product = Math.round(runningBalance) * days;
+
+      totalProduct += product;
+
+      // Interest Charge
       interestCharge =
         (runningBalance *
           Number(item.interestRate || 0) *
-          Number(noOfDays || 0)) /
+          days) /
         36500;
+
+      totalInterestCharge += Math.round(interestCharge);
     }
 
-    // ==========================================
-    // ADD INTEREST CHARGE
-    // Same as table
-    // ==========================================
-    totalInterestCharge += Math.round(interestCharge);
-
-    // ==========================================
-    // IMPORTANT:
-    // First add current interest to interest balance
-    // ==========================================
     runningInterestBalance += interestCharge;
 
-    // ==========================================
-    // CREDIT → FIRST CLEAR INTEREST
-    // THEN REDUCE BALANCE
-    // ==========================================
     if (transactionType === "CREDIT") {
       if (amount <= runningInterestBalance) {
         runningInterestBalance -= amount;
@@ -212,9 +206,12 @@ const transactionSummary = (() => {
 
   return {
     lastBalance: Math.round(runningBalance),
-    totalInterestCharge: totalInterestCharge,
+    totalInterestCharge,
+    totalNumberOfDays,
+    totalProduct,
   };
 })();
+
 
 
 const calculateHalfYearlyTransactions = () => {
@@ -2351,47 +2348,58 @@ const product =
                   </table>
                 </div>
 
-                {/* Balance footer */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "stretch",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                    boxShadow: "0 2px 8px rgba(30,64,175,0.10)",
-                    border: "1.5px solid #dbeafe",
-                    width: "fit-content",
-                    marginLeft: "auto",
-                    marginTop: "12px",
-                  }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: "#1e40af",
-                      color: "#fff",
-                      fontWeight: "700",
-                      fontSize: "13px",
-                      fontFamily: "'Inter', sans-serif",
-                      padding: "10px 18px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Available Balance
-                  </div>
-                  <div
-                    style={{
-                      backgroundColor: "#eff6ff",
-                      color: "#1e40af",
-                      fontWeight: "800",
-                      fontSize: "14px",
-                      fontFamily: "'Inter', sans-serif",
-                      padding: "10px 18px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    ₹{Math.round(Number(availableBalance)).toLocaleString("en-IN")}
-                  </div>
-                </div>
+
+{/* Balance Footer */}
+<div className="flex flex-wrap items-center justify-end gap-3 mt-4">
+  {/* Combined Summary Pill */}
+  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-2 border-slate-300 bg-white px-5 py-3 shadow-md dark:border-slate-600 dark:bg-slate-900">
+
+    {/* Total Number of Days */}
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-bold text-blue-800 dark:text-blue-300">
+        Total Number of Days
+      </span>
+      <span className="rounded-md border border-blue-200 bg-blue-100 px-2 py-1 text-sm font-extrabold text-blue-950 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-100">
+        {transactionSummary.totalNumberOfDays.toLocaleString("en-IN")}
+      </span>
+    </div>
+
+    <div className="h-7 w-px bg-slate-300 dark:bg-slate-600" />
+
+    {/* Total Product */}
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+        Total Product
+      </span>
+      <span className="rounded-md border border-emerald-200 bg-emerald-100 px-2 py-1 text-sm font-extrabold text-emerald-950 dark:border-emerald-700 dark:bg-emerald-900 dark:text-emerald-100">
+        {transactionSummary.totalProduct.toLocaleString("en-IN")}
+      </span>
+    </div>
+
+    <div className="h-7 w-px bg-slate-300 dark:bg-slate-600" />
+
+    {/* Total Interest Charge */}
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+        Total Interest Charge
+      </span>
+      <span className="rounded-md border border-amber-300 bg-amber-100 px-2 py-1 text-sm font-extrabold text-amber-950 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-100">
+        ₹{transactionSummary.totalInterestCharge.toLocaleString("en-IN")}
+      </span>
+    </div>
+  </div>
+
+  {/* Available Balance Pill */}
+  <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-blue-700 bg-blue-700 px-5 py-3 shadow-md dark:border-blue-500 dark:bg-blue-950">
+    <span className="text-sm font-bold text-white">
+      Available Balance
+    </span>
+    <span className="rounded-md border border-blue-200 bg-white px-3 py-1 text-base font-extrabold text-blue-950">
+      ₹{Number(availableBalance || 0).toLocaleString("en-IN")}
+    </span>
+  </div>
+</div>
+
               </div>
             )}
 

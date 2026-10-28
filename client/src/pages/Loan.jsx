@@ -213,7 +213,6 @@ const transactionSummary = (() => {
 })();
 
 
-
 const calculateHalfYearlyTransactions = () => {
   if (!transactions.length) return [];
 
@@ -226,9 +225,12 @@ const calculateHalfYearlyTransactions = () => {
 
   const getDateKey = (date) => {
     const d = new Date(date);
+
     return `${d.getFullYear()}-${String(
       d.getMonth() + 1
-    ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    ).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
   };
 
   const sortedTransactions = [...transactions].sort(
@@ -237,174 +239,152 @@ const calculateHalfYearlyTransactions = () => {
       getTransactionDate(b).getTime()
   );
 
+  const firstTransactionDate =
+    getTransactionDate(sortedTransactions[0]);
+
   const today = new Date();
-  const currentYear = today.getFullYear();
-
-  const periods = [];
-
-  // Historical periods: April–September and October–March
-  for (let year = 1900; year <= currentYear; year++) {
-    periods.push({
-      start: new Date(year, 3, 1),
-      end: new Date(year, 8, 30),
-      label: `April ${year} – September ${year}`,
-    });
-
-    periods.push({
-      start: new Date(year, 9, 1),
-      end: new Date(year + 1, 2, 31),
-      label: `October ${year} – March ${year + 1}`,
-    });
-  }
+  today.setHours(0, 0, 0, 0);
 
   const results = [];
 
-  for (const period of periods) {
-    // Incomplete half-year periods should not be displayed.
-    if (period.end >= new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    )) {
-      continue;
-    }
+  const firstYear = firstTransactionDate.getFullYear();
+  const lastYear = today.getFullYear();
 
-    const periodTransactions = sortedTransactions.filter(
-      (item) => {
-        const date = getTransactionDate(item);
+  for (let year = firstYear; year <= lastYear; year++) {
+    const periods = [
+      {
+        start: new Date(year, 3, 1),
+        end: new Date(year, 8, 30),
+        label: `April ${year} – September ${year}`,
+      },
+      {
+        start: new Date(year, 9, 1),
+        end: new Date(year + 1, 2, 31),
+        label: `October ${year} – March ${year + 1}`,
+      },
+    ];
 
-        return (
-          date >= period.start &&
-          date < new Date(
-            period.end.getFullYear(),
-            period.end.getMonth(),
-            period.end.getDate() + 1
-          )
-        );
-      }
-    );
+    for (const period of periods) {
+      // প্রথম transaction-এর আগের period বাদ
+      if (period.end < firstTransactionDate) continue;
 
-    if (!periodTransactions.length) continue;
+      // Period শেষ না হলে হিসাব তৈরি হবে না
+      if (period.end > today) continue;
 
-    const lastTransaction =
-      periodTransactions[periodTransactions.length - 1];
-
-    const lastTransactionDate =
-      getTransactionDate(lastTransaction);
-
-    // Reproduce the same running-balance calculation
-    // used by Total Transaction Details.
-    let runningBalance = 0;
-    let runningInterestBalance = 0;
-
-    for (let i = 0; i < sortedTransactions.length; i++) {
-      const item = sortedTransactions[i];
-      const transactionDate = getTransactionDate(item);
-
-      // Stop after this half-year's last transaction.
-      if (transactionDate > lastTransactionDate) break;
-
-      const type = String(
-        item.type || item.transactionType || ""
-      ).toUpperCase();
-
-      const amount = Number(
-        item.amount || item.Amount || 0
+      const periodEndExclusive = new Date(
+        period.end.getFullYear(),
+        period.end.getMonth(),
+        period.end.getDate() + 1
       );
 
-      if (type === "DEBIT") {
-        runningBalance += amount;
-      }
+      const periodTransactions = sortedTransactions.filter(
+        (item) => {
+          const date = getTransactionDate(item);
 
-      let days = 0;
+          return (
+            date >= period.start &&
+            date < periodEndExclusive
+          );
+        }
+      );
 
-      if (i < sortedTransactions.length - 1) {
-        const nextDate = getTransactionDate(
-          sortedTransactions[i + 1]
+      // Period-এ transaction না থাকলেও period থাকবে
+      let runningBalance = 0;
+      let runningInterestBalance = 0;
+
+      for (let i = 0; i < sortedTransactions.length; i++) {
+        const item = sortedTransactions[i];
+        const transactionDate = getTransactionDate(item);
+
+        if (transactionDate > period.end) break;
+
+        const type = String(
+          item.type || item.transactionType || ""
+        ).toUpperCase();
+
+        const amount = Number(
+          item.amount || item.Amount || 0
         );
 
-        days = Math.max(
-          Math.floor(
-            (nextDate.getTime() - transactionDate.getTime()) /
-              86400000
-          ),
-          0
-        );
-      }
+        if (type === "DEBIT") {
+          runningBalance += amount;
+        }
 
-      const interestCharge =
-        (runningBalance *
-          Number(item.interestRate || 0) *
-          days) /
-        36500;
+        const nextItem = sortedTransactions[i + 1];
 
-      runningInterestBalance += interestCharge;
+        let days = 0;
 
-      if (type === "CREDIT") {
-        if (amount <= runningInterestBalance) {
-          runningInterestBalance -= amount;
+        if (nextItem) {
+          const nextDate = getTransactionDate(nextItem);
+
+          const intervalEnd =
+            nextDate < periodEndExclusive
+              ? nextDate
+              : periodEndExclusive;
+
+          days = Math.max(
+            Math.floor(
+              (intervalEnd.getTime() -
+                transactionDate.getTime()) /
+                86400000
+            ),
+            0
+          );
         } else {
-          const remainingCredit =
-            amount - runningInterestBalance;
+          days = Math.max(
+            Math.floor(
+              (periodEndExclusive.getTime() -
+                transactionDate.getTime()) /
+                86400000
+            ),
+            0
+          );
+        }
 
-          runningInterestBalance = 0;
+        const interestCharge =
+          (runningBalance *
+            Number(item.interestRate || 0) *
+            days) /
+          36500;
 
+        runningInterestBalance += interestCharge;
+
+        if (type === "CREDIT") {
           runningBalance = Math.max(
-            runningBalance - remainingCredit,
+            runningBalance - amount,
             0
           );
         }
       }
+
+      const lastTransaction = periodTransactions.length
+        ? periodTransactions[periodTransactions.length - 1]
+        : null;
+
+      const periodDays =
+        Math.floor(
+          (periodEndExclusive.getTime() -
+            period.start.getTime()) /
+            86400000
+        );
+
+      results.push({
+        periodLabel: period.label,
+        periodEnd: getDateKey(period.end),
+        lastTransactionDate: lastTransaction
+          ? getDateKey(getTransactionDate(lastTransaction))
+          : "-",
+        balance: Math.round(
+          runningBalance + runningInterestBalance
+        ),
+        lastTransactionBalance: Math.round(runningBalance),
+        noOfDays: periodDays,
+        interestRate: lastTransaction
+          ? Number(lastTransaction.interestRate || 0)
+          : 0,
+        interest: Math.round(runningInterestBalance),
+      });
     }
-
-    const lastTransactionBalance = Math.round(runningBalance);
-
-// Days from the last transaction through the period end.
-// Interest calculation আগের মতোই থাকবে।
-const startDay = new Date(
-  lastTransactionDate.getFullYear(),
-  lastTransactionDate.getMonth(),
-  lastTransactionDate.getDate()
-);
-
-const endDay = new Date(
-  period.end.getFullYear(),
-  period.end.getMonth(),
-  period.end.getDate()
-);
-
-const noOfDays =
-  Math.max(
-    Math.floor((endDay - startDay) / 86400000) + 1,
-    0
-  );
-
-const rate = Number(
-  lastTransaction.interestRate || 0
-);
-
-// Interest calculation-এ আগের noOfDays-ই ব্যবহার হবে।
-const interest = Math.round(
-  (lastTransactionBalance * rate * noOfDays) / 36500
-);
-
-// শুধু No of Days column-এ পুরো half-year period-এর দিন দেখাবে।
-const displayNoOfDays =
-  Math.floor(
-    (period.end.getTime() - period.start.getTime()) /
-      86400000
-  ) + 1;
-
-    results.push({
-      periodLabel: period.label,
-      periodEnd: getDateKey(period.end),
-      lastTransactionDate: getDateKey(lastTransactionDate),
-      balance: lastTransactionBalance + interest,
-      lastTransactionBalance,
-      noOfDays: displayNoOfDays,
-      interestRate: rate,
-      interest,
-    });
   }
 
   return results.sort(
@@ -414,43 +394,21 @@ const displayNoOfDays =
   );
 };
 
-
 useEffect(() => {
   const runHalfYearlyCalculation = () => {
-    const today = new Date();
-
-    const isHalfYearStart =
-      (today.getMonth() === 3 && today.getDate() === 1) ||
-      (today.getMonth() === 9 && today.getDate() === 1);
-
-    if (isHalfYearStart) {
-      const runKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
-
-      if (lastHalfYearlyRunRef.current !== runKey) {
-        lastHalfYearlyRunRef.current = runKey;
-
-        setHalfYearlyTransactions(
-          calculateHalfYearlyTransactions()
-        );
-      }
-    } else {
-      setHalfYearlyTransactions(
-        calculateHalfYearlyTransactions()
-      );
-    }
+    setHalfYearlyTransactions(
+      calculateHalfYearlyTransactions()
+    );
   };
 
-  // Page load বা transactions পরিবর্তন হলে calculation
   runHalfYearlyCalculation();
 
-  // Website খোলা থাকলে প্রতি ১ মিনিটে date check
   const intervalId = setInterval(() => {
     runHalfYearlyCalculation();
-  }, 10 * 1000);
+  }, 60 * 1000);
 
   return () => clearInterval(intervalId);
 }, [transactions]);
-
 
 
   const fetchPaymentModes = async () => {
@@ -918,7 +876,7 @@ const tabs = [
   { key: "emi", label: "Loan Payment For EMI Details" },
   { key: "adjustment", label: "Loan Adjustment" },
   { key: "transaction", label: "Total Transaction Details" },
-  { key: "halfYearly", label: "Half Yearly Transaction" },
+  // { key: "halfYearly", label: "Half Yearly Transaction" },
 ];
 
 
@@ -2169,243 +2127,468 @@ const tabs = [
   </tr>
 </thead>
 
+
 <tbody>
-  {transactions.length === 0 ? (
-    <tr>
-      <td
-        colSpan={11}
-        style={{
-          ...td,
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        No transactions found
-      </td>
-    </tr>
-  ) : (
-    (() => {
-      let runningBalance = 0;
-      let runningInterestBalance = 0;
+  {(() => {
+    if (transactions.length === 0) {
+      return (
+        <tr>
+          <td
+            colSpan={11}
+            style={{
+              ...td,
+              textAlign: "center",
+              padding: "20px",
+            }}
+          >
+            No transactions found
+          </td>
+        </tr>
+      );
+    }
 
-      return transactions.map((item, i) => {
-        const transactionType = String(
-          item.type || item.transactionType || ""
-        ).toUpperCase();
+    const getDate = (item) =>
+      new Date(
+        item.TransactionDate ||
+          item.transactionDate ||
+          item.date
+      );
 
-        const amount = Number(item.amount || item.Amount || 0);
+    const getDateKey = (date) => {
+      const d = new Date(date);
 
-        const currentDate = new Date(
-          item.TransactionDate ||
-            item.transactionDate ||
-            item.date
+      return `${d.getFullYear()}-${String(
+        d.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`;
+    };
+
+    const sortedTransactions = [...transactions].sort(
+      (a, b) => getDate(a) - getDate(b)
+    );
+
+    const firstDate = getDate(sortedTransactions[0]);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Orange virtual dates: 1 April and 1 October
+    const virtualDates = [];
+
+    for (
+      let year = firstDate.getFullYear();
+      year <= today.getFullYear();
+      year++
+    ) {
+      const dates = [
+        new Date(year, 3, 1),
+        new Date(year, 9, 1),
+      ];
+
+      dates.forEach((date) => {
+        if (date < firstDate || date > today) return;
+
+        const alreadyExists = sortedTransactions.some(
+          (item) =>
+            getDateKey(getDate(item)) === getDateKey(date)
         );
 
-        // ─────────────────────────────────────
-        // NO OF DAYS
-        // ─────────────────────────────────────
-        let noOfDays = "-";
-
-        if (i < transactions.length - 1) {
-          const nextItem = transactions[i + 1];
-
-          const nextDate = new Date(
-            nextItem.TransactionDate ||
-              nextItem.transactionDate ||
-              nextItem.date
-          );
-
-          const diffTime =
-            nextDate.getTime() - currentDate.getTime();
-
-          const diffDays = Math.floor(
-            diffTime / (1000 * 60 * 60 * 24)
-          );
-
-          noOfDays = Math.max(diffDays, 0);
+        if (!alreadyExists) {
+          virtualDates.push(date);
         }
+      });
+    }
 
-        // ─────────────────────────────────────
-        // DEBIT → ADD TO BALANCE
-        // ─────────────────────────────────────
-        if (transactionType === "DEBIT") {
-          runningBalance += amount;
-        }
+    // Build real and orange virtual rows
+    const baseRows = [
+      ...sortedTransactions.map((item) => ({
+        kind: "real",
+        date: getDate(item),
+        item,
+      })),
+      ...virtualDates.map((date) => ({
+        kind: "virtual",
+        date,
+        item: null,
+      })),
+    ].sort((a, b) => a.date - b.date);
 
-        // ─────────────────────────────────────
-        // INTEREST CHARGE
-        // ─────────────────────────────────────
-        let interestCharge = 0;
+ 
+    // Calculate transaction rows and insert Yellow summary rows.
+    // The Yellow balance carries forward to the next real transaction.
+    let runningBalance = 0;
+    let runningInterestBalance = 0;
+    let carryForwardBalance = null;
+    let carryForwardDate = null;
 
-        if (noOfDays !== "-") {
-          interestCharge =
-            (runningBalance *
-              Number(item.interestRate || 0) *
-              Number(noOfDays || 0)) /
-            36500;
-        }
+    const calculatedRows = [];
 
-        runningInterestBalance += interestCharge;
+    for (let i = 0; i < baseRows.length; i++) {
+      const row = baseRows[i];
+      const currentDate = row.date;
+      const item = row.item;
+      const isVirtual = row.kind === "virtual";
 
-        // ─────────────────────────────────────
-        // CREDIT → FIRST CLEAR INTEREST
-        // THEN REDUCE BALANCE
-        // ─────────────────────────────────────
-        if (transactionType === "CREDIT") {
-          if (amount <= runningInterestBalance) {
-            runningInterestBalance -= amount;
-          } else {
-            const remainingCredit =
-              amount - runningInterestBalance;
+      const currentDay = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate()
+      );
 
-            runningInterestBalance = 0;
+      // Apply the Yellow row's balance before processing the first
+      // real transaction occurring after the Orange virtual date.
+      if (
+        row.kind === "real" &&
+        carryForwardBalance !== null &&
+        carryForwardDate !== null &&
+        currentDay > carryForwardDate
+      ) {
+        runningBalance = carryForwardBalance;
+        runningInterestBalance = 0;
+        carryForwardBalance = null;
+        carryForwardDate = null;
+      }
 
-            runningBalance = Math.max(
-              runningBalance - remainingCredit,
-              0
-            );
-          }
-        }
+      const transactionType = isVirtual
+        ? ""
+        : String(
+            item.type || item.transactionType || ""
+          ).toUpperCase();
 
-        // ─────────────────────────────────────
-        // PRODUCT
-        // ─────────────────────────────────────
-const displayBalance = Math.round(runningBalance);
+      const amount = isVirtual
+        ? 0
+        : Number(item.amount || item.Amount || 0);
 
-const product =
-  noOfDays !== "-"
-    ? displayBalance * Number(noOfDays)
-    : "-";
+      const nextRow = baseRows[i + 1];
 
+      const nextDay = nextRow
+        ? new Date(
+            nextRow.date.getFullYear(),
+            nextRow.date.getMonth(),
+            nextRow.date.getDate()
+          )
+        : null;
+
+      const noOfDays = nextDay
+        ? Math.max(
+            Math.round(
+              (nextDay.getTime() - currentDay.getTime()) /
+                86400000
+            ),
+            0
+          )
+        : "-";
+
+      // DEBIT increases the principal balance.
+      if (transactionType === "DEBIT") {
+        runningBalance += amount;
+      }
+
+      let interestCharge = 0;
+
+      if (noOfDays !== "-") {
+        interestCharge =
+          (runningBalance *
+            Number(item?.interestRate || interestRate || 0) *
+            Number(noOfDays)) /
+          36500;
+      }
+
+      runningInterestBalance += interestCharge;
+
+// CREDIT always decreases Balance.
+// DEBIT always increases Balance.
+// Interest Balance is not adjusted by the transaction amount.
+
+if (transactionType === "CREDIT") {
+  runningBalance -= amount;
+} else if (transactionType === "DEBIT") {
+  runningBalance += amount;
+}
+
+      const calculatedRow = {
+        ...row,
+        transactionType,
+        amount,
+        noOfDays,
+        balance: Math.round(runningBalance),
+        interestCharge,
+        interestBalance: Math.round(runningInterestBalance),
+        product:
+          noOfDays !== "-"
+            ? Math.round(runningBalance) * Number(noOfDays)
+            : "-",
+      };
+
+      calculatedRows.push(calculatedRow);
+
+      // Insert Yellow summary immediately after each Orange row.
+      if (row.kind !== "virtual") continue;
+
+      const month = currentDate.getMonth();
+      const year = currentDate.getFullYear();
+
+      let periodStart;
+      let periodEnd;
+      let periodLabel;
+
+      if (month === 9) {
+        // 1 October: summarize April through September.
+        periodStart = new Date(year, 3, 1);
+        periodEnd = new Date(year, 8, 30);
+        periodLabel = "April - September";
+      } else if (month === 3) {
+        // 1 April: summarize October through March.
+        periodStart = new Date(year - 1, 9, 1);
+        periodEnd = new Date(year, 2, 31);
+        periodLabel = "October - March";
+      } else {
+        continue;
+      }
+
+      const periodEndExclusive = new Date(
+        periodEnd.getFullYear(),
+        periodEnd.getMonth(),
+        periodEnd.getDate() + 1
+      );
+
+const periodNoOfDays = calculatedRows.reduce(
+  (total, transactionRow) => {
+    if (transactionRow.kind !== "real") return total;
+
+    if (
+      transactionRow.date >= periodStart &&
+      transactionRow.date < periodEndExclusive &&
+      transactionRow.noOfDays !== "-"
+    ) {
+      return total + Number(transactionRow.noOfDays || 0);
+    }
+
+    return total;
+  },
+  0
+);
+
+// এই ৬ মাসের সব transaction-এর Product যোগফল
+const periodProduct = calculatedRows.reduce(
+  (total, transactionRow) => {
+    if (transactionRow.kind !== "real") return total;
+
+    if (
+      transactionRow.date >= periodStart &&
+      transactionRow.date < periodEndExclusive &&
+      transactionRow.product !== "-"
+    ) {
+      return total + Number(transactionRow.product || 0);
+    }
+
+    return total;
+  },
+  0
+);
+
+      // Exclude accrued interest from the Yellow row's principal balance.
+      const yellowBalance = Math.round(
+        calculatedRow.balance - calculatedRow.interestBalance
+      );
+
+calculatedRows.push({
+  kind: "summary",
+  date: null,
+  item: null,
+  periodLabel,
+  balance: yellowBalance,
+  noOfDays: periodNoOfDays,
+  product: periodProduct,
+});
+
+      // Carry the Yellow balance into the next real transaction.
+      carryForwardBalance = yellowBalance;
+      carryForwardDate = currentDay;
+    }
+
+    const displayRows = calculatedRows;
+
+
+    return displayRows.map((row, i) => {
+      const isVirtual = row.kind === "virtual";
+      const isSummary = row.kind === "summary";
+
+      if (isSummary) {
         return (
-          <tr key={item._id || i}>
-            {/* Sl No */}
+          <tr
+            key={`summary-${row.periodLabel}-${i}`}
+            style={{ backgroundColor: "#fef3c7" }}
+          >
             <td style={td}>{i + 1}</td>
 
-            {/* Transaction Date */}
-            <td style={td}>
-              {formatDateTime(
-                item.TransactionDate ||
-                  item.transactionDate ||
-                  item.date
-              )}
-            </td>
+            <td style={td}>{row.periodLabel}</td>
 
-            {/* Particulars */}
-            <td style={td}>
-              {item.PaymentMode ||
-                item.paymentMode ||
-                "-"}
-            </td>
+            <td style={td}>-</td>
+            <td style={td}>-</td>
+            <td style={td}>-</td>
 
-            {/* Debit */}
-            <td style={td}>
-              {transactionType === "DEBIT" ? Math.round(amount) : "-"}
-            </td>
+            <td style={td}>{row.balance}</td>
 
-            {/* Credit */}
-            <td style={td}>
-              {transactionType === "CREDIT" ? Math.round(amount) : "-"}
-            </td>
+            <td style={td}>{row.noOfDays}</td>
 
-            {/* Balance */}
-            <td style={td}>
-              {Math.round(runningBalance)}
-            </td>
-
-            {/* No of Days */}
-            <td style={td}>{noOfDays}</td>
-
-            {/* Interest Rate */}
-            <td style={td}>
-              {item.interestRate !== undefined &&
-              item.interestRate !== null &&
-              item.interestRate !== ""
-                ? `${Number(item.interestRate).toFixed(2)}%`
-                : "-"}
-            </td>
-
-            {/* Product */}
-            <td style={td}>
-              {product !== "-" ? Math.round(product) : "-"}
-            </td>
-
-            {/* Interest Charge */}
-            <td style={td}>
-              {noOfDays !== "-" ? Math.round(interestCharge) : "-"}
-            </td>
-
-            {/* Interest Balance */}
-            <td style={td}>
-              {Math.round(runningInterestBalance)}
-            </td>
+            <td style={td}>-</td>
+            <td style={td}>{row.product}</td>
+            <td style={td}>-</td>
+            <td style={td}>-</td>
           </tr>
         );
-      });
-    })()
-  )}
+      }
+
+      const item = row.item;
+
+      return (
+        <tr
+          key={
+            isVirtual
+              ? `virtual-${getDateKey(row.date)}`
+              : item._id || `real-${i}`
+          }
+          style={
+            isVirtual
+              ? { backgroundColor: "#fff7ed" }
+              : undefined
+          }
+        >
+          <td style={td}>{i + 1}</td>
+
+          <td style={td}>
+            {isVirtual
+              ? formatDateTime(row.date)
+              : formatDateTime(
+                  item.TransactionDate ||
+                    item.transactionDate ||
+                    item.date
+                )}
+          </td>
+
+          <td style={td}>
+            {isVirtual
+              ? "-"
+              : item.PaymentMode || item.paymentMode || "-"}
+          </td>
+
+          <td style={td}>
+            {isVirtual || row.transactionType !== "DEBIT"
+              ? "-"
+              : Math.round(row.amount)}
+          </td>
+
+          <td style={td}>
+            {isVirtual || row.transactionType !== "CREDIT"
+              ? "-"
+              : Math.round(row.amount)}
+          </td>
+
+          <td style={td}>{row.balance}</td>
+
+          <td style={td}>{row.noOfDays}</td>
+
+          <td style={td}>
+            {isVirtual
+              ? "-"
+              : item.interestRate !== undefined &&
+                item.interestRate !== null &&
+                item.interestRate !== ""
+              ? `${Number(item.interestRate).toFixed(2)}%`
+              : "-"}
+          </td>
+
+          <td style={td}>
+            {isVirtual || row.product === "-"
+              ? "-"
+              : Math.round(row.product)}
+          </td>
+
+          <td style={td}>
+            {isVirtual
+              ? "-"
+              : row.noOfDays !== "-"
+              ? Math.round(row.interestCharge)
+              : "-"}
+          </td>
+
+          <td style={td}>{row.interestBalance}</td>
+        </tr>
+      );
+    });
+  })()}
 </tbody>
+
+
                   </table>
                 </div>
 
 
-{/* Balance Footer */}
-<div className="flex flex-wrap items-center justify-end gap-3 mt-4">
-  {/* Combined Summary Pill */}
-  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border-2 border-slate-300 bg-white px-5 py-3 shadow-md dark:border-slate-600 dark:bg-slate-900">
 
-    {/* Total Number of Days */}
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-bold text-blue-800 dark:text-blue-300">
-        Total Number of Days
-      </span>
-      <span className="rounded-md border border-blue-200 bg-blue-100 px-2 py-1 text-sm font-extrabold text-blue-950 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-100">
-        {transactionSummary.totalNumberOfDays.toLocaleString("en-IN")}
-      </span>
-    </div>
-
-    <div className="h-7 w-px bg-slate-300 dark:bg-slate-600" />
-
-    {/* Total Product */}
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-        Total Product
-      </span>
-      <span className="rounded-md border border-emerald-200 bg-emerald-100 px-2 py-1 text-sm font-extrabold text-emerald-950 dark:border-emerald-700 dark:bg-emerald-900 dark:text-emerald-100">
-        {transactionSummary.totalProduct.toLocaleString("en-IN")}
-      </span>
-    </div>
-
-    <div className="h-7 w-px bg-slate-300 dark:bg-slate-600" />
-
-    {/* Total Interest Charge */}
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-        Total Interest Charge
-      </span>
-      <span className="rounded-md border border-amber-300 bg-amber-100 px-2 py-1 text-sm font-extrabold text-amber-950 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-100">
-        ₹{transactionSummary.totalInterestCharge.toLocaleString("en-IN")}
-      </span>
-    </div>
-  </div>
-
-  {/* Available Balance Pill */}
-  <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-blue-700 bg-blue-700 px-5 py-3 shadow-md dark:border-blue-500 dark:bg-blue-950">
-    <span className="text-sm font-bold text-white">
+{/* Balance Footer — Available Balance Only */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: "14px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "stretch",
+      borderRadius: "7px",
+      overflow: "hidden",
+      border: "1.5px solid #d1fae5",
+      boxShadow: "0 1px 4px rgba(16,185,129,0.08)",
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "#059669",
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: isMobile ? "12px" : "13px",
+        fontFamily: "'Inter', sans-serif",
+        padding: isMobile ? "7px 10px" : "8px 14px",
+        whiteSpace: "nowrap",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
       Available Balance
-    </span>
-    <span className="rounded-md border border-blue-200 bg-white px-3 py-1 text-base font-extrabold text-blue-950">
+    </div>
+
+    <div
+      style={{
+        backgroundColor: "#ecfdf5",
+        color: "#065f46",
+        fontWeight: "800",
+        fontSize: isMobile ? "13px" : "14px",
+        fontFamily: "'Inter', sans-serif",
+        padding: isMobile ? "7px 10px" : "8px 14px",
+        whiteSpace: "nowrap",
+        minWidth: "70px",
+        textAlign: "center",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       ₹{Number(availableBalance || 0).toLocaleString("en-IN")}
-    </span>
+    </div>
   </div>
 </div>
+
 
               </div>
             )}
 
             
 {/* Tab 6 — Half Yearly Transaction */}
-{activeTab === "halfYearly" && (
+{/* {activeTab === "halfYearly" && (
   <div>
     <h5
       style={{
@@ -2497,7 +2680,7 @@ const product =
       </table>
     </div>
   </div>
-)}
+)} */}
 
           </div>
         )}

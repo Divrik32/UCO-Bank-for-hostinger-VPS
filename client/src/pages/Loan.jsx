@@ -2280,11 +2280,6 @@ const tabs = [
           )
         : "-";
 
-      // DEBIT increases the principal balance.
-      if (transactionType === "DEBIT") {
-        runningBalance += amount;
-      }
-
       let interestCharge = 0;
 
       if (noOfDays !== "-") {

@@ -191,8 +191,7 @@ const transactionSummary = (() => {
       if (amount <= runningInterestBalance) {
         runningInterestBalance -= amount;
       } else {
-        const remainingCredit =
-          amount - runningInterestBalance;
+        const remainingCredit = amount - runningInterestBalance;
 
         runningInterestBalance = 0;
 
@@ -2217,12 +2216,13 @@ const tabs = [
  
     // Calculate transaction rows and insert Yellow summary rows.
     // The Yellow balance carries forward to the next real transaction.
-    let runningBalance = 0;
-    let runningInterestBalance = 0;
-    let carryForwardBalance = null;
-    let carryForwardDate = null;
+let runningBalance = 0;
+let runningInterestBalance = 0;
 
-    const calculatedRows = [];
+// The first Orange boundary marks the end of the first period.
+let firstOrangeBoundaryPassed = false;
+
+const calculatedRows = [];
 
     for (let i = 0; i < baseRows.length; i++) {
       const row = baseRows[i];
@@ -2235,20 +2235,6 @@ const tabs = [
         currentDate.getMonth(),
         currentDate.getDate()
       );
-
-      // Apply the Yellow row's balance before processing the first
-      // real transaction occurring after the Orange virtual date.
-      if (
-        row.kind === "real" &&
-        carryForwardBalance !== null &&
-        carryForwardDate !== null &&
-        currentDay > carryForwardDate
-      ) {
-        runningBalance = carryForwardBalance;
-        runningInterestBalance = 0;
-        carryForwardBalance = null;
-        carryForwardDate = null;
-      }
 
       const transactionType = isVirtual
         ? ""
@@ -2292,14 +2278,30 @@ const tabs = [
 
       runningInterestBalance += interestCharge;
 
-// CREDIT always decreases Balance.
-// DEBIT always increases Balance.
-// Interest Balance is not adjusted by the transaction amount.
-
-if (transactionType === "CREDIT") {
-  runningBalance -= amount;
-} else if (transactionType === "DEBIT") {
+if (transactionType === "DEBIT") {
+  // DEBIT always increases the main Balance.
   runningBalance += amount;
+} else if (transactionType === "CREDIT") {
+  if (!firstOrangeBoundaryPassed) {
+    // First period: CREDIT directly decreases Balance.
+    runningBalance -= amount;
+  } else {
+    // From the first Orange boundary onwards:
+    // Deduct CREDIT from Interest Balance first.
+    const interestToDeduct = Math.min(
+      amount,
+      Math.max(runningInterestBalance, 0)
+    );
+
+    runningInterestBalance -= interestToDeduct;
+
+    // Deduct any remaining CREDIT from main Balance.
+    const remainingCredit = amount - interestToDeduct;
+
+    if (remainingCredit > 0) {
+      runningBalance -= remainingCredit;
+    }
+  }
 }
 
       const calculatedRow = {
@@ -2318,8 +2320,12 @@ if (transactionType === "CREDIT") {
 
       calculatedRows.push(calculatedRow);
 
-      // Insert Yellow summary immediately after each Orange row.
-      if (row.kind !== "virtual") continue;
+// Only Orange virtual rows create a 6-month boundary.
+if (row.kind !== "virtual") continue;
+
+// The first Orange boundary completes the initial period.
+// Subsequent real transactions use interest-first CREDIT logic.
+firstOrangeBoundaryPassed = true;
 
       const month = currentDate.getMonth();
       const year = currentDate.getFullYear();
@@ -2328,19 +2334,19 @@ if (transactionType === "CREDIT") {
       let periodEnd;
       let periodLabel;
 
-      if (month === 9) {
-        // 1 October: summarize April through September.
-        periodStart = new Date(year, 3, 1);
-        periodEnd = new Date(year, 8, 30);
-        periodLabel = "April - September";
-      } else if (month === 3) {
-        // 1 April: summarize October through March.
-        periodStart = new Date(year - 1, 9, 1);
-        periodEnd = new Date(year, 2, 31);
-        periodLabel = "October - March";
-      } else {
-        continue;
-      }
+if (month === 9) {
+  // 1 October: summarize April through September.
+  periodStart = new Date(year, 3, 1);
+  periodEnd = new Date(year, 8, 30);
+  periodLabel = `April ${year} - September ${year}`;
+} else if (month === 3) {
+  // 1 April: summarize October through March.
+  periodStart = new Date(year - 1, 9, 1);
+  periodEnd = new Date(year, 2, 31);
+  periodLabel = `October ${year - 1} - March ${year}`;
+} else {
+  continue;
+}
 
       const periodEndExclusive = new Date(
         periodEnd.getFullYear(),
@@ -2398,9 +2404,8 @@ calculatedRows.push({
   product: periodProduct,
 });
 
-      // Carry the Yellow balance into the next real transaction.
-      carryForwardBalance = yellowBalance;
-      carryForwardDate = currentDay;
+// The first Orange/Yellow boundary completes the first 6-month period.
+// All subsequent CREDIT transactions use interest-first deduction.
     }
 
     const displayRows = calculatedRows;
@@ -2576,12 +2581,10 @@ calculatedRows.push({
     </div>
   </div>
 </div>
-
-
               </div>
             )}
 
-            
+          
 {/* Tab 6 — Half Yearly Transaction */}
 {/* {activeTab === "halfYearly" && (
   <div>

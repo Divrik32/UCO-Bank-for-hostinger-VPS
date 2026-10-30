@@ -2214,80 +2214,62 @@ const tabs = [
     ].sort((a, b) => a.date - b.date);
 
  
-    // Calculate transaction rows and insert Yellow summary rows.
-    // The Yellow balance carries forward to the next real transaction.
+// Calculate transaction rows and insert Yellow summary rows.
+
 let runningBalance = 0;
 let runningInterestBalance = 0;
-
-// The first Orange boundary marks the end of the first period.
-let firstOrangeBoundaryPassed = false;
+let sessionInterestCharge = 0;
 
 const calculatedRows = [];
 
-    for (let i = 0; i < baseRows.length; i++) {
-      const row = baseRows[i];
-      const currentDate = row.date;
-      const item = row.item;
-      const isVirtual = row.kind === "virtual";
+for (let i = 0; i < baseRows.length; i++) {
+  const row = baseRows[i];
+  const currentDate = row.date;
+  const item = row.item;
+  const isVirtual = row.kind === "virtual";
 
-      const currentDay = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate()
-      );
+  const currentDay = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate()
+  );
 
-      const transactionType = isVirtual
-        ? ""
-        : String(
-            item.type || item.transactionType || ""
-          ).toUpperCase();
+  const transactionType = isVirtual
+    ? ""
+    : String(
+        item.type || item.transactionType || ""
+      ).toUpperCase();
 
-      const amount = isVirtual
-        ? 0
-        : Number(item.amount || item.Amount || 0);
+  const amount = isVirtual
+    ? 0
+    : Number(item.amount || item.Amount || 0);
 
-      const nextRow = baseRows[i + 1];
+  const nextRow = baseRows[i + 1];
 
-      const nextDay = nextRow
-        ? new Date(
-            nextRow.date.getFullYear(),
-            nextRow.date.getMonth(),
-            nextRow.date.getDate()
-          )
-        : null;
+  const nextDay = nextRow
+    ? new Date(
+        nextRow.date.getFullYear(),
+        nextRow.date.getMonth(),
+        nextRow.date.getDate()
+      )
+    : null;
 
-      const noOfDays = nextDay
-        ? Math.max(
-            Math.round(
-              (nextDay.getTime() - currentDay.getTime()) /
-                86400000
-            ),
-            0
-          )
-        : "-";
+  const noOfDays = nextDay
+    ? Math.max(
+        Math.round(
+          (nextDay.getTime() - currentDay.getTime()) /
+            86400000
+        ),
+        0
+      )
+    : "-";
 
-      let interestCharge = 0;
+  // 1. Apply DEBIT / CREDIT
+  if (transactionType === "DEBIT") {
+    runningBalance += amount;
+  }
 
-      if (noOfDays !== "-") {
-        interestCharge =
-          (runningBalance *
-            Number(item?.interestRate || interestRate || 0) *
-            Number(noOfDays)) /
-          36500;
-      }
-
-      runningInterestBalance += interestCharge;
-
-if (transactionType === "DEBIT") {
-  // DEBIT always increases the main Balance.
-  runningBalance += amount;
-} else if (transactionType === "CREDIT") {
-  if (!firstOrangeBoundaryPassed) {
-    // First period: CREDIT directly decreases Balance.
-    runningBalance -= amount;
-  } else {
-    // From the first Orange boundary onwards:
-    // Deduct CREDIT from Interest Balance first.
+  if (transactionType === "CREDIT") {
     const interestToDeduct = Math.min(
       amount,
       Math.max(runningInterestBalance, 0)
@@ -2295,120 +2277,171 @@ if (transactionType === "DEBIT") {
 
     runningInterestBalance -= interestToDeduct;
 
-    // Deduct any remaining CREDIT from main Balance.
     const remainingCredit = amount - interestToDeduct;
 
     if (remainingCredit > 0) {
-      runningBalance -= remainingCredit;
+      runningBalance = Math.max(
+        runningBalance - remainingCredit,
+        0
+      );
     }
   }
+
+  // 2. Handle Orange Virtual Date
+  if (isVirtual) {
+    const month = currentDate.getMonth();
+    const year = currentDate.getFullYear();
+
+    let periodStart;
+    let periodEnd;
+    let periodLabel;
+
+    if (month === 9) {
+      periodStart = new Date(year, 3, 1);
+      periodEnd = new Date(year, 8, 30);
+      periodLabel = `April ${year} - September ${year}`;
+    } else if (month === 3) {
+      periodStart = new Date(year - 1, 9, 1);
+      periodEnd = new Date(year, 2, 31);
+      periodLabel = `October ${year - 1} - March ${year}`;
+    }
+
+    const periodEndExclusive = new Date(
+      periodEnd.getFullYear(),
+      periodEnd.getMonth(),
+      periodEnd.getDate() + 1
+    );
+
+    // 3. Get all rows belonging to the completed session
+    const periodRows = calculatedRows.filter(
+      (transactionRow) =>
+        transactionRow.date >= periodStart &&
+        transactionRow.date < periodEndExclusive &&
+        transactionRow.noOfDays !== "-"
+    );
+
+    const periodNoOfDays = periodRows.reduce(
+      (total, transactionRow) =>
+        total + Number(transactionRow.noOfDays || 0),
+      0
+    );
+
+    const periodProduct = periodRows.reduce(
+      (total, transactionRow) =>
+        total + Number(transactionRow.product || 0),
+      0
+    );
+
+    const periodInterestCharge = periodRows.reduce(
+      (total, transactionRow) =>
+        total + Number(transactionRow.interestCharge || 0),
+      0
+    );
+
+    // 4. Create Yellow Summary Row BEFORE Orange Row
+    const yellowBalance = Math.round(runningBalance);
+    const yellowInterestBalance = Math.round(
+      sessionInterestCharge
+    );
+
+    calculatedRows.push({
+      kind: "summary",
+      date: null,
+      item: null,
+      periodLabel,
+      balance: yellowBalance,
+      noOfDays: periodNoOfDays,
+      product: periodProduct,
+      interestCharge: Math.round(periodInterestCharge),
+      interestBalance: yellowInterestBalance,
+    });
+
+    // 5. Carry Yellow balances forward to Orange
+    runningInterestBalance = yellowInterestBalance;
+
+    // 6. Create Orange Row AFTER Yellow Row
+    const orangeRow = {
+      ...row,
+      transactionType: "",
+      amount: 0,
+      noOfDays,
+      balance: yellowBalance,
+      interestCharge: 0,
+      interestBalance: yellowInterestBalance,
+      product:
+        noOfDays !== "-"
+          ? yellowBalance * Number(noOfDays)
+          : "-",
+    };
+
+    calculatedRows.push(orangeRow);
+
+    // 7. Calculate interest from Orange date onwards
+    let orangeInterestCharge = 0;
+
+    if (noOfDays !== "-") {
+      const applicableInterestRate =
+        item?.interestRate !== undefined &&
+        item?.interestRate !== null &&
+        item?.interestRate !== ""
+          ? Number(item.interestRate)
+          : Number(interestRate || 0);
+
+      orangeInterestCharge =
+        (runningBalance *
+          applicableInterestRate *
+          Number(noOfDays)) /
+        36500;
+
+      sessionInterestCharge += orangeInterestCharge;
+    }
+
+    orangeRow.interestCharge = orangeInterestCharge;
+
+    continue;
+  }
+
+  // 8. Create Normal Transaction Row
+  const calculatedRow = {
+    ...row,
+    transactionType,
+    amount,
+    noOfDays,
+    balance: Math.round(runningBalance),
+    interestCharge: 0,
+    interestBalance: Math.round(runningInterestBalance),
+    product:
+      noOfDays !== "-"
+        ? Math.round(runningBalance) * Number(noOfDays)
+        : "-",
+  };
+
+  // 9. Calculate Interest Charge
+  let interestCharge = 0;
+
+  if (noOfDays !== "-") {
+    const applicableInterestRate =
+      item?.interestRate !== undefined &&
+      item?.interestRate !== null &&
+      item?.interestRate !== ""
+        ? Number(item.interestRate)
+        : Number(interestRate || 0);
+
+    interestCharge =
+      (runningBalance *
+        applicableInterestRate *
+        Number(noOfDays)) /
+      36500;
+
+    sessionInterestCharge += interestCharge;
+  }
+
+  calculatedRow.interestCharge = interestCharge;
+
+  calculatedRows.push(calculatedRow);
 }
 
-      const calculatedRow = {
-        ...row,
-        transactionType,
-        amount,
-        noOfDays,
-        balance: Math.round(runningBalance),
-        interestCharge,
-        interestBalance: Math.round(runningInterestBalance),
-        product:
-          noOfDays !== "-"
-            ? Math.round(runningBalance) * Number(noOfDays)
-            : "-",
-      };
-
-      calculatedRows.push(calculatedRow);
-
-// Only Orange virtual rows create a 6-month boundary.
-if (row.kind !== "virtual") continue;
-
-// The first Orange boundary completes the initial period.
-// Subsequent real transactions use interest-first CREDIT logic.
-firstOrangeBoundaryPassed = true;
-
-      const month = currentDate.getMonth();
-      const year = currentDate.getFullYear();
-
-      let periodStart;
-      let periodEnd;
-      let periodLabel;
-
-if (month === 9) {
-  // 1 October: summarize April through September.
-  periodStart = new Date(year, 3, 1);
-  periodEnd = new Date(year, 8, 30);
-  periodLabel = `April ${year} - September ${year}`;
-} else if (month === 3) {
-  // 1 April: summarize October through March.
-  periodStart = new Date(year - 1, 9, 1);
-  periodEnd = new Date(year, 2, 31);
-  periodLabel = `October ${year - 1} - March ${year}`;
-} else {
-  continue;
-}
-
-      const periodEndExclusive = new Date(
-        periodEnd.getFullYear(),
-        periodEnd.getMonth(),
-        periodEnd.getDate() + 1
-      );
-
-const periodNoOfDays = calculatedRows.reduce(
-  (total, transactionRow) => {
-    if (transactionRow.kind !== "real") return total;
-
-    if (
-      transactionRow.date >= periodStart &&
-      transactionRow.date < periodEndExclusive &&
-      transactionRow.noOfDays !== "-"
-    ) {
-      return total + Number(transactionRow.noOfDays || 0);
-    }
-
-    return total;
-  },
-  0
-);
-
-// এই ৬ মাসের সব transaction-এর Product যোগফল
-const periodProduct = calculatedRows.reduce(
-  (total, transactionRow) => {
-    if (transactionRow.kind !== "real") return total;
-
-    if (
-      transactionRow.date >= periodStart &&
-      transactionRow.date < periodEndExclusive &&
-      transactionRow.product !== "-"
-    ) {
-      return total + Number(transactionRow.product || 0);
-    }
-
-    return total;
-  },
-  0
-);
-
-      // Exclude accrued interest from the Yellow row's principal balance.
-      const yellowBalance = Math.round(
-        calculatedRow.balance - calculatedRow.interestBalance
-      );
-
-calculatedRows.push({
-  kind: "summary",
-  date: null,
-  item: null,
-  periodLabel,
-  balance: yellowBalance,
-  noOfDays: periodNoOfDays,
-  product: periodProduct,
-});
-
-// The first Orange/Yellow boundary completes the first 6-month period.
-// All subsequent CREDIT transactions use interest-first deduction.
-    }
-
-    const displayRows = calculatedRows;
+const displayRows = calculatedRows;
 
 
     return displayRows.map((row, i) => {
@@ -2436,7 +2469,7 @@ calculatedRows.push({
             <td style={td}>-</td>
             <td style={td}>{row.product}</td>
             <td style={td}>-</td>
-            <td style={td}>-</td>
+            <td style={td}>{row.interestBalance}</td>
           </tr>
         );
       }
@@ -2490,29 +2523,27 @@ calculatedRows.push({
 
           <td style={td}>{row.noOfDays}</td>
 
-          <td style={td}>
-            {isVirtual
-              ? "-"
-              : item.interestRate !== undefined &&
-                item.interestRate !== null &&
-                item.interestRate !== ""
-              ? `${Number(item.interestRate).toFixed(2)}%`
-              : "-"}
-          </td>
+<td style={td}>
+  {isVirtual
+    ? `${Number(interestRate || 0).toFixed(2)}%`
+    : item.interestRate !== undefined &&
+      item.interestRate !== null &&
+      item.interestRate !== ""
+    ? `${Number(item.interestRate).toFixed(2)}%`
+    : "-"}
+</td>
 
-          <td style={td}>
-            {isVirtual || row.product === "-"
-              ? "-"
-              : Math.round(row.product)}
-          </td>
+<td style={td}>
+  {row.product === "-"
+    ? "-"
+    : Math.round(row.product)}
+</td>
 
-          <td style={td}>
-            {isVirtual
-              ? "-"
-              : row.noOfDays !== "-"
-              ? Math.round(row.interestCharge)
-              : "-"}
-          </td>
+<td style={td}>
+  {row.noOfDays !== "-"
+    ? Math.round(row.interestCharge)
+    : "-"}
+</td>
 
           <td style={td}>{row.interestBalance}</td>
         </tr>

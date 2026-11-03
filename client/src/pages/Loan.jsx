@@ -2356,8 +2356,14 @@ for (let i = 0; i < baseRows.length; i++) {
       interestBalance: yellowInterestBalance,
     });
 
-    // 5. Carry Yellow balances forward to Orange
-    runningInterestBalance = yellowInterestBalance;
+    // 5. Carry Yellow Interest Balance forward to Orange
+runningInterestBalance = yellowInterestBalance;
+
+// Reset only the current six-month Interest Charge.
+// Previous six-month Interest Balance will remain unchanged.
+sessionInterestCharge = 0;
+
+// 6. Create Orange Row AFTER Yellow Row
 
     // 6. Create Orange Row AFTER Yellow Row
     const orangeRow = {

@@ -379,25 +379,28 @@ const handleSearch = async () => {
 
     const fullName = data.name || "";
 
-    setMember({
-      memberId: data.memberId,
-      firstname:
-        data.firstname ||
-        fullName.split(" ")[0] ||
-        "",
-      lastname:
-        data.lastname ||
-        fullName.split(" ").slice(1).join(" ") ||
-        "",
-      phoneno: data.phoneNumber || data.phoneno || "",
-      email: data.email || "",
-      profileImage:
-        data.profileImage || data.profile_image || "",
-      signatureImage:
-        data.signatureImage || data.signature_image || "",
-      membershipNumber:
-        data.membershipNumber || "",
-    });
+setMember({
+  memberId: data.memberId,
+  firstname:
+    data.firstname ||
+    fullName.split(" ")[0] ||
+    "",
+  lastname:
+    data.lastname ||
+    fullName.split(" ").slice(1).join(" ") ||
+    "",
+  phoneno: data.phoneNumber || data.phoneno || "",
+  email: data.email || "",
+  profileImage:
+    data.profileImage || data.profile_image || "",
+  signatureImage:
+    data.signatureImage || data.signature_image || "",
+  membershipNumber:
+    data.membershipNumber || "",
+
+  // PF Number
+  pf_no: data.pf_no || "",
+});
 
     // ==========================================
     // IMPORTANT
@@ -1279,8 +1282,29 @@ const submitInterestAccruedAndPayable = async () => {
               </div>
             </div>
 
-            <input style={disabledInput} disabled placeholder={member?.phoneno || "Phone"} />
-            <input style={disabledInput} disabled placeholder={member?.email || "Email"} />
+{/* Phone */}
+<input
+  style={disabledInput}
+  disabled
+  value={member?.phoneno || ""}
+  placeholder="Phone"
+/>
+
+{/* Email */}
+<input
+  style={disabledInput}
+  disabled
+  value={member?.email || ""}
+  placeholder="Email"
+/>
+
+{/* PF Number */}
+<input
+  style={disabledInput}
+  disabled
+  value={member?.pf_no ?? ""}
+  placeholder="PF Number"
+/>
           </div>
         </div>
 
@@ -1855,130 +1879,262 @@ const submitInterestAccruedAndPayable = async () => {
           </tr>
         </thead>
 
-        <tbody>
-          {(() => {
-            let runningBalance = Number(
-              halfYearlyThriftInterest || 0
-            );
 
-            const sortedTransactions = [
-              ...interestTransactions,
-            ].sort(
-              (a, b) =>
-                new Date(a.transactionDate).getTime() -
-                new Date(b.transactionDate).getTime()
-            );
+<tbody>
+  {(() => {
+    // ==========================================
+    // 1. Sort Total Transaction Details
+    // ==========================================
 
-            return sortedTransactions.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  style={{
-                    textAlign: "center",
-                    padding: "28px",
-                    color: "#aaa",
-                  }}
-                >
-                  No interest transactions found
-                </td>
-              </tr>
-            ) : (
-              sortedTransactions.map((item, index) => {
-                const credit = Number(
-                  item.interestAccruedAndPayableCredit ||
-                    0
-                );
+    const sortedTransactions = [...transactions].sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    );
 
-                const debit = Number(
-                  item.interestAccruedAndPayableDebit ||
-                    0
-                );
-
-                runningBalance = runningBalance + credit - debit;
-
-                return (
-                  <tr
-                    key={item._id || index}
-                    style={{
-                      backgroundColor:
-                        index % 2 === 0
-                          ? "#ffffff"
-                          : "#fdfdfd",
-                    }}
-                  >
-                    {/* Date */}
-                    <td style={td}>
-                      {formatDateTime(
-                        item.transactionDate
-                      )}
-                    </td>
-
-                    {/* Debit */}
-                    <td
-                      style={{
-                        ...td,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {debit > 0
-                        ? `₹${debit.toFixed(0)}`
-                        : ""}
-                    </td>
-
-                    {/* Credit */}
-                    <td
-                      style={{
-                        ...td,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {credit > 0
-                        ? `₹${credit.toFixed(0)}`
-                        : ""}
-                    </td>
-
-                    {/* Balance */}
-                    <td
-                      style={{
-                        ...td,
-                        fontWeight: "700",
-                      }}
-                    >
-                      ₹{runningBalance.toFixed(0)}
-                    </td>
-                    {/* Action */}
-<td style={td}>
-  <button
-    type="button"
-    onClick={() => handleDeleteInterestTransaction(item)}
-    disabled={
-      deletingInterestId === item._id || !item._id
+    if (sortedTransactions.length === 0) {
+      return (
+        <tr>
+          <td
+            colSpan={5}
+            style={{
+              textAlign: "center",
+              padding: "28px",
+              color: "#aaa",
+            }}
+          >
+            No transactions found
+          </td>
+        </tr>
+      );
     }
-    style={{
-      backgroundColor:
-        deletingInterestId === item._id ? "#9ca3af" : "#dc2626",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: "5px",
-      padding: "7px 13px",
-      fontSize: "12px",
-      fontWeight: "700",
-      cursor:
-        deletingInterestId === item._id
-          ? "not-allowed"
-          : "pointer",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {deletingInterestId === item._id ? "Deleting..." : "Delete"}
-  </button>
-</td>
-                  </tr>
-                );
-              })
-            );
-          })()}
-        </tbody>
+
+    // ==========================================
+    // 2. Find First and Last Transaction Dates
+    // ==========================================
+
+    const firstDate = new Date(sortedTransactions[0].date);
+    const lastDate = new Date(
+      sortedTransactions[sortedTransactions.length - 1].date
+    );
+
+    // April-September = 0
+    // October-March = 1
+
+    const getHalfYearStart = (date) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      if (month >= 3 && month <= 8) {
+        return new Date(year, 3, 1);
+      }
+
+      if (month >= 9) {
+        return new Date(year, 9, 1);
+      }
+
+      return new Date(year - 1, 9, 1);
+    };
+
+    const getHalfYearEnd = (startDate) => {
+      const year = startDate.getFullYear();
+      const month = startDate.getMonth();
+
+      if (month === 3) {
+        return new Date(year, 8, 30);
+      }
+
+      return new Date(year + 1, 2, 31);
+    };
+
+    // ==========================================
+    // 3. Calculate Monthly Closing Balances
+    // ==========================================
+
+    let runningBalance = 0;
+    let transactionIndex = 0;
+
+    const monthlyClosingBalances = {};
+
+    for (const item of sortedTransactions) {
+      const amount = Number(item.amount || 0);
+
+      if (item.type === "Credit") {
+        runningBalance += amount;
+      } else if (item.type === "Debit") {
+        runningBalance -= amount;
+      }
+
+      // Transactions are processed below month by month.
+    }
+
+    // Reset before chronological monthly calculation.
+    runningBalance = 0;
+    transactionIndex = 0;
+
+    const firstHalfYear = getHalfYearStart(firstDate);
+    const lastHalfYear = getHalfYearStart(lastDate);
+
+    const monthlyRows = [];
+
+    const currentMonth = new Date(
+      firstHalfYear.getFullYear(),
+      firstHalfYear.getMonth(),
+      1
+    );
+
+    const finalMonth = new Date(
+      lastHalfYear.getFullYear(),
+      lastHalfYear.getMonth() + 5,
+      1
+    );
+
+    while (currentMonth <= finalMonth) {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+
+      const monthEnd = new Date(year, month + 1, 0);
+
+      // Apply all transactions up to this month's last date.
+      while (transactionIndex < sortedTransactions.length) {
+        const item = sortedTransactions[transactionIndex];
+        const transactionDate = new Date(item.date);
+
+        if (transactionDate > monthEnd) {
+          break;
+        }
+
+        const amount = Number(item.amount || 0);
+
+        if (item.type === "Credit") {
+          runningBalance += amount;
+        } else if (item.type === "Debit") {
+          runningBalance -= amount;
+        }
+
+        transactionIndex++;
+      }
+
+      monthlyRows.push({
+        year,
+        month,
+        closingBalance: runningBalance,
+      });
+
+      monthlyClosingBalances[
+        `${year}-${String(month + 1).padStart(2, "0")}`
+      ] = runningBalance;
+
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+
+    // ==========================================
+    // 4. Generate Half-Yearly Interest Rows
+    // ==========================================
+
+    const summaryRows = [];
+
+    const periodStart = new Date(firstHalfYear);
+
+    while (periodStart <= lastHalfYear) {
+      const periodEnd = getHalfYearEnd(periodStart);
+
+      let sixMonthClosingBalanceSum = 0;
+
+      const periodMonths = [];
+
+      for (let i = 0; i < 6; i++) {
+        const monthDate = new Date(
+          periodStart.getFullYear(),
+          periodStart.getMonth() + i,
+          1
+        );
+
+        const key = `${monthDate.getFullYear()}-${String(
+          monthDate.getMonth() + 1
+        ).padStart(2, "0")}`;
+
+        const closingBalance =
+          monthlyClosingBalances[key] ?? 0;
+
+        sixMonthClosingBalanceSum += closingBalance;
+
+        periodMonths.push(closingBalance);
+      }
+
+      // Credit Rs = Sum of six monthly closing balances.
+      const creditAmount = Math.round(
+        sixMonthClosingBalanceSum
+      );
+
+      // Balance Rs = Half Yearly Thrift Interest + Credit Rs.
+      const totalBalance = Math.round(
+        Number(halfYearlyThriftInterest || 0) +
+        creditAmount
+      );
+
+      summaryRows.push({
+        date: periodEnd,
+        credit: creditAmount,
+        balance: totalBalance,
+      });
+
+      // Next half-year.
+      periodStart.setMonth(periodStart.getMonth() + 6);
+    }
+
+    // ==========================================
+    // 5. Render Half-Yearly Rows
+    // ==========================================
+
+    return summaryRows.map((item, index) => (
+      <tr
+        key={`${item.date.getFullYear()}-${item.date.getMonth()}`}
+        style={{
+          backgroundColor:
+            index % 2 === 0 ? "#ffffff" : "#fdfdfd",
+        }}
+      >
+        {/* Date of Interest */}
+        <td style={td}>
+          {item.date.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}
+        </td>
+
+        {/* Debit Rs */}
+        <td style={td}></td>
+
+        {/* Credit Rs */}
+        <td
+          style={{
+            ...td,
+            fontWeight: "700",
+            color: "#059669",
+          }}
+        >
+          ₹{item.credit.toFixed(0)}
+        </td>
+
+        {/* Balance Rs */}
+        <td
+          style={{
+            ...td,
+            fontWeight: "700",
+          }}
+        >
+          ₹{item.balance.toFixed(0)}
+        </td>
+
+        {/* Action */}
+        <td style={td}>-</td>
+      </tr>
+    ));
+  })()}
+</tbody>
+
       </table>
     </div>
 

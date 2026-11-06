@@ -334,6 +334,8 @@ const getEntryDate = (item) => {
 
       email:
         data.email || "",
+        
+      pfNumber: data.pf_no || data.pfNumber || "",
 
       profileImage:
         data.profileImage ||
@@ -1218,8 +1220,26 @@ const submitDebit = async () => {
                 )}
               </div>
             </div>
-            <input style={disabledInput} disabled value={member?.phoneNumber || ""} placeholder="Phone" />
-            <input style={disabledInput} disabled value={member?.email || ""} placeholder="Email" />
+<input
+  style={disabledInput}
+  disabled
+  value={member?.phoneNumber || ""}
+  placeholder="Phone"
+/>
+
+<input
+  style={disabledInput}
+  disabled
+  value={member?.email || ""}
+  placeholder="Email"
+/>
+
+<input
+  style={disabledInput}
+  disabled
+  value={member?.pfNumber || ""}
+  placeholder="PF Number"
+/>
           </div>
         </div>
 

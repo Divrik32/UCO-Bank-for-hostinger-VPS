@@ -1864,6 +1864,7 @@ const submitInterestAccruedAndPayable = async () => {
           <tr>
             {[
               "Date of Interest",
+              "Product",
               "Debit Rs",
               "Credit Rs",
               "Balance Rs",
@@ -1891,23 +1892,37 @@ const submitInterestAccruedAndPayable = async () => {
         new Date(a.date).getTime() -
         new Date(b.date).getTime()
     );
-
-    if (sortedTransactions.length === 0) {
-      return (
-        <tr>
-          <td
-            colSpan={5}
-            style={{
-              textAlign: "center",
-              padding: "28px",
-              color: "#aaa",
-            }}
-          >
-            No transactions found
-          </td>
-        </tr>
-      );
-    }
+if (sortedTransactions.length === 0) {
+  return (
+    <tr
+      key="previous-balance"
+      style={{ backgroundColor: "#eff6ff" }}
+    >
+      <td
+        style={{
+          ...td,
+          fontWeight: "800",
+          color: "#1e40af",
+        }}
+      >
+        Previous Balance
+      </td>
+      <td style={td}>-</td>
+      <td style={td}>-</td>
+      <td style={td}>-</td>
+      <td
+        style={{
+          ...td,
+          fontWeight: "800",
+          color: "#1e40af",
+        }}
+      >
+        ₹{Number(interestForm.totalInterestBalance || 0).toFixed(0)}
+      </td>
+      <td style={td}>-</td>
+    </tr>
+  );
+}
 
     // ==========================================
     // 2. Find First and Last Transaction Dates
@@ -2031,9 +2046,12 @@ const submitInterestAccruedAndPayable = async () => {
     // ==========================================
     // 4. Generate Half-Yearly Interest Rows
     // ==========================================
+// Previous Balance = Interest Accrued & Payable tab-এর Total Interest Balance
+const previousBalance = Number(
+  interestForm.totalInterestBalance || 0
+);
 
-    const summaryRows = [];
-
+const summaryRows = [];
     const periodStart = new Date(firstHalfYear);
 
     while (periodStart <= lastHalfYear) {
@@ -2067,71 +2085,258 @@ const submitInterestAccruedAndPayable = async () => {
         sixMonthClosingBalanceSum
       );
 
-      // Balance Rs = Half Yearly Thrift Interest + Credit Rs.
-      const totalBalance = Math.round(
-        Number(halfYearlyThriftInterest || 0) +
-        creditAmount
-      );
+const productAmount = creditAmount;
 
-      summaryRows.push({
-        date: periodEnd,
-        credit: creditAmount,
-        balance: totalBalance,
-      });
+const interestCredit = Math.round(
+  (productAmount * Number(interestRate || 0)) / 1200
+);
+
+// Balance Rs = Previous Balance + Current Row Credit Rs
+const totalBalance = Math.round(
+  previousBalance + interestCredit
+);
+
+const periodLabel = `${periodStart.toLocaleString("en-IN", {
+  month: "long",
+})} ${periodStart.getFullYear()} - ${periodEnd.toLocaleString("en-IN", {
+  month: "long",
+})} ${periodEnd.getFullYear()}`;
+
+summaryRows.push({
+  date: periodEnd,
+  periodLabel,
+  product: productAmount,
+  credit: interestCredit,
+  balance: totalBalance,
+});
 
       // Next half-year.
       periodStart.setMonth(periodStart.getMonth() + 6);
     }
 
-    // ==========================================
-    // 5. Render Half-Yearly Rows
-    // ==========================================
+// ==========================================
+// 5. Group Debit Transactions by Half-Year
+// ==========================================
 
-    return summaryRows.map((item, index) => (
-      <tr
-        key={`${item.date.getFullYear()}-${item.date.getMonth()}`}
+const getPeriodKey = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  if (month >= 3 && month <= 8) {
+    return `${year}-04`;
+  }
+
+  if (month >= 9) {
+    return `${year}-10`;
+  }
+
+  return `${year - 1}-10`;
+};
+
+// Only Debit Transactions
+const debitTransactionsByPeriod = {};
+
+interestTransactions
+  .filter(
+    (item) =>
+      Number(item.interestAccruedAndPayableDebit || 0) > 0
+  )
+  .sort(
+    (a, b) =>
+      new Date(a.transactionDate).getTime() -
+      new Date(b.transactionDate).getTime()
+  )
+  .forEach((item) => {
+    const transactionDate = new Date(item.transactionDate);
+
+    const periodKey = getPeriodKey(transactionDate);
+
+    if (!debitTransactionsByPeriod[periodKey]) {
+      debitTransactionsByPeriod[periodKey] = [];
+    }
+
+    debitTransactionsByPeriod[periodKey].push(item);
+  });
+
+// ==========================================
+// 6. Render Previous Balance, Summary & Debit Rows
+// ==========================================
+
+return (
+  <>
+    {/* Previous Balance - Always First Row */}
+    <tr
+      key="previous-balance"
+      style={{ backgroundColor: "#eff6ff" }}
+    >
+      <td
         style={{
-          backgroundColor:
-            index % 2 === 0 ? "#ffffff" : "#fdfdfd",
+          ...td,
+          fontWeight: "800",
+          color: "#1e40af",
         }}
       >
-        {/* Date of Interest */}
-        <td style={td}>
-          {item.date.toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })}
-        </td>
+        Previous Balance
+      </td>
 
-        {/* Debit Rs */}
-        <td style={td}></td>
+      <td style={td}>-</td>
+      <td style={td}>-</td>
+      <td style={td}>-</td>
 
-        {/* Credit Rs */}
-        <td
-          style={{
-            ...td,
-            fontWeight: "700",
-            color: "#059669",
-          }}
-        >
-          ₹{item.credit.toFixed(0)}
-        </td>
+      <td
+        style={{
+          ...td,
+          fontWeight: "800",
+          color: "#1e40af",
+        }}
+      >
+        ₹{previousBalance.toFixed(0)}
+      </td>
 
-        {/* Balance Rs */}
-        <td
-          style={{
-            ...td,
-            fontWeight: "700",
-          }}
-        >
-          ₹{item.balance.toFixed(0)}
-        </td>
+      <td style={td}>-</td>
+    </tr>
 
-        {/* Action */}
-        <td style={td}>-</td>
-      </tr>
-    ));
+    {/* Half-Yearly Summary Rows + Debit Transactions */}
+    {summaryRows.map((item, index) => {
+      const periodKey = getPeriodKey(item.date);
+
+      const debitItems =
+        debitTransactionsByPeriod[periodKey] || [];
+
+      return (
+        <>
+          {/* Half-Yearly Summary Row */}
+          <tr
+            key={`summary-${periodKey}`}
+            style={{
+              backgroundColor:
+                index % 2 === 0 ? "#ffffff" : "#fdfdfd",
+            }}
+          >
+            {/* Date of Interest */}
+            <td style={td}>
+              {item.periodLabel}
+            </td>
+
+            {/* Product */}
+            <td
+              style={{
+                ...td,
+                fontWeight: "700",
+              }}
+            >
+              ₹{item.product.toFixed(0)}
+            </td>
+
+            {/* Debit Rs */}
+            <td style={td}></td>
+
+            {/* Credit Rs */}
+            <td
+              style={{
+                ...td,
+                fontWeight: "700",
+                color: "#059669",
+              }}
+            >
+              ₹{item.credit.toFixed(0)}
+            </td>
+
+            {/* Balance Rs */}
+            <td
+              style={{
+                ...td,
+                fontWeight: "700",
+              }}
+            >
+              ₹{item.balance.toFixed(0)}
+            </td>
+
+            {/* Action */}
+            <td style={td}>-</td>
+          </tr>
+
+          {/* Debit Transactions Under This Half-Year */}
+          {debitItems.map((debitItem) => (
+            <tr
+              key={`debit-${debitItem._id}`}
+              style={{
+                backgroundColor: "#fff7ed",
+              }}
+            >
+              {/* Date of Interest */}
+              <td style={td}>
+                {new Date(
+                  debitItem.transactionDate
+                ).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </td>
+
+              {/* Product */}
+              <td style={td}>-</td>
+
+              {/* Debit Rs */}
+              <td
+                style={{
+                  ...td,
+                  fontWeight: "700",
+                  color: "#dc2626",
+                }}
+              >
+                ₹
+                {Number(
+                  debitItem.interestAccruedAndPayableDebit || 0
+                ).toFixed(0)}
+              </td>
+
+              {/* Credit Rs */}
+              <td style={td}></td>
+
+              {/* Balance Rs - Same as Parent Summary Row */}
+              <td
+                style={{
+                  ...td,
+                  fontWeight: "700",
+                }}
+              >
+                ₹{item.balance.toFixed(0)}
+              </td>
+
+              {/* Action */}
+              <td style={td}>
+                <button
+                  type="button"
+                  disabled={
+                    deletingInterestId === debitItem._id
+                  }
+                  onClick={() =>
+                    handleDeleteInterestTransaction(debitItem)
+                  }
+                  style={{
+                    border: "none",
+                    backgroundColor: "#fee2e2",
+                    color: "#dc2626",
+                    padding: "5px 10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                  }}
+                >
+                  {deletingInterestId === debitItem._id
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </>
+      );
+    })}
+  </>
+);
   })()}
 </tbody>
 

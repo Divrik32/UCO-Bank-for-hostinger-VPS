@@ -140,7 +140,7 @@ const [savingParticular, setSavingParticular] = useState(false);
   );
 
   const totalInterestBalance =
-    Number(halfYearlyThriftInterest || 0) +
+    // Number(halfYearlyThriftInterest || 0) +
     previousCredit -
     previousDebit +
     currentCredit -

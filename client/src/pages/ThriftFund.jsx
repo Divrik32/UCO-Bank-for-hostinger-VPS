@@ -81,6 +81,7 @@ const [interestForm, setInterestForm] = useState({
 
 const [interestTransactions, setInterestTransactions] = useState([]);
 const [deletingInterestId, setDeletingInterestId] = useState(null);
+const [deletingAllInterest, setDeletingAllInterest] = useState(false);
   const [withdrawalForm, setWithdrawalForm] = useState({
     withdrawalAmount: "",
     paymentMethod: withdrawalPaymentMethods[0] || "",
@@ -99,7 +100,60 @@ const txScrollRef = useRef(null);
 const [editingParticularIndex, setEditingParticularIndex] = useState(null);
 const [editingParticularValue, setEditingParticularValue] = useState("");
 const [savingParticular, setSavingParticular] = useState(false);
+// ==========================================
+// DELETE ALL INTEREST A/C RECORDS FOR MEMBER
+// ==========================================
+const handleDeleteAllInterestTransactions = async () => {
+  if (!member?.memberId) {
+    toast.error("Please search a member first");
+    return;
+  }
 
+  if (interestTransactions.length === 0) {
+    toast.error("No Interest A/C transactions found");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ALL Interest Accrued & Payable transactions for Member ${member.memberId}? This will delete all Credit and Debit entries.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setDeletingAllInterest(true);
+
+    const res = await api.delete(
+      `${API}/interest-accrued-payable/member/${encodeURIComponent(
+        member.memberId
+      )}`
+    );
+
+    if (res.data?.success) {
+      setInterestTransactions([]);
+
+      toast.success(
+        `${res.data.deletedCount ?? interestTransactions.length} Interest A/C transaction(s) deleted successfully`
+      );
+
+      // Refresh from backend
+      await fetchInterestTransactions(member.memberId);
+    } else {
+      toast.error(
+        res.data?.message || "Failed to delete Interest A/C transactions"
+      );
+    }
+  } catch (error) {
+    console.error("Delete all interest transactions error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to delete Interest A/C transactions"
+    );
+  } finally {
+    setDeletingAllInterest(false);
+  }
+};
   useLayoutEffect(() => {
     if (activeTab === "transaction" && txScrollRef.current) {
       const el = txScrollRef.current;
@@ -1919,7 +1973,37 @@ if (sortedTransactions.length === 0) {
       >
         ₹{Number(interestForm.totalInterestBalance || 0).toFixed(0)}
       </td>
-      <td style={td}>-</td>
+      <td style={td}>
+  <button
+    type="button"
+    onClick={handleDeleteAllInterestTransactions}
+    disabled={
+      interestTransactions.length === 0 ||
+      deletingAllInterest
+    }
+    style={{
+      border: "none",
+      backgroundColor:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "#e5e7eb"
+          : "#fee2e2",
+      color:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "#9ca3af"
+          : "#dc2626",
+      padding: "6px 12px",
+      borderRadius: "5px",
+      cursor:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "not-allowed"
+          : "pointer",
+      fontWeight: "600",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {deletingAllInterest ? "Deleting..." : "Delete All"}
+  </button>
+</td>
     </tr>
   );
 }
@@ -1962,86 +2046,99 @@ if (sortedTransactions.length === 0) {
       return new Date(year + 1, 2, 31);
     };
 
-    // ==========================================
-    // 3. Calculate Monthly Closing Balances
-    // ==========================================
 
-    let runningBalance = 0;
-    let transactionIndex = 0;
+// ==========================================
+// 3. Calculate Monthly Closing Balances
+// ==========================================
 
-    const monthlyClosingBalances = {};
+let runningBalance = 0;
+let transactionIndex = 0;
 
-    for (const item of sortedTransactions) {
-      const amount = Number(item.amount || 0);
+const monthlyClosingBalances = {};
 
-      if (item.type === "Credit") {
-        runningBalance += amount;
-      } else if (item.type === "Debit") {
-        runningBalance -= amount;
-      }
+// First and last half-year
+const firstHalfYear = getHalfYearStart(firstDate);
+const lastHalfYear = getHalfYearStart(lastDate);
 
-      // Transactions are processed below month by month.
+const monthlyRows = [];
+
+// Start from first half-year's first month
+const currentMonth = new Date(
+  firstHalfYear.getFullYear(),
+  firstHalfYear.getMonth(),
+  1
+);
+
+// End at last half-year's sixth month
+const finalMonth = new Date(
+  lastHalfYear.getFullYear(),
+  lastHalfYear.getMonth() + 5,
+  1
+);
+
+// Calculate each month's closing balance
+while (currentMonth <= finalMonth) {
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+
+  // Next month's first day
+  // This ensures the complete current month is included.
+  const nextMonthStart = new Date(
+    year,
+    month + 1,
+    1
+  );
+
+  // Apply all transactions before next month's first day
+  while (
+    transactionIndex < sortedTransactions.length
+  ) {
+    const item = sortedTransactions[transactionIndex];
+
+    const transactionDate = new Date(item.date);
+
+    // Stop when transaction belongs to next month or later
+    if (transactionDate >= nextMonthStart) {
+      break;
     }
 
-    // Reset before chronological monthly calculation.
-    runningBalance = 0;
-    transactionIndex = 0;
+    const amount = Number(item.amount || 0);
 
-    const firstHalfYear = getHalfYearStart(firstDate);
-    const lastHalfYear = getHalfYearStart(lastDate);
-
-    const monthlyRows = [];
-
-    const currentMonth = new Date(
-      firstHalfYear.getFullYear(),
-      firstHalfYear.getMonth(),
-      1
-    );
-
-    const finalMonth = new Date(
-      lastHalfYear.getFullYear(),
-      lastHalfYear.getMonth() + 5,
-      1
-    );
-
-    while (currentMonth <= finalMonth) {
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth();
-
-      const monthEnd = new Date(year, month + 1, 0);
-
-      // Apply all transactions up to this month's last date.
-      while (transactionIndex < sortedTransactions.length) {
-        const item = sortedTransactions[transactionIndex];
-        const transactionDate = new Date(item.date);
-
-        if (transactionDate > monthEnd) {
-          break;
-        }
-
-        const amount = Number(item.amount || 0);
-
-        if (item.type === "Credit") {
-          runningBalance += amount;
-        } else if (item.type === "Debit") {
-          runningBalance -= amount;
-        }
-
-        transactionIndex++;
-      }
-
-      monthlyRows.push({
-        year,
-        month,
-        closingBalance: runningBalance,
-      });
-
-      monthlyClosingBalances[
-        `${year}-${String(month + 1).padStart(2, "0")}`
-      ] = runningBalance;
-
-      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    if (item.type === "Credit") {
+      runningBalance += amount;
+    } else if (item.type === "Debit") {
+      runningBalance -= amount;
     }
+
+    transactionIndex++;
+  }
+
+  // Save monthly closing balance
+  const monthKey = `${year}-${String(
+    month + 1
+  ).padStart(2, "0")}`;
+
+  monthlyClosingBalances[monthKey] = runningBalance;
+
+  monthlyRows.push({
+    year,
+    month,
+    closingBalance: runningBalance,
+  });
+
+  // Debug log
+  console.log(
+    "Monthly Closing Balance:",
+    monthKey,
+    runningBalance
+  );
+
+  // Next month
+  currentMonth.setMonth(
+    currentMonth.getMonth() + 1
+  );
+}
+
 
     // ==========================================
     // 4. Generate Half-Yearly Interest Rows
@@ -2061,24 +2158,29 @@ const summaryRows = [];
 
       const periodMonths = [];
 
-      for (let i = 0; i < 6; i++) {
-        const monthDate = new Date(
-          periodStart.getFullYear(),
-          periodStart.getMonth() + i,
-          1
-        );
+for (let i = 0; i < 6; i++) {
+  const monthDate = new Date(
+    periodStart.getFullYear(),
+    periodStart.getMonth() + i,
+    1
+  );
 
-        const key = `${monthDate.getFullYear()}-${String(
-          monthDate.getMonth() + 1
-        ).padStart(2, "0")}`;
+  const key = `${monthDate.getFullYear()}-${String(
+    monthDate.getMonth() + 1
+  ).padStart(2, "0")}`;
 
-        const closingBalance =
-          monthlyClosingBalances[key] ?? 0;
+  const closingBalance =
+    Number(monthlyClosingBalances[key] ?? 0);
 
-        sixMonthClosingBalanceSum += closingBalance;
+  sixMonthClosingBalanceSum += closingBalance;
 
-        periodMonths.push(closingBalance);
-      }
+  periodMonths.push(closingBalance);
+}
+
+// Product = Sum of six monthly closing balances
+console.log("Six Month Closing Balances:", periodMonths);
+console.log("Final Product:", sixMonthClosingBalanceSum);
+
 
       // Credit Rs = Sum of six monthly closing balances.
       const creditAmount = Math.round(
@@ -2193,7 +2295,37 @@ return (
         ₹{previousBalance.toFixed(0)}
       </td>
 
-      <td style={td}>-</td>
+      <td style={td}>
+  <button
+    type="button"
+    onClick={handleDeleteAllInterestTransactions}
+    disabled={
+      interestTransactions.length === 0 ||
+      deletingAllInterest
+    }
+    style={{
+      border: "none",
+      backgroundColor:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "#e5e7eb"
+          : "#fee2e2",
+      color:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "#9ca3af"
+          : "#dc2626",
+      padding: "6px 12px",
+      borderRadius: "5px",
+      cursor:
+        interestTransactions.length === 0 || deletingAllInterest
+          ? "not-allowed"
+          : "pointer",
+      fontWeight: "600",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {deletingAllInterest ? "Deleting..." : "Delete All"}
+  </button>
+</td>
     </tr>
 
     {/* Half-Yearly Summary Rows + Debit Transactions */}

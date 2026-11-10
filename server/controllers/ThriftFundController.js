@@ -2973,6 +2973,36 @@ const deleteInterestAccruedAndPayable = async (req, res) => {
   }
 };
 
+const deleteAllInterestAccruedAndPayable = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    if (!memberId) {
+      return res.status(400).json({
+        success: false,
+        message: "Member ID is required",
+      });
+    }
+
+    const result = await InterestAccruedAndPayable.deleteMany({
+      memberId: memberId.trim(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "All interest accrued and payable entries deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete all interest accrued and payable error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ================= ALL MEMBER THRIFT BALANCE REPORT =================
 
 const getAllMemberThriftBalanceReport = async (req, res) => {
@@ -3399,6 +3429,7 @@ module.exports = {
   createInterestAccruedAndPayable,
   getInterestAccruedAndPayable,
   deleteInterestAccruedAndPayable,
+  deleteAllInterestAccruedAndPayable,
   getAllMemberThriftBalanceReport,
   deleteThriftTransaction
 };
